@@ -1605,9 +1605,12 @@ let _firstObserveBatch = true;
 const cardObserver = new IntersectionObserver((entries) => {
     entries.forEach((e, i) => {
         if (e.isIntersecting) {
-            // First batch appears fast, subsequent batches get subtle stagger
-            const delay = _firstObserveBatch ? (i % 3) * 30 : (i % 3) * 60;
-            setTimeout(() => e.target.classList.add('card-visible'), delay);
+            // First batch appears instantly, subsequent batches get subtle stagger
+            if (_firstObserveBatch) {
+                e.target.classList.add('card-visible');
+            } else {
+                setTimeout(() => e.target.classList.add('card-visible'), (i % 3) * 40);
+            }
             cardObserver.unobserve(e.target);
         }
     });
