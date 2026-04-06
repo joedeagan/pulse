@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PULSE — Trading Logically</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <!-- Navigation -->
+    <nav>
+        <div class="logo">
+            <div class="logo-icon">P</div>
+            <span class="logo-text">PULSE</span>
+            <span class="logo-tag">Trading Logically</span>
+        </div>
+        <div class="nav-links">
+            <a href="#markets" class="active">Markets</a>
+            <a href="#arbitrage">Arbitrage</a>
+        </div>
+    </nav>
+
+    <!-- Hero -->
+    <section class="hero">
+        <h1>PULSE</h1>
+        <p class="tagline">Trading Logically.</p>
+        <p>Cross-platform prediction market analytics. Real-time odds. AI-powered insights.</p>
+    </section>
+
+    <!-- Stats bar -->
+    <div class="stats-bar">
+        <div class="stat-item">
+            <div class="stat-value" id="market-count">—</div>
+            <div class="stat-label">Live Markets</div>
+        </div>
+        <div class="stat-item">
+            <div class="stat-value" id="platform-count">2</div>
+            <div class="stat-label">Platforms</div>
+        </div>
+        <div class="stat-item">
+            <div class="stat-value" id="arb-count">—</div>
+            <div class="stat-label">Opportunities</div>
+        </div>
+    </div>
+
+    <!-- Live Markets -->
+    <section id="markets">
+        <h2>Live Markets <span id="refresh-time"></span></h2>
+        <div class="market-grid">
+            <div class="market-card"><h3>Loading...</h3></div>
+        </div>
+    </section>
+
+    <!-- AI Analysis popup -->
+    <div id="ai-popup" style="display:none;">
+        <div id="ai-popup-content">
+            <button id="ai-close" onclick="closeAI()">✕</button>
+            <h3 id="ai-title">Analyzing...</h3>
+            <div id="ai-body">Thinking...</div>
+        </div>
+    </div>
+
+    <!-- Arbitrage -->
+    <section id="arbitrage">
+        <h2>Arbitrage Opportunities</h2>
+        <p style="color: var(--text-dim); font-size: 14px;">Scanning for cross-platform price differences...</p>
+    </section>
+
+    <script src="app.js"></script>
+</body>
+</html>
