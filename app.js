@@ -405,6 +405,19 @@ function shortenTitle(t) {
     return t;
 }
 
+// ── PULSE RING SVG HELPER ──
+function makePulseRing(score, size) {
+    size = size || 28;
+    const color = score >= 70 ? '#00d68f' : score >= 40 ? '#f0b000' : '#ff3b5c';
+    return `<svg class="pulse-ring" width="${size}" height="${size}" viewBox="0 0 36 36">
+        <circle cx="18" cy="18" r="15" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="3"/>
+        <circle cx="18" cy="18" r="15" fill="none" stroke="${color}" stroke-width="3"
+            stroke-dasharray="${score * 0.94} 100" stroke-dashoffset="0"
+            stroke-linecap="round" transform="rotate(-90 18 18)" style="transition:stroke-dasharray 0.5s"/>
+        <text x="18" y="20" text-anchor="middle" fill="${color}" font-size="11" font-weight="700" font-family="var(--font)">${score}</text>
+    </svg>`;
+}
+
 // ── CREATE A MARKET CARD ──
 function createMarketCard(market, platform, priceChange) {
     const card = document.createElement('div');
@@ -443,13 +456,7 @@ function createMarketCard(market, platform, priceChange) {
     const starClass = starred ? 'star-btn starred' : 'star-btn';
     const marketUrl = market.url || '#';
 
-    const pulseRing = `<svg class="pulse-ring" width="28" height="28" viewBox="0 0 36 36">
-        <circle cx="18" cy="18" r="15" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="3"/>
-        <circle cx="18" cy="18" r="15" fill="none" stroke="${pulseColor}" stroke-width="3"
-            stroke-dasharray="${pulseScore * 0.94} 100" stroke-dashoffset="0"
-            stroke-linecap="round" transform="rotate(-90 18 18)" style="transition:stroke-dasharray 0.5s"/>
-        <text x="18" y="20" text-anchor="middle" fill="${pulseColor}" font-size="11" font-weight="700" font-family="var(--font)">${pulseScore}</text>
-    </svg>`;
+    const pulseRing = makePulseRing(pulseScore);
 
     card.innerHTML = `
         <div class="card-top-row">
@@ -2252,7 +2259,7 @@ function createGroupCard(group) {
     card.innerHTML = `
         <div class="card-top-row">
             <span class="badge group-badge">GROUP</span>
-            <span class="pulse-score" style="color:${scoreColor}" title="Avg Pulse Score">${avgScore}</span>
+            ${makePulseRing(avgScore)}
         </div>
         <h3>${group.groupTitle}</h3>
         <div class="group-preview">
@@ -2347,20 +2354,12 @@ function buildTrendingPanel() {
         const m = t.market;
         const card = document.createElement('div');
         card.className = 'market-card trending-card';
-        const scoreColor = t.currentScore >= 70 ? '#00d68f' : t.currentScore >= 40 ? '#f0b000' : '#ff3b5c';
-
         card.innerHTML = `
             <div class="card-top-row">
                 <span class="badge ${m.source === 'kalshi' ? 'kalshi-badge' : 'poly-badge'}">${m.source === 'kalshi' ? 'KALSHI' : 'POLY'}</span>
                 <div style="display:flex;align-items:center;gap:8px;">
                     <span class="trending-change">+${t.change}</span>
-                    <svg class="pulse-ring" width="36" height="36" viewBox="0 0 36 36">
-                        <circle cx="18" cy="18" r="15" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="3"/>
-                        <circle cx="18" cy="18" r="15" fill="none" stroke="${scoreColor}" stroke-width="3"
-                            stroke-dasharray="${t.currentScore * 0.94} 100" stroke-dashoffset="0"
-                            stroke-linecap="round" transform="rotate(-90 18 18)"/>
-                        <text x="18" y="20" text-anchor="middle" fill="${scoreColor}" font-size="11" font-weight="700" font-family="var(--font)">${t.currentScore}</text>
-                    </svg>
+                    ${makePulseRing(t.currentScore)}
                 </div>
             </div>
             <h3>${shortenTitle(m.question)}</h3>
