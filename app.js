@@ -839,82 +839,78 @@ function analyzeMarket(market) {
     const title = document.getElementById('ai-title');
     const body = document.getElementById('ai-body');
 
-    // Show the popup
     popup.style.display = 'flex';
     title.textContent = market.question;
-    body.innerHTML = '<div style="color:#555;">Analyzing with AI...</div>';
+    body.innerHTML = '<div style="color:var(--text-dim);">Analyzing...</div>';
 
-    // Build the analysis locally (no API call needed — we analyze with the data we have)
-    // In a full version, this would call Claude's API
     setTimeout(() => {
         const yes = market.yes;
         const no = market.no;
-        const edge = market.edge || 0;
-        const pnl = market.pnl || 0;
         const volume = market.volume || 0;
+        const change = getMarketChange(market.ticker) || 0;
+        const pulse = calcPulseScore(market, change);
+        const volFmt = volume >= 1e6 ? '$' + (volume / 1e6).toFixed(1) + 'M' : volume >= 1e3 ? '$' + (volume / 1e3).toFixed(0) + 'K' : '$' + volume;
 
-        let analysis = '';
-        let verdictClass = 'verdict-hold';
+        let sections = [];
         let verdict = '';
+        let verdictClass = '';
+        let side = '';
 
-        // Price analysis
-        if (yes >= 80) {
-            analysis += `<p><strong>Very likely YES</strong> — market prices this at ${yes}% probability. Low upside betting YES (only ${100-yes}¢ profit per contract). NO is a longshot.</p>`;
-        } else if (yes <= 20) {
-            analysis += `<p><strong>Very likely NO</strong> — market prices this at only ${yes}% chance. YES is a longshot. NO has low upside.</p>`;
-        } else if (yes >= 50) {
-            analysis += `<p><strong>Leaning YES</strong> — market says ${yes}% probability. Moderate confidence.</p>`;
+        // 1. WHICH SIDE? — The core question
+        if (yes >= 75) {
+            side = 'YES';
+            sections.push(`<div class="ai-section"><strong style="color:#00d68f;">Market strongly favors YES (${yes}%)</strong><br>The crowd is very confident this happens. Buying YES only profits ${100-yes}¢ per contract. Buying NO is a longshot but pays ${no}¢ if you're right.</div>`);
+        } else if (yes <= 25) {
+            side = 'NO';
+            sections.push(`<div class="ai-section"><strong style="color:#ff3b5c;">Market strongly favors NO (${no}%)</strong><br>The crowd thinks this probably won't happen. Buying NO only profits ${100-no}¢ per contract. Buying YES is a longshot but pays ${yes > 0 ? (100-yes) + '¢' : 'big'} if you're right.</div>`);
+        } else if (yes >= 55) {
+            side = 'YES';
+            sections.push(`<div class="ai-section"><strong style="color:#00d68f;">Slight lean toward YES (${yes}%)</strong><br>Market thinks this is more likely than not, but it's close. There's decent upside on both sides.</div>`);
+        } else if (yes <= 45) {
+            side = 'NO';
+            sections.push(`<div class="ai-section"><strong style="color:#ff3b5c;">Slight lean toward NO (${no}%)</strong><br>Market thinks this probably won't happen, but it's not certain. Both sides have room to profit.</div>`);
         } else {
-            analysis += `<p><strong>Leaning NO</strong> — market says only ${yes}% chance YES happens.</p>`;
+            side = 'EITHER';
+            sections.push(`<div class="ai-section"><strong style="color:#f0b000;">True coin flip (${yes}% / ${no}%)</strong><br>Market has no strong opinion. This is where big profits come from — if you have an edge on either side, this is a great entry point.</div>`);
         }
 
-        // Edge analysis
-        if (edge > 0.08) {
-            analysis += `<p style="color:#00cc88;">Strong edge detected: ${(edge*100).toFixed(1)}%. This is above average — the model sees a real mispricing.</p>`;
+        // 2. MOMENTUM — Is price moving?
+        if (Math.abs(change) >= 3) {
+            const dir = change > 0 ? 'YES' : 'NO';
+            const color = change > 0 ? '#00d68f' : '#ff3b5c';
+            sections.push(`<div class="ai-section"><strong style="color:${color};">Price moving toward ${dir}</strong> (${change > 0 ? '+' : ''}${change}¢ recently)<br>Money is flowing ${dir}. This trend could continue or reverse — momentum matters.</div>`);
+        } else if (Math.abs(change) > 0) {
+            sections.push(`<div class="ai-section"><strong>Minor price movement</strong> (${change > 0 ? '+' : ''}${change}¢)<br>Small shift, nothing dramatic yet.</div>`);
+        }
+
+        // 3. VOLUME — Can you actually trade it?
+        if (volume >= 100000) {
+            sections.push(`<div class="ai-section"><strong>High volume</strong> (${volFmt})<br>Very liquid — easy to buy and sell. Price is well-tested by many traders.</div>`);
+        } else if (volume >= 5000) {
+            sections.push(`<div class="ai-section"><strong>Moderate volume</strong> (${volFmt})<br>Enough liquidity to trade. Price is reasonably reliable.</div>`);
+        } else if (volume > 0) {
+            sections.push(`<div class="ai-section"><strong style="color:#f0b000;">Low volume</strong> (${volFmt})<br>Thin market — price may not be reliable. Could be hard to exit your position.</div>`);
+        }
+
+        // 4. VERDICT
+        if (pulse >= 67 && Math.abs(change) >= 2) {
             verdictClass = 'verdict-yes';
-            verdict = `BET ${market.side?.toUpperCase() || 'YES'} — ${(edge*100).toFixed(1)}% edge`;
-        } else if (edge > 0.04) {
-            analysis += `<p style="color:#f0b000;">Moderate edge: ${(edge*100).toFixed(1)}%. Worth considering but not a slam dunk.</p>`;
+            verdict = side === 'EITHER'
+                ? `GOOD ENTRY — Active market, pick your side`
+                : `BUY ${side} — Strong market activity, momentum is there`;
+        } else if (pulse >= 34) {
             verdictClass = 'verdict-hold';
-            verdict = `CONSIDER — ${(edge*100).toFixed(1)}% edge, proceed with caution`;
-        } else if (edge > 0) {
-            analysis += `<p>Small edge: ${(edge*100).toFixed(1)}%. Barely profitable after fees. Probably skip.</p>`;
+            verdict = `WATCHLIST — Decent market but wait for a clearer signal`;
+        } else {
             verdictClass = 'verdict-no';
-            verdict = 'SKIP — edge too small after costs';
-        }
-
-        // P&L analysis for existing positions
-        if (pnl !== 0) {
-            if (pnl > 0) {
-                analysis += `<p style="color:#00cc88;">Currently profitable: +$${pnl.toFixed(2)}. Consider taking profit if price is near your target.</p>`;
-            } else {
-                analysis += `<p style="color:#ff4466;">Currently losing: $${pnl.toFixed(2)}. Review if the thesis still holds — cut losers fast.</p>`;
-            }
-        }
-
-        // Volume analysis
-        if (volume > 10000) {
-            analysis += `<p>High volume ($${Math.round(volume).toLocaleString()}/day) — liquid market, easy to enter and exit.</p>`;
-        } else if (volume > 0 && volume < 500) {
-            analysis += `<p style="color:#f0b000;">Low volume ($${Math.round(volume).toLocaleString()}/day) — be careful, may be hard to exit.</p>`;
-        }
-
-        // Default verdict if none set
-        if (!verdict) {
-            if (yes >= 40 && yes <= 60) {
-                verdict = 'COIN FLIP — no clear edge, wait for more data';
-                verdictClass = 'verdict-hold';
-            } else {
-                verdict = 'NO EDGE DETECTED — market is probably fairly priced';
-                verdictClass = 'verdict-hold';
-            }
+            verdict = `PASS — Low activity, not worth trading right now`;
         }
 
         body.innerHTML = `
-            ${analysis}
+            ${sections.join('')}
             <div class="verdict ${verdictClass}">${verdict}</div>
         `;
-    }, 500);
+    }, 300);
 }
 
 function closeAI() {

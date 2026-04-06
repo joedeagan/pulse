@@ -465,6 +465,16 @@ section h2 span {
     margin-bottom: 12px;
 }
 
+.ai-section {
+    padding: 10px 12px;
+    margin-bottom: 10px;
+    background: rgba(255, 255, 255, 0.03);
+    border-radius: 8px;
+    border-left: 3px solid var(--border);
+    font-size: 13px;
+    line-height: 1.6;
+}
+
 .verdict {
     margin-top: 20px;
     padding: 14px 16px;
