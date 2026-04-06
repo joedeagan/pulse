@@ -298,7 +298,10 @@ function createMarketCard(market, platform) {
         : '<span class="badge poly-badge">POLY</span>';
 
     card.innerHTML = `
-        ${badge}
+        <div class="card-top-row">
+            ${badge}
+            <button class="ai-btn" title="AI Analysis">⚡</button>
+        </div>
         <h3>${title}</h3>
         <div class="prices">
             <span style="color:${yesColor};font-weight:600;">YES ${market.yes}¢</span>
@@ -330,8 +333,18 @@ function createMarketCard(market, platform) {
     // Draw after card is in the DOM
     setTimeout(() => drawSparkline(sparkCanvas, fakeHistory), 100);
 
-    // Make the card clickable — opens AI analysis
-    card.addEventListener('click', () => analyzeMarket(market));
+    // Card click → open on platform
+    card.addEventListener('click', (e) => {
+        // Don't navigate if they clicked the AI button
+        if (e.target.closest('.ai-btn')) return;
+        if (market.url) window.open(market.url, '_blank');
+    });
+
+    // AI button → analysis popup
+    card.querySelector('.ai-btn').addEventListener('click', (e) => {
+        e.stopPropagation();
+        analyzeMarket(market);
+    });
 
     // Store for filtering
     allMarketCards.push({ card, market });

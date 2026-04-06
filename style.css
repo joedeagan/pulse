@@ -585,12 +585,99 @@ nav, section, .stats-bar, #ai-popup, #filters {
 }
 
 
+/* ── CARD TOP ROW (badge + AI button) ── */
+.card-top-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.ai-btn {
+    background: rgba(0, 136, 255, 0.1);
+    border: 1px solid rgba(0, 136, 255, 0.2);
+    color: var(--accent);
+    font-size: 13px;
+    padding: 3px 8px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-family: var(--font);
+}
+
+.ai-btn:hover {
+    background: rgba(0, 136, 255, 0.25);
+    border-color: var(--accent);
+    transform: scale(1.1);
+}
+
 /* ── MOBILE ── */
 @media (max-width: 768px) {
-    nav { padding: 0 20px; }
+    nav {
+        padding: 0 16px;
+        gap: 8px;
+    }
     .logo-tag { display: none; }
-    .hero h1 { font-size: 36px; }
-    .stats-bar { gap: 20px; margin: 0 20px; flex-wrap: wrap; }
-    section { padding: 24px 20px; }
-    .market-grid { grid-template-columns: 1fr; }
+    .nav-search {
+        display: none;
+    }
+    .nav-links {
+        gap: 4px;
+    }
+    .nav-links a {
+        font-size: 12px;
+        padding: 6px 12px;
+    }
+    .hero {
+        padding: 50px 16px 30px;
+    }
+    .hero h1 {
+        font-size: 36px;
+        letter-spacing: 6px;
+    }
+    .tagline {
+        font-size: 13px;
+        letter-spacing: 5px;
+    }
+    .hero p:last-of-type {
+        font-size: 13px;
+    }
+    #logo-canvas {
+        width: 140px;
+        height: 140px;
+    }
+    .stats-bar {
+        gap: 16px;
+        margin: 0 16px;
+        padding: 16px;
+    }
+    .stat-value { font-size: 18px; }
+    .stat-label { font-size: 10px; }
+    section {
+        padding: 20px 16px;
+    }
+    section h2 {
+        font-size: 17px;
+    }
+    .market-grid {
+        grid-template-columns: 1fr;
+        gap: 10px;
+    }
+    .market-card {
+        padding: 16px;
+    }
+    .market-card h3 {
+        font-size: 13px;
+    }
+    .filter-chips {
+        gap: 6px;
+    }
+    .chip {
+        padding: 6px 14px;
+        font-size: 12px;
+    }
+    #ai-popup-content {
+        padding: 24px 20px;
+        max-width: 95%;
+        max-height: 80vh;
+    }
 }

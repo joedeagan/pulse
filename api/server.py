@@ -143,6 +143,7 @@ async def get_kalshi():
                         "volume": vol,
                         "source": "kalshi",
                         "category": categorize(title + " " + event_title),
+                        "url": f"https://kalshi.com/markets/{event_ticker}",
                     })
 
                 if len(result) >= 30:
@@ -178,6 +179,7 @@ async def get_polymarket():
                 except Exception:
                     pass
 
+                slug = m.get("slug", m.get("conditionId", ""))
                 result.append({
                     "question": m.get("question", "?"),
                     "ticker": m.get("conditionId", ""),
@@ -186,6 +188,7 @@ async def get_polymarket():
                     "volume": float(m.get("volume", 0)),
                     "source": "poly",
                     "category": categorize(m.get("question", "")),
+                    "url": f"https://polymarket.com/event/{slug}",
                 })
 
             result.sort(key=lambda x: x["volume"], reverse=True)
