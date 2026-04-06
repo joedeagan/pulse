@@ -11,15 +11,12 @@ async function loadMarkets() {
     const grid = document.querySelector('.market-grid');
     grid.innerHTML = '<div class="market-card"><h3>Loading...</h3></div>';
 
-    // Fetch from both platforms AT THE SAME TIME
-    // Promise.allSettled runs multiple fetches in parallel — faster than doing them one at a time
-    const [kalshiResult, polyResult] = await Promise.allSettled([
-        fetchKalshi(),
-        fetchPolymarket(),
-    ]);
+    // Fetch from both platforms
+    let kalshiMarkets = [];
+    let polyMarkets = [];
 
-    let kalshiMarkets = kalshiResult.status === 'fulfilled' ? kalshiResult.value : [];
-    let polyMarkets = polyResult.status === 'fulfilled' ? polyResult.value : [];
+    try { kalshiMarkets = await fetchKalshi(); } catch(e) {}
+    try { polyMarkets = await fetchPolymarket(); } catch(e) {}
 
     // If both APIs failed (CORS on GitHub Pages), show sample data
     if (kalshiMarkets.length === 0 && polyMarkets.length === 0) {
