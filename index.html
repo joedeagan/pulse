@@ -121,6 +121,10 @@
             <div class="stat-value" id="arb-count">—</div>
             <div class="stat-label">Opportunities</div>
         </div>
+        <div class="stat-item">
+            <div class="stat-value" id="accuracy-stat">—</div>
+            <div class="stat-label">Accuracy</div>
+        </div>
     </div>
 
     <!-- Filter chips + Sort -->
@@ -215,6 +219,19 @@
     <!-- AI Market Brief -->
     <section id="ai-brief">
         <div id="ai-brief-content"></div>
+    </section>
+
+    <!-- Email Signup -->
+    <section id="email-signup" class="reveal">
+        <div class="signup-card">
+            <h3>Daily Market Digest</h3>
+            <p>Get the top 5 movers and Pulse Score alerts delivered to your inbox every morning.</p>
+            <div class="signup-form">
+                <input type="email" id="signup-email" placeholder="your@email.com">
+                <button onclick="submitSignup()">Subscribe</button>
+            </div>
+            <p class="signup-note" id="signup-status"></p>
+        </div>
     </section>
 
     <!-- Arbitrage -->

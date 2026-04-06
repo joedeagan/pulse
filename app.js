@@ -1826,7 +1826,7 @@ function openDetail(market, platform) {
     setTimeout(() => drawDetailChart(canvas, detailChartData), 50);
 }
 
-function drawDetailChart(canvas, data) {
+function _drawDetailChartBase(canvas, data) {
     const ctx = canvas.getContext('2d');
     const w = canvas.width;
     const h = canvas.height;
@@ -1896,6 +1896,86 @@ function drawDetailChart(canvas, data) {
     ctx.font = 'bold 13px Sora, sans-serif';
     ctx.textAlign = 'left';
     ctx.fillText(Math.round(data[data.length-1]) + '\u00A2', lastX + 6, lastY + 4);
+
+    return { min, max, range, color };
+}
+
+function drawDetailChart(canvas, data) {
+    const chartInfo = _drawDetailChartBase(canvas, data);
+    if (!chartInfo) return;
+
+    // Store data for hover
+    canvas._chartData = data;
+    canvas._chartInfo = chartInfo;
+
+    // Set up hover (only once)
+    if (!canvas._hoverBound) {
+        canvas._hoverBound = true;
+
+        canvas.onmousemove = function(e) {
+            const d = canvas._chartData;
+            const info = canvas._chartInfo;
+            if (!d || !info) return;
+
+            const rect = canvas.getBoundingClientRect();
+            const mouseX = e.clientX - rect.left;
+            const ratio = mouseX / rect.width;
+            const idx = Math.round(ratio * (d.length - 1));
+            if (idx < 0 || idx >= d.length) return;
+
+            // Redraw base
+            _drawDetailChartBase(canvas, d);
+
+            const ctx = canvas.getContext('2d');
+            const w = canvas.width;
+            const h = canvas.height;
+            const x = (idx / (d.length - 1)) * w;
+            const y = h - 20 - ((d[idx] - info.min) / info.range) * (h - 40);
+
+            // Crosshair
+            ctx.strokeStyle = 'rgba(255,255,255,0.15)';
+            ctx.lineWidth = 1;
+            ctx.setLineDash([4, 4]);
+            ctx.beginPath();
+            ctx.moveTo(x, 0);
+            ctx.lineTo(x, h);
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            // Dot
+            ctx.beginPath();
+            ctx.arc(x, y, 5, 0, Math.PI * 2);
+            ctx.fillStyle = d[idx] >= d[0] ? 'rgb(0, 214, 143)' : 'rgb(255, 59, 92)';
+            ctx.fill();
+            ctx.strokeStyle = '#fff';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+
+            // Tooltip
+            ctx.fillStyle = 'rgba(13,13,21,0.9)';
+            const tooltipW = 60;
+            const tooltipH = 28;
+            const tx = Math.min(x - tooltipW/2, w - tooltipW - 4);
+            const ty = y - tooltipH - 10;
+            ctx.beginPath();
+            ctx.roundRect(Math.max(4, tx), Math.max(4, ty), tooltipW, tooltipH, 6);
+            ctx.fill();
+            ctx.strokeStyle = 'rgba(255,255,255,0.15)';
+            ctx.lineWidth = 1;
+            ctx.stroke();
+
+            ctx.fillStyle = '#fff';
+            ctx.font = 'bold 13px Sora, sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText(Math.round(d[idx]) + '\u00A2', Math.max(4, tx) + tooltipW/2, Math.max(4, ty) + 19);
+        };
+
+        canvas.onmouseleave = function() {
+            if (canvas._chartData) {
+                _drawDetailChartBase(canvas, canvas._chartData);
+            }
+        };
+    }
 }
 
 function closeDetail() {
@@ -2122,11 +2202,16 @@ function sendNotification(title, body, tag) {
     } catch (e) { console.warn('Notification failed:', e); }
 }
 
-function checkPriceAlerts(kalshiMarkets, polyMarkets) {
-    if (!notificationsEnabled) return;
-    const watchlist = getWatchlist();
-    if (watchlist.length === 0) return;
+function showPriceToast(title, price, direction) {
+    const toast = document.createElement('div');
+    toast.className = 'toast price-toast';
+    toast.innerHTML = `<span class="toast-icon">${direction === 'up' ? '\uD83D\uDCC8' : '\uD83D\uDCC9'}</span> <strong>${title}</strong> \u2192 YES ${price}\u00A2`;
+    document.body.appendChild(toast);
+    setTimeout(() => toast.remove(), 4000);
+}
 
+function checkPriceAlerts(kalshiMarkets, polyMarkets) {
+    const watchlist = getWatchlist();
     const allMarkets = [...kalshiMarkets, ...polyMarkets];
     const newPrices = {};
 
@@ -2140,13 +2225,22 @@ function checkPriceAlerts(kalshiMarkets, polyMarkets) {
         const oldPrice = previousPrices[m.ticker];
         if (oldPrice === undefined) continue;  // First time seeing this market
 
+        // Check 10-cent boundary crossings
+        const oldBucket = Math.floor(oldPrice / 10);
+        const newBucket = Math.floor(m.yes / 10);
+        if (oldBucket !== newBucket) {
+            const direction = m.yes > oldPrice ? 'up' : 'down';
+            const title = shortenTitle(m.question);
+            showPriceToast(title, m.yes, direction);
+        }
+
         const diff = Math.abs(m.yes - oldPrice);
-        if (diff >= 5) {
-            const direction = m.yes > oldPrice ? '📈' : '📉';
+        if (diff >= 5 && notificationsEnabled) {
+            const dirIcon = m.yes > oldPrice ? '\uD83D\uDCC8' : '\uD83D\uDCC9';
             const title = shortenTitle(m.question);
             sendNotification(
-                `${direction} ${title}`,
-                `Moved ${diff}¢ → now YES ${m.yes}¢ (was ${oldPrice}¢)`,
+                `${dirIcon} ${title}`,
+                `Moved ${diff}\u00A2 \u2192 now YES ${m.yes}\u00A2 (was ${oldPrice}\u00A2)`,
                 'price-' + m.ticker
             );
         }
@@ -2334,52 +2428,119 @@ function checkPulseScoreSpikes(allMarkets) {
 function buildTrendingPanel() {
     const grid = document.getElementById('trending-grid');
     if (!grid) return;
+    grid.innerHTML = '';
 
+    const allMarkets = allMarketCards.map(c => c.market);
+
+    // ── Section 1: Biggest Price Movers ──
+    const movers = findBiggestMovers(allMarkets);
+    if (movers.length > 0) {
+        const header1 = document.createElement('div');
+        header1.className = 'trending-section-header';
+        header1.innerHTML = '<span class="trending-section-icon">🔥</span> Biggest Movers';
+        grid.appendChild(header1);
+        for (const t of movers.slice(0, 6)) {
+            grid.appendChild(makeTrendingCard(t.market, t.change, 'price'));
+        }
+    }
+
+    // ── Section 2: Pulse Score Risers ──
     const prevScores = {};
     try { Object.assign(prevScores, JSON.parse(localStorage.getItem('pulse-prev-scores') || '{}')); } catch {}
-
-    const trending = [];
+    const risers = [];
     for (const {market} of allMarketCards) {
         const currentScore = calcPulseScore(market, 0);
         const prevScore = prevScores[market.ticker];
         if (prevScore !== undefined) {
             const change = currentScore - prevScore;
-            trending.push({ market, currentScore, prevScore, change });
+            if (change > 0) risers.push({ market, currentScore, change });
+        }
+    }
+    risers.sort((a, b) => b.change - a.change);
+    if (risers.length > 0) {
+        const header2 = document.createElement('div');
+        header2.className = 'trending-section-header';
+        header2.innerHTML = '<span class="trending-section-icon">📈</span> Pulse Score Rising';
+        grid.appendChild(header2);
+        for (const t of risers.slice(0, 6)) {
+            grid.appendChild(makeTrendingCard(t.market, t.change, 'pulse'));
         }
     }
 
-    trending.sort((a, b) => b.change - a.change);
-
-    grid.innerHTML = '';
-
-    if (trending.length === 0 || trending[0].change <= 0) {
-        grid.innerHTML = '<div class="market-card"><h3 style="color:var(--text-dim);">No trending markets yet \u2014 scores update every refresh cycle</h3></div>';
-        return;
+    // ── Section 3: Top Pulse Scores (always available) ──
+    const topPulse = allMarketCards
+        .map(c => ({ market: c.market, score: calcPulseScore(c.market, 0) }))
+        .sort((a, b) => b.score - a.score)
+        .slice(0, 6);
+    const header3 = document.createElement('div');
+    header3.className = 'trending-section-header';
+    header3.innerHTML = '<span class="trending-section-icon">⚡</span> Highest Confidence';
+    grid.appendChild(header3);
+    for (const t of topPulse) {
+        grid.appendChild(makeTrendingCard(t.market, t.score, 'top'));
     }
 
-    for (const t of trending.filter(t => t.change > 0).slice(0, 12)) {
-        const m = t.market;
-        const card = document.createElement('div');
-        card.className = 'market-card trending-card';
-        card.innerHTML = `
-            <div class="card-top-row">
-                <span class="badge ${m.source === 'kalshi' ? 'kalshi-badge' : 'poly-badge'}">${m.source === 'kalshi' ? 'KALSHI' : 'POLY'}</span>
-                <div style="display:flex;align-items:center;gap:8px;">
-                    <span class="trending-change">+${t.change}</span>
-                    ${makePulseRing(t.currentScore)}
-                </div>
-            </div>
-            <h3>${shortenTitle(m.question)}</h3>
-            <div class="prices">
-                <span style="color:${m.yes >= 50 ? '#00d68f' : '#ff3b5c'};font-weight:600;">YES ${m.yes}\u00A2</span>
-                <span style="color:#333;margin:0 4px;">\u00B7</span>
-                <span style="color:${m.no >= 50 ? '#00d68f' : '#ff3b5c'};font-weight:600;">NO ${m.no}\u00A2</span>
-            </div>
-        `;
-
-        card.addEventListener('click', () => openDetail(m, m.source || 'poly'));
-        grid.appendChild(card);
+    // ── Section 4: Highest Volume ──
+    const topVol = [...allMarkets]
+        .filter(m => m.volume > 0)
+        .sort((a, b) => (b.volume || 0) - (a.volume || 0))
+        .slice(0, 6);
+    if (topVol.length > 0) {
+        const header4 = document.createElement('div');
+        header4.className = 'trending-section-header';
+        header4.innerHTML = '<span class="trending-section-icon">💰</span> Most Traded';
+        grid.appendChild(header4);
+        for (const m of topVol) {
+            grid.appendChild(makeTrendingCard(m, m.volume, 'volume'));
+        }
     }
+
+    if (grid.children.length === 0) {
+        grid.innerHTML = '<div class="market-card"><h3 style="color:var(--text-dim);">No trending data yet — scores update every refresh cycle</h3></div>';
+    }
+}
+
+function makeTrendingCard(m, value, type) {
+    const card = document.createElement('div');
+    card.className = 'market-card trending-card';
+    const pulseScore = calcPulseScore(m, 0);
+    const pulseColor = pulseScore >= 70 ? '#00d68f' : pulseScore >= 40 ? '#f0b000' : '#ff3b5c';
+
+    let tagHtml = '';
+    if (type === 'price') {
+        const sign = value >= 0 ? '+' : '';
+        const color = value >= 0 ? '#00d68f' : '#ff3b5c';
+        tagHtml = `<span class="trending-change" style="color:${color};">${sign}${value}¢</span>`;
+    } else if (type === 'pulse') {
+        tagHtml = `<span class="trending-change" style="color:#00d68f;">+${value} pulse</span>`;
+    } else if (type === 'top') {
+        tagHtml = `<span class="trending-change" style="color:${pulseColor};">Score: ${value}</span>`;
+    } else if (type === 'volume') {
+        const fmt = value >= 1e6 ? (value / 1e6).toFixed(1) + 'M' : value >= 1e3 ? (value / 1e3).toFixed(0) + 'K' : value.toFixed(0);
+        tagHtml = `<span class="trending-change" style="color:#8b5cf6;">$${fmt}</span>`;
+    }
+
+    card.innerHTML = `
+        <div class="card-top-row">
+            <span class="badge ${m.source === 'kalshi' ? 'kalshi-badge' : 'poly-badge'}">${m.source === 'kalshi' ? 'KALSHI' : 'POLY'}</span>
+            <div style="display:flex;align-items:center;gap:8px;">
+                ${tagHtml}
+            </div>
+        </div>
+        <h3>${shortenTitle(m.question)}</h3>
+        <div class="prices">
+            <span style="color:${m.yes >= 50 ? '#00d68f' : '#ff3b5c'};font-weight:600;">YES ${m.yes}¢</span>
+            <span style="color:#333;margin:0 4px;">·</span>
+            <span style="color:${m.no >= 50 ? '#00d68f' : '#ff3b5c'};font-weight:600;">NO ${m.no}¢</span>
+        </div>
+        <div class="card-pulse-footer">
+            <span class="card-pulse-label">PULSE</span>
+            <span class="card-pulse-score" style="color:${pulseColor};">${pulseScore}</span>
+        </div>
+    `;
+
+    card.addEventListener('click', () => openDetail(m, m.source || 'poly'));
+    return card;
 }
 
 // ── AUTO REFRESH with countdown ──
@@ -2828,6 +2989,120 @@ loadPortfolio = function() {
     drawPortfolioChart();
 };
 
+
+// ── SHARE POPUP (Feature 2) ──
+function showSharePopup(market) {
+    const ps = calcPulseScore(market, 0);
+    const text = `${market.question}\n\nYES ${market.yes}\u00A2 \u00B7 NO ${market.no}\u00A2\nPulse Score: ${ps}/99\n\n${market.url || 'via PULSE \u2014 pulse-api-joed.onrender.com'}`;
+    const encodedText = encodeURIComponent(text);
+    const twitterUrl = `https://twitter.com/intent/tweet?text=${encodedText}`;
+    const redditUrl = `https://reddit.com/submit?title=${encodeURIComponent(market.question)}&url=${encodeURIComponent(market.url || 'https://pulse-api-joed.onrender.com')}`;
+
+    const popup = document.createElement('div');
+    popup.className = 'share-popup';
+    const safeText = text.replace(/\\/g, '\\\\').replace(/`/g, '\\`');
+    popup.innerHTML = `
+        <div class="share-popup-content">
+            <h4>Share Market</h4>
+            <button onclick="navigator.clipboard.writeText(\`${safeText}\`).then(()=>{this.textContent='Copied!';setTimeout(()=>this.closest('.share-popup').remove(),1000)})">Copy to Clipboard</button>
+            <a href="${twitterUrl}" target="_blank" onclick="this.closest('.share-popup').remove()">Share on X</a>
+            <a href="${redditUrl}" target="_blank" onclick="this.closest('.share-popup').remove()">Share on Reddit</a>
+            <button onclick="this.closest('.share-popup').remove()" class="share-cancel">Cancel</button>
+        </div>
+    `;
+    document.body.appendChild(popup);
+}
+
+// ── EMBED WIDGET (Feature 9) ──
+function showEmbedCode(market) {
+    const ps = calcPulseScore(market, 0);
+    const psColor = ps >= 70 ? '#00d68f' : ps >= 40 ? '#f0b000' : '#ff3b5c';
+    const code = `<div style="background:#0d0d15;border:1px solid rgba(255,255,255,0.06);border-radius:12px;padding:16px;font-family:system-ui;max-width:320px;color:#e8e8ed;">
+  <div style="font-size:9px;letter-spacing:1.5px;color:#5a5a6e;margin-bottom:8px;">PULSE MARKET</div>
+  <div style="font-size:14px;font-weight:500;margin-bottom:12px;">${market.question}</div>
+  <div style="display:flex;gap:12px;margin-bottom:8px;">
+    <span style="color:${market.yes >= 50 ? '#00d68f' : '#ff3b5c'};font-weight:600;">YES ${market.yes}\u00A2</span>
+    <span style="color:${market.no >= 50 ? '#00d68f' : '#ff3b5c'};font-weight:600;">NO ${market.no}\u00A2</span>
+  </div>
+  <div style="display:flex;justify-content:space-between;border-top:1px solid rgba(255,255,255,0.06);padding-top:8px;">
+    <span style="font-size:11px;color:#5a5a6e;letter-spacing:2px;font-weight:700;">PULSE</span>
+    <span style="font-size:18px;font-weight:800;color:${psColor};">${ps}</span>
+  </div>
+  <a href="${market.url || 'https://pulse-api-joed.onrender.com'}" target="_blank" style="font-size:11px;color:#0088ff;text-decoration:none;display:block;margin-top:8px;">View on PULSE \u2192</a>
+</div>`;
+
+    const popup = document.createElement('div');
+    popup.className = 'share-popup';
+    popup.innerHTML = `
+        <div class="share-popup-content">
+            <h4>Embed This Market</h4>
+            <textarea class="embed-textarea" readonly onclick="this.select()">${code.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</textarea>
+            <button onclick="navigator.clipboard.writeText(this.closest('.share-popup-content').querySelector('textarea').textContent).then(()=>{this.textContent='Copied!';setTimeout(()=>this.closest('.share-popup').remove(),1000)})">Copy Embed Code</button>
+            <button onclick="this.closest('.share-popup').remove()" class="share-cancel">Cancel</button>
+        </div>
+    `;
+    document.body.appendChild(popup);
+}
+
+// ── MARKET INSIGHTS (Feature 3) ──
+function getMarketInsights(market) {
+    const ps = calcPulseScore(market, 0);
+    const cat = market.category || categorize(market.question);
+    const vol = market.volume || 0;
+    const change = getMarketChange(market.ticker);
+
+    const insights = [];
+
+    if (ps >= 70) insights.push({ icon: '\uD83D\uDD25', text: `High confidence signal \u2014 Pulse Score ${ps}/99` });
+    else if (ps <= 30) insights.push({ icon: '\u26A0\uFE0F', text: 'Low confidence \u2014 thin volume or uncertain outcome' });
+
+    if (Math.abs(change) >= 5) insights.push({ icon: change > 0 ? '\uD83D\uDCC8' : '\uD83D\uDCC9', text: `Price moved ${Math.abs(change)}\u00A2 recently \u2014 ${change > 0 ? 'bullish' : 'bearish'} momentum` });
+
+    if (vol > 1000000) insights.push({ icon: '\uD83D\uDCB0', text: `$${(vol/1e6).toFixed(1)}M traded \u2014 institutional-level volume` });
+    else if (vol > 100000) insights.push({ icon: '\uD83D\uDCCA', text: `$${(vol/1e3).toFixed(0)}K traded \u2014 healthy liquidity` });
+    else if (vol < 1000) insights.push({ icon: '\uD83D\uDEA8', text: 'Very low volume \u2014 price may be unreliable' });
+
+    if (market.yes >= 90) insights.push({ icon: '\u2705', text: 'Market sees this as near-certain YES' });
+    else if (market.yes <= 10) insights.push({ icon: '\u274C', text: 'Market sees this as near-certain NO' });
+    else if (market.yes >= 45 && market.yes <= 55) insights.push({ icon: '\uD83C\uDFB2', text: 'True coin flip \u2014 maximum uncertainty' });
+
+    if (cat === 'crypto') insights.push({ icon: '\u20BF', text: 'Crypto markets are highly volatile \u2014 prices can swing 10\u00A2+ in hours' });
+    if (cat === 'politics') insights.push({ icon: '\uD83C\uDFDB\uFE0F', text: 'Political markets often price in polling data and insider sentiment' });
+    if (cat === 'sports') insights.push({ icon: '\u26BD', text: 'Sports markets adjust quickly as game time approaches' });
+
+    return insights.slice(0, 4);
+}
+
+// ── EMAIL SIGNUP (Feature 8) ──
+function submitSignup() {
+    const email = document.getElementById('signup-email').value.trim();
+    if (!email || !email.includes('@')) {
+        document.getElementById('signup-status').textContent = 'Please enter a valid email';
+        return;
+    }
+    let emails = [];
+    try { emails = JSON.parse(localStorage.getItem('pulse-signups') || '[]'); } catch {}
+    if (!emails.includes(email)) emails.push(email);
+    localStorage.setItem('pulse-signups', JSON.stringify(emails));
+    document.getElementById('signup-status').textContent = '\u2713 Subscribed! (Feature coming soon)';
+    document.getElementById('signup-email').value = '';
+}
+
+// ── ACCURACY TRACKER (Feature 10) ──
+function calculateAccuracy() {
+    const history = getPriceSnapshots();
+    let correct = 0, total = 0;
+    for (const {market} of allMarketCards) {
+        const ps = calcPulseScore(market, 0);
+        const h = history[market.ticker] || [];
+        if (h.length < 3) continue;
+        const priceDir = h[h.length-1].p > h[0].p ? 'up' : 'down';
+        // If high pulse score and price trending in YES direction, or low score and trending NO
+        if ((ps >= 60 && priceDir === 'up') || (ps < 40 && priceDir === 'down')) correct++;
+        total++;
+    }
+    return total > 5 ? Math.round((correct / total) * 100) : null;
+}
 
 // ── PULSE SCORE EXPLAINER ──
 if (localStorage.getItem('pulse-explainer-dismissed') === 'true') {
