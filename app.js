@@ -11,6 +11,62 @@
 const API_BASE = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
     ? '' : (window.location.origin.includes('github.io') ? 'https://pulse-api-joed.onrender.com' : '');
 
+// ── TAB NAVIGATION ──
+function switchTab(tab, btn) {
+    // Update active nav link
+    document.querySelectorAll('.nav-links a').forEach(a => a.classList.remove('active'));
+    if (btn) btn.classList.add('active');
+
+    // Define which elements belong to each view
+    const heroEl = document.querySelector('.hero');
+    const statsEl = document.querySelector('.stats-bar');
+    const filtersEl = document.getElementById('filters');
+    const marketsEl = document.getElementById('markets');
+    const botEl = document.getElementById('bot-panel');
+    const arbEl = document.getElementById('arbitrage');
+
+    const marketsView = [heroEl, statsEl, filtersEl, marketsEl];
+    const botView = [botEl];
+    const arbView = [arbEl];
+    const allSections = [...marketsView, ...botView, ...arbView];
+
+    // Hide everything
+    allSections.forEach(el => { if (el) el.classList.add('view-hidden'); });
+
+    // Show the selected view
+    let visible = [];
+    if (tab === 'markets') visible = marketsView;
+    else if (tab === 'bot') visible = botView;
+    else if (tab === 'arbitrage') visible = arbView;
+
+    visible.forEach(el => { if (el) el.classList.remove('view-hidden'); });
+}
+
+// ── WATCHLIST ──
+function getWatchlist() {
+    try {
+        return JSON.parse(localStorage.getItem('pulse-watchlist') || '[]');
+    } catch { return []; }
+}
+
+function toggleWatchlist(ticker, btn) {
+    let wl = getWatchlist();
+    if (wl.includes(ticker)) {
+        wl = wl.filter(t => t !== ticker);
+        btn.classList.remove('starred');
+        btn.textContent = '\u2606';
+    } else {
+        wl.push(ticker);
+        btn.classList.add('starred');
+        btn.textContent = '\u2605';
+    }
+    localStorage.setItem('pulse-watchlist', JSON.stringify(wl));
+}
+
+function isStarred(ticker) {
+    return getWatchlist().includes(ticker);
+}
+
 let firstLoad = true;
 async function loadMarkets() {
     const grid = document.querySelector('.market-grid');
@@ -62,6 +118,16 @@ async function loadMarkets() {
     allMarketCards = [];  // Reset for filtering
     firstLoad = false;
 
+    // Sort starred markets to top within each platform
+    const wl = getWatchlist();
+    const sortByStarred = (arr) => {
+        return [...arr].sort((a, b) => {
+            const aStarred = wl.includes(a.ticker) ? 1 : 0;
+            const bStarred = wl.includes(b.ticker) ? 1 : 0;
+            return bStarred - aStarred;
+        });
+    };
+
     // Show Kalshi markets
     if (kalshiMarkets.length > 0) {
         const header = document.createElement('div');
@@ -69,7 +135,7 @@ async function loadMarkets() {
         header.innerHTML = '<h3>KALSHI</h3>';
         grid.appendChild(header);
 
-        for (const m of kalshiMarkets) {
+        for (const m of sortByStarred(kalshiMarkets)) {
             grid.appendChild(createMarketCard(m, 'kalshi'));
         }
     }
@@ -81,7 +147,7 @@ async function loadMarkets() {
         header.innerHTML = '<h3>POLYMARKET</h3>';
         grid.appendChild(header);
 
-        for (const m of polyMarkets) {
+        for (const m of sortByStarred(polyMarkets)) {
             grid.appendChild(createMarketCard(m, 'poly'));
         }
     }
@@ -268,8 +334,9 @@ function createMarketCard(market, platform) {
     const card = document.createElement('div');
     card.className = 'market-card';
 
-    const yesColor = market.yes >= 50 ? '#00cc88' : '#888';
-    const noColor = market.no >= 50 ? '#ff4466' : '#888';
+    // Color-code prices by confidence level
+    const yesColor = market.yes >= 70 ? '#00d68f' : market.yes <= 30 ? '#ff3b5c' : '#8b8b99';
+    const noColor = market.no >= 70 ? '#00d68f' : market.no <= 30 ? '#ff3b5c' : '#8b8b99';
 
     // Clean up the title — make it short and punchy
     let title = shortenTitle(market.question);
@@ -297,16 +364,28 @@ function createMarketCard(market, platform) {
         ? '<span class="badge kalshi-badge">KALSHI</span>'
         : '<span class="badge poly-badge">POLY</span>';
 
+    const starred = isStarred(market.ticker);
+    const starChar = starred ? '\u2605' : '\u2606';
+    const starClass = starred ? 'star-btn starred' : 'star-btn';
+    const marketUrl = market.url || '#';
+
     card.innerHTML = `
         <div class="card-top-row">
             ${badge}
-            <button class="ai-btn" title="AI Analysis">⚡</button>
+            <div style="display:flex;align-items:center;gap:6px;">
+                <button class="${starClass}" title="Add to watchlist">${starChar}</button>
+                <button class="ai-btn" title="AI Analysis">\u26A1</button>
+            </div>
         </div>
         <h3>${title}</h3>
         <div class="prices">
-            <span style="color:${yesColor};font-weight:600;">YES ${market.yes}¢</span>
-            <span style="color:#333;margin:0 8px;">·</span>
-            <span style="color:${noColor};font-weight:600;">NO ${market.no}¢</span>
+            <span style="color:${yesColor};font-weight:600;">YES ${market.yes}\u00A2</span>
+            <span style="color:#333;margin:0 8px;">\u00B7</span>
+            <span style="color:${noColor};font-weight:600;">NO ${market.no}\u00A2</span>
+        </div>
+        <div class="buy-btns">
+            <a class="buy-btn buy-yes" href="${marketUrl}" target="_blank" onclick="event.stopPropagation();">Buy YES</a>
+            <a class="buy-btn buy-no" href="${marketUrl}" target="_blank" onclick="event.stopPropagation();">Buy NO</a>
         </div>
         ${extraInfo}
     `;
@@ -335,8 +414,8 @@ function createMarketCard(market, platform) {
 
     // Card click → open on platform
     card.addEventListener('click', (e) => {
-        // Don't navigate if they clicked the AI button
-        if (e.target.closest('.ai-btn')) return;
+        // Don't navigate if they clicked a button or link
+        if (e.target.closest('.ai-btn') || e.target.closest('.star-btn') || e.target.closest('.buy-btn')) return;
         if (market.url) window.open(market.url, '_blank');
     });
 
@@ -344,6 +423,12 @@ function createMarketCard(market, platform) {
     card.querySelector('.ai-btn').addEventListener('click', (e) => {
         e.stopPropagation();
         analyzeMarket(market);
+    });
+
+    // Star button → toggle watchlist
+    card.querySelector('.star-btn').addEventListener('click', (e) => {
+        e.stopPropagation();
+        toggleWatchlist(market.ticker, e.target);
     });
 
     // Store for filtering
@@ -531,7 +616,7 @@ function filterMarkets() {
     for (const {card, market} of allMarketCards) {
         const text = (market.question || '').toLowerCase();
         const matchesSearch = !query || text.includes(query);
-        const matchesFilter = currentFilter === 'all' || categorize(market.question) === currentFilter;
+        const matchesFilter = currentFilter === 'all' || (market.category || categorize(market.question)) === currentFilter;
         card.style.display = (matchesSearch && matchesFilter) ? '' : 'none';
     }
 }
@@ -546,10 +631,15 @@ function setFilter(filter, btn) {
 // Categorize a market by its title
 function categorize(title) {
     const t = (title || '').toLowerCase();
-    if (t.includes('bitcoin') || t.includes('btc') || t.includes('ethereum') || t.includes('eth') || t.includes('crypto') || t.includes('sol')) return 'crypto';
-    if (t.includes('nba') || t.includes('mlb') || t.includes('nfl') || t.includes('nhl') || t.includes('lakers') || t.includes('yankees') || t.includes('game') || t.includes('win')) return 'sports';
-    if (t.includes('trump') || t.includes('election') || t.includes('president') || t.includes('senate') || t.includes('congress')) return 'politics';
-    if (t.includes('rain') || t.includes('snow') || t.includes('weather') || t.includes('temperature')) return 'weather';
+    if (['bitcoin','btc','ethereum','eth','crypto','doge','token'].some(w => t.includes(w))) return 'crypto';
+    if (['nba','mlb','nfl','nhl','soccer','tennis','golf','ufc','boxing','f1',
+         'world cup','champions league','premier league','playoffs','championship',
+         'lakers','yankees','braves','dodgers','warriors','celtics',
+         'olympics','medal','grand slam','hockey','baseball','basketball','football'].some(w => t.includes(w))) return 'sports';
+    if (['trump','election','president','senate','congress','biden','governor',
+         'democrat','republican','vote','parliament','supreme court',
+         'war','ukraine','russia','china','nato','military','invasion','conflict'].some(w => t.includes(w))) return 'politics';
+    if (['rain','snow','weather','temperature','hurricane','tornado','storm','flood','drought'].some(w => t.includes(w))) return 'weather';
     return 'other';
 }
 
@@ -599,17 +689,60 @@ function drawSparkline(canvas, data) {
 
 
 // ── THEME TOGGLE ──
+// ── SETTINGS DROPDOWN ──
+function toggleSettings() {
+    const menu = document.getElementById('settings-menu');
+    menu.classList.toggle('open');
+}
+
+// Close dropdown when clicking outside
+document.addEventListener('click', (e) => {
+    if (!e.target.closest('.settings-dropdown')) {
+        const menu = document.getElementById('settings-menu');
+        if (menu) menu.classList.remove('open');
+    }
+});
+
 function toggleTheme() {
     document.body.classList.toggle('light');
-    const btn = document.getElementById('theme-toggle');
-    btn.textContent = document.body.classList.contains('light') ? '🌙' : '☀';
-    localStorage.setItem('pulse-theme', document.body.classList.contains('light') ? 'light' : 'dark');
+    const isLight = document.body.classList.contains('light');
+    const icon = document.getElementById('theme-icon');
+    const label = document.getElementById('theme-label');
+    if (icon) icon.innerHTML = isLight ? '&#9789;' : '&#9728;';
+    if (label) label.textContent = isLight ? 'Dark Mode' : 'Light Mode';
+    localStorage.setItem('pulse-theme', isLight ? 'light' : 'dark');
+}
+
+let autoRefreshEnabled = true;
+let refreshInterval1, refreshInterval2;
+
+function toggleAutoRefresh() {
+    autoRefreshEnabled = !autoRefreshEnabled;
+    const label = document.getElementById('autorefresh-label');
+    if (label) label.textContent = 'Auto-Refresh: ' + (autoRefreshEnabled ? 'ON' : 'OFF');
+    if (!autoRefreshEnabled) {
+        clearInterval(refreshInterval1);
+        clearInterval(refreshInterval2);
+    } else {
+        refreshInterval1 = setInterval(loadMarkets, 120000);
+        refreshInterval2 = setInterval(loadBot, 120000);
+    }
+}
+
+function clearWatchlist() {
+    localStorage.removeItem('pulse-watchlist');
+    loadMarkets();
+    const menu = document.getElementById('settings-menu');
+    if (menu) menu.classList.remove('open');
 }
 
 // Load saved theme
 if (localStorage.getItem('pulse-theme') === 'light') {
     document.body.classList.add('light');
-    document.getElementById('theme-toggle').textContent = '🌙';
+    const icon = document.getElementById('theme-icon');
+    const label = document.getElementById('theme-label');
+    if (icon) icon.innerHTML = '&#9789;';
+    if (label) label.textContent = 'Dark Mode';
 }
 
 
@@ -1118,6 +1251,14 @@ function decodeTicker(ticker) {
     // Fallback: use last part as team
     if (TEAMS[lastPart]) return `${sport} ${TEAMS[lastPart]}`;
     if (sport) return `${sport} Game`;
+
+    // Non-sport tickers
+    if (type.includes('FED')) return 'Fed Rate Decision';
+    if (type.includes('CPI')) return 'CPI Report';
+    if (type.includes('GDP')) return 'GDP Report';
+    if (type.includes('POPE')) return 'Next Pope';
+    if (type.includes('INX') || type.includes('SPX')) return 'S&P 500';
+    if (type.includes('BTC')) return 'Bitcoin';
     return ticker.substring(0, 25) + '...';
 }
 
@@ -1137,14 +1278,23 @@ async function loadBot() {
 
         document.getElementById('bot-trades').textContent = bot.trades_today || 0;
 
+        // Total P&L
+        const totalPnl = (bot.positions || []).reduce((sum, p) => sum + (p.upnl || p.pnl || 0), 0);
+        const pnlEl = document.getElementById('bot-total-pnl');
+        if (pnlEl) {
+            const pnlText = totalPnl >= 0 ? '+$' + totalPnl.toFixed(2) : '-$' + Math.abs(totalPnl).toFixed(2);
+            pnlEl.textContent = pnlText;
+            pnlEl.className = 'bot-stat-value ' + (totalPnl >= 0 ? 'running' : 'stopped');
+        }
+
         // Render positions
         const posDiv = document.getElementById('bot-positions');
         if (bot.positions && bot.positions.length > 0) {
             posDiv.innerHTML = '<h3 style="font-size:13px;color:var(--text-dim);letter-spacing:2px;margin-bottom:8px;">OPEN POSITIONS</h3>' +
                 bot.positions.map(p => {
-                    const pnl = p.pnl || 0;
+                    const pnl = p.upnl || p.pnl || 0;
                     const pnlClass = pnl >= 0 ? 'positive' : 'negative';
-                    const pnlStr = (pnl >= 0 ? '+' : '') + '$' + pnl.toFixed(2);
+                    const pnlStr = pnl >= 0 ? '+$' + pnl.toFixed(2) : '-$' + Math.abs(pnl).toFixed(2);
                     const posTitle = p.title && !p.title.includes('KX') ? p.title : decodeTicker(p.ticker);
                     const contracts = p.contracts || p.count || 1;
                     return `<div class="bot-position">
@@ -1159,13 +1309,22 @@ async function loadBot() {
             posDiv.innerHTML = '<p style="color:var(--text-dim);font-size:13px;">No open positions</p>';
         }
     } catch(e) {
-        // Bot offline — hide panel
-        document.getElementById('bot-panel').style.display = 'none';
+        // Bot offline — show error message instead of hiding
+        document.getElementById('bot-balance').textContent = '—';
+        document.getElementById('bot-status').textContent = 'Offline';
+        document.getElementById('bot-status').className = 'bot-stat-value stopped';
     }
 }
 
-// ── AUTO REFRESH (every 2 min so it doesn't disrupt scrolling) ──
-setInterval(loadMarkets, 120000);
-setInterval(loadBot, 120000);
+// ── AUTO REFRESH with countdown ──
+let refreshCountdown = 120;
+refreshInterval1 = setInterval(loadMarkets, 120000);
+refreshInterval2 = setInterval(loadBot, 120000);
+setInterval(() => {
+    refreshCountdown--;
+    if (refreshCountdown <= 0) refreshCountdown = 120;
+    const el = document.getElementById('refresh-countdown');
+    if (el) el.textContent = `Next refresh: ${refreshCountdown}s`;
+}, 1000);
 loadMarkets();
 loadBot();

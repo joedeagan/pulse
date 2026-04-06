@@ -182,7 +182,7 @@ async def get_polymarket():
         async with httpx.AsyncClient() as client:
             resp = await client.get(
                 "https://gamma-api.polymarket.com/markets",
-                params={"closed": "false", "limit": 30},
+                params={"closed": "false", "limit": 100},
                 timeout=15,
             )
             data = resp.json()
@@ -263,29 +263,57 @@ async def get_bot():
 
 def categorize(title):
     t = (title or "").lower()
-    if any(w in t for w in ["bitcoin", "btc", "ethereum", "eth", "crypto", "sol", "doge"]):
+    if any(w in t for w in ["bitcoin", "btc", "ethereum", "eth", "crypto", "sol ", "doge", "coin", "token"]):
         return "crypto"
-    if any(w in t for w in ["nba", "mlb", "nfl", "nhl", "game", "win", "lakers", "yankees"]):
+    if any(w in t for w in ["nba", "mlb", "nfl", "nhl", "hockey", "baseball", "basketball", "football",
+                             "soccer", "tennis", "golf", "ufc", "mma", "boxing", "f1", "nascar",
+                             "world cup", "champions league", "premier league", "serie a",
+                             "lakers", "yankees", "braves", "dodgers", "cubs", "mets",
+                             "warriors", "celtics", "playoffs", "championship", "match",
+                             "grand slam", "olympics", "medal"]):
         return "sports"
-    if any(w in t for w in ["trump", "election", "president", "senate", "congress", "biden"]):
+    if any(w in t for w in ["trump", "election", "president", "senate", "congress", "biden",
+                             "governor", "democrat", "republican", "vote", "poll", "cabinet",
+                             "minister", "parliament", "legislation", "bill pass",
+                             "supreme court", "political", "party", "primary"]):
         return "politics"
-    if any(w in t for w in ["rain", "snow", "weather", "temperature"]):
+    if any(w in t for w in ["rain", "snow", "weather", "temperature", "hurricane", "tornado",
+                             "flood", "drought", "heat wave", "storm", "celsius", "fahrenheit"]):
         return "weather"
+    # Catch war/geopolitics separately from weather
+    if any(w in t for w in ["war", "ukraine", "russia", "china", "nato", "military",
+                             "cease", "invasion", "conflict", "missile", "nuclear"]):
+        return "politics"
     return "other"
 
 
 def find_arbitrage(kalshi_markets, poly_markets):
     opportunities = []
-    keywords = ["bitcoin", "btc", "ethereum", "eth", "trump", "election", "fed"]
+    # Broad keyword list to match similar markets across platforms
+    keywords = [
+        "bitcoin", "btc", "ethereum", "eth", "crypto",
+        "trump", "election", "president", "biden",
+        "fed", "rate", "interest rate", "inflation", "cpi",
+        "recession", "gdp", "unemployment",
+        "pope", "ukraine", "russia", "china", "nato",
+        "ai", "openai", "chatgpt",
+        "tesla", "spacex", "musk",
+        "world cup", "super bowl", "nba", "mlb",
+    ]
 
+    seen = set()  # avoid duplicate pairs
     for k in kalshi_markets:
         k_title = (k.get("question") or "").lower()
         for p in poly_markets:
             p_title = (p.get("question") or "").lower()
+            pair_key = (k.get("ticker", ""), p.get("ticker", ""))
+            if pair_key in seen:
+                continue
             for keyword in keywords:
                 if keyword in k_title and keyword in p_title:
                     diff = abs(k["yes"] - p["yes"])
-                    if diff >= 3:
+                    if diff >= 2:  # lowered threshold from 3 to 2
+                        seen.add(pair_key)
                         opportunities.append({
                             "topic": keyword.upper(),
                             "kalshi": k,
@@ -293,6 +321,7 @@ def find_arbitrage(kalshi_markets, poly_markets):
                             "diff": diff,
                             "direction": "Buy POLY" if k["yes"] > p["yes"] else "Buy KALSHI",
                         })
+                    break  # only match first keyword per pair
 
     opportunities.sort(key=lambda x: x["diff"], reverse=True)
     return opportunities[:10]
