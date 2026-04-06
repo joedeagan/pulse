@@ -1326,10 +1326,11 @@ body.light .buy-no:hover { background: #e53e3e; color: #fff; }
 
 /* ── PULSE SCORE EXPLAINER — full-width banner ── */
 .pulse-explainer {
-    width: 100%;
+    width: 100vw;
+    margin-left: calc(-50vw + 50%);
     padding: 0;
-    margin: 0;
     position: relative;
+    z-index: 1;
 }
 
 .pulse-explainer-card {
@@ -1341,7 +1342,7 @@ body.light .buy-no:hover { background: #e53e3e; color: #fff; }
     border-radius: 0;
     padding: 40px 40px;
     text-align: center;
-    max-width: 100%;
+    width: 100%;
 }
 
 .pulse-explainer-card h3 {
