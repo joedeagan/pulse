@@ -31,13 +31,15 @@ function switchTab(tab, btn) {
     const filtersEl = document.getElementById('filters');
     const marketsEl = document.getElementById('markets');
     const briefEl = document.getElementById('ai-brief');
+    const explainerEl = document.getElementById('pulse-explainer');
+    const signupEl = document.getElementById('email-signup');
     const botEl = document.getElementById('bot-panel');
     const portfolioEl = document.getElementById('portfolio-panel');
     const arbEl = document.getElementById('arbitrage');
     const corrEl = document.getElementById('correlations-panel');
     const trendingEl = document.getElementById('trending-panel');
 
-    const marketsView = [heroEl, statsEl, filtersEl, marketsEl, briefEl];
+    const marketsView = [heroEl, statsEl, filtersEl, marketsEl, briefEl, explainerEl, signupEl];
     const botView = [botEl];
     const portfolioView = [portfolioEl];
     const arbView = [arbEl];
@@ -55,6 +57,7 @@ function switchTab(tab, btn) {
     else if (tab === 'portfolio') { visible = portfolioView; loadPortfolio(); }
     else if (tab === 'arbitrage') visible = arbView;
     else if (tab === 'trending') { visible = trendingView; buildTrendingPanel(); }
+    else if (tab === 'correlations') { visible = corrView; }
 
     visible.forEach(el => { if (el) el.classList.remove('view-hidden'); });
 }
@@ -167,53 +170,47 @@ async function loadMarkets() {
     // Calculate biggest movers
     const movers = findBiggestMovers(allMkts);
 
-    // Show Biggest Movers section if any
-    if (movers.length > 0) {
-        const moverHeader = document.createElement('div');
-        moverHeader.className = 'platform-header movers-header';
-        moverHeader.innerHTML = '<h3>🔥 BIGGEST MOVERS</h3>';
-        grid.appendChild(moverHeader);
+    // Merge all markets into one unified list
+    _marketGroups = {};
+    const allCards = [];
 
-        for (const m of movers.slice(0, 4)) {
-            grid.appendChild(createMarketCard(m.market, m.market.source || 'kalshi', m.change));
+    // Add Kalshi markets
+    for (const m of kalshiMarkets) {
+        m.source = 'kalshi';
+        const change = getMarketChange(m.ticker);
+        allCards.push({ market: m, platform: 'kalshi', change, score: calcPulseScore(m, change) });
+    }
+
+    // Add Polymarket markets (flatten groups — show top market from each group)
+    const grouped = groupSimilarMarkets(sortByStarred(polyMarkets));
+    for (const item of grouped) {
+        if (item.isGroup) {
+            _marketGroups[item.groupTitle] = item;
+            // Use the highest-volume market from the group as the representative card
+            const topMarket = item.markets.sort((a, b) => (b.volume || 0) - (a.volume || 0))[0];
+            topMarket.source = 'poly';
+            topMarket._groupTitle = item.groupTitle;
+            topMarket._groupCount = item.markets.length;
+            const change = getMarketChange(topMarket.ticker);
+            allCards.push({ market: topMarket, platform: 'poly', change, score: calcPulseScore(topMarket, change) });
+        } else {
+            item.source = 'poly';
+            const change = getMarketChange(item.ticker);
+            allCards.push({ market: item, platform: 'poly', change, score: calcPulseScore(item, change) });
         }
     }
 
-    // Show Kalshi markets
-    if (kalshiMarkets.length > 0) {
-        const header = document.createElement('div');
-        header.className = 'platform-header';
-        header.innerHTML = '<h3>KALSHI</h3>';
-        grid.appendChild(header);
+    // Sort: starred first, then by pulse score (highest first)
+    allCards.sort((a, b) => {
+        const aStarred = wl.includes(a.market.ticker) ? 1 : 0;
+        const bStarred = wl.includes(b.market.ticker) ? 1 : 0;
+        if (bStarred !== aStarred) return bStarred - aStarred;
+        return b.score - a.score;
+    });
 
-        for (const m of sortByStarred(kalshiMarkets)) {
-            const change = getMarketChange(m.ticker);
-            grid.appendChild(createMarketCard(m, 'kalshi', change));
-        }
-    }
-
-    // Show Polymarket markets (with grouping for similar markets)
-    if (polyMarkets.length > 0) {
-        const header = document.createElement('div');
-        header.className = 'platform-header';
-        header.innerHTML = '<h3>POLYMARKET</h3>';
-        grid.appendChild(header);
-
-        _marketGroups = {};
-        const grouped = groupSimilarMarkets(sortByStarred(polyMarkets));
-        for (const item of grouped) {
-            if (item.isGroup) {
-                _marketGroups[item.groupTitle] = item;
-                const gc = createGroupCard(item);
-                grid.appendChild(gc);
-                for (const m of item.markets.slice(0, 2)) {
-                    allMarketCards.push({ card: gc, market: m });
-                }
-            } else {
-                const change = getMarketChange(item.ticker);
-                grid.appendChild(createMarketCard(item, 'poly', change));
-            }
-        }
+    // Render all cards uniformly
+    for (const { market, platform, change } of allCards) {
+        grid.appendChild(createMarketCard(market, platform, change));
     }
 
     // Look for ARBITRAGE — same question on both platforms with different prices
@@ -242,6 +239,10 @@ async function loadMarkets() {
 
     // Trigger scroll-based card animations
     if (typeof observeCards === 'function') observeCards();
+
+    // Show email signup after markets load
+    const signup = document.getElementById('email-signup');
+    if (signup) signup.style.display = '';
 }
 
 
@@ -451,6 +452,10 @@ function createMarketCard(market, platform, priceChange) {
         ? '<span class="badge kalshi-badge">KALSHI</span>'
         : '<span class="badge poly-badge">POLY</span>';
 
+    // Group badge if this represents a grouped market
+    const groupCount = market._groupCount;
+    const groupBadge = groupCount ? `<span class="badge group-count-badge">${groupCount} markets</span>` : '';
+
     const starred = isStarred(market.ticker);
     const starChar = starred ? '\u2605' : '\u2606';
     const starClass = starred ? 'star-btn starred' : 'star-btn';
@@ -458,15 +463,14 @@ function createMarketCard(market, platform, priceChange) {
 
     card.innerHTML = `
         <div class="card-top-row">
-            ${badge}
+            <div style="display:flex;gap:6px;align-items:center;">${badge}${groupBadge}</div>
             <button class="${starClass}" title="Add to watchlist">${starChar}</button>
         </div>
         <h3>${title}</h3>
         <div class="prices">
             <span style="color:${yesColor};font-weight:600;">YES ${market.yes}\u00A2</span>
-            ${changeHtml}
-            <span style="color:#333;margin:0 4px;">\u00B7</span>
             <span style="color:${noColor};font-weight:600;">NO ${market.no}\u00A2</span>
+            ${changeHtml}
         </div>
     `;
 
@@ -909,8 +913,10 @@ function setFilter(filter, btn) {
 let currentSort = 'default';
 // ── CUSTOM SORT DROPDOWN ──
 function toggleSortDropdown() {
+    const dropdown = document.getElementById('sort-dropdown');
     const menu = document.getElementById('sort-menu');
     menu.classList.toggle('open');
+    dropdown.classList.toggle('open');
 }
 
 function selectSort(el) {
@@ -920,6 +926,7 @@ function selectSort(el) {
     document.querySelectorAll('.custom-select-option').forEach(o => o.classList.remove('active'));
     el.classList.add('active');
     document.getElementById('sort-menu').classList.remove('open');
+    document.getElementById('sort-dropdown').classList.remove('open');
     sortMarkets(value);
 }
 
@@ -927,7 +934,9 @@ function selectSort(el) {
 document.addEventListener('click', (e) => {
     if (!e.target.closest('.custom-select')) {
         const menu = document.getElementById('sort-menu');
+        const dropdown = document.getElementById('sort-dropdown');
         if (menu) menu.classList.remove('open');
+        if (dropdown) dropdown.classList.remove('open');
     }
 });
 
@@ -936,29 +945,17 @@ function sortMarkets(sort) {
     const grid = document.querySelector('.market-grid');
     if (!grid) return;
 
-    // Separate platform headers from cards
-    const headers = grid.querySelectorAll('.platform-header');
-    const kalshiHeader = headers[0];
-    const polyHeader = headers[1];
-
-    // Split cards by platform
-    const kalshiCards = allMarketCards.filter(c => c.market.source === 'kalshi');
-    const polyCards = allMarketCards.filter(c => c.market.source === 'poly');
-
     const sortFn = getSortFn(sort);
     if (sortFn) {
-        kalshiCards.sort(sortFn);
-        polyCards.sort(sortFn);
+        allMarketCards.sort(sortFn);
     }
 
-    // Rebuild grid
+    // Rebuild grid — all cards in one unified list
     grid.innerHTML = '';
-    if (kalshiHeader) grid.appendChild(kalshiHeader);
-    kalshiCards.forEach(c => grid.appendChild(c.card));
-    if (polyHeader) grid.appendChild(polyHeader);
-    polyCards.forEach(c => grid.appendChild(c.card));
+    allMarketCards.forEach(c => grid.appendChild(c.card));
 
     filterMarkets(); // Re-apply filters
+    if (typeof observeCards === 'function') observeCards();
 }
 
 function getSortFn(sort) {
@@ -1604,16 +1601,18 @@ const revealObserver = new IntersectionObserver((entries) => {
 document.querySelectorAll('.reveal').forEach(el => revealObserver.observe(el));
 
 // ── CARD SCROLL REVEAL (staggered) ──
+let _firstObserveBatch = true;
 const cardObserver = new IntersectionObserver((entries) => {
     entries.forEach((e, i) => {
         if (e.isIntersecting) {
-            // Stagger delay based on position in the current batch
-            const delay = (i % 3) * 80; // 0ms, 80ms, 160ms per row
+            // First batch appears fast, subsequent batches get subtle stagger
+            const delay = _firstObserveBatch ? (i % 3) * 30 : (i % 3) * 60;
             setTimeout(() => e.target.classList.add('card-visible'), delay);
             cardObserver.unobserve(e.target);
         }
     });
-}, { threshold: 0.1 });
+    _firstObserveBatch = false;
+}, { threshold: 0.05 });
 
 function observeCards() {
     document.querySelectorAll('.market-card:not(.card-visible)').forEach(el => {

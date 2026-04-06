@@ -27,7 +27,7 @@
     <meta name="twitter:description" content="Real-time prediction market analytics. AI-powered Pulse Scores, cross-platform arbitrage, and live odds from Kalshi & Polymarket.">
     <meta name="twitter:image" content="https://pulse-api-joed.onrender.com/og-image.png">
 
-    <link rel="stylesheet" href="style.css?v=9">
+    <link rel="stylesheet" href="style.css?v=10">
     <link rel="manifest" href="/manifest.json">
     <link rel="icon" type="image/png" href="/icon-192.png">
     <link rel="apple-touch-icon" href="/icon-192.png">
@@ -50,12 +50,30 @@
             <input type="text" id="search-input" placeholder="Search markets..." oninput="filterMarkets()">
         </div>
         <div class="nav-links">
-            <a href="#" class="active" onclick="switchTab('markets', this); return false;">Markets</a>
-            <a href="#" onclick="switchTab('trending', this); return false;">Trending</a>
-            <a href="#" onclick="switchTab('bot', this); return false;">Bot</a>
-            <a href="#" onclick="switchTab('portfolio', this); return false;">Portfolio</a>
-            <a href="#" onclick="switchTab('arbitrage', this); return false;">Arbitrage</a>
-            <a href="#" onclick="switchTab('correlations', this); return false;">Correlations</a>
+            <a href="#" class="active" onclick="switchTab('markets', this); return false;">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3h18v18H3z"/><path d="M3 9h18"/><path d="M9 3v18"/></svg>
+                Markets
+            </a>
+            <a href="#" onclick="switchTab('trending', this); return false;">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
+                Trending
+            </a>
+            <a href="#" onclick="switchTab('bot', this); return false;">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="10" rx="2"/><circle cx="12" cy="5" r="2"/><path d="M12 7v4"/><line x1="8" y1="16" x2="8" y2="16"/><line x1="16" y1="16" x2="16" y2="16"/></svg>
+                Bot
+            </a>
+            <a href="#" onclick="switchTab('portfolio', this); return false;">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12V7H5a2 2 0 010-4h14v4"/><path d="M3 5v14a2 2 0 002 2h16v-5"/><path d="M18 12a2 2 0 100 4 2 2 0 000-4z"/></svg>
+                Portfolio
+            </a>
+            <a href="#" onclick="switchTab('arbitrage', this); return false;">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 3v3a2 2 0 01-2 2H3"/><path d="M21 8h-3a2 2 0 01-2-2V3"/><path d="M3 16h3a2 2 0 012 2v3"/><path d="M16 21v-3a2 2 0 012-2h3"/></svg>
+                Arbitrage
+            </a>
+            <a href="#" onclick="switchTab('correlations', this); return false;">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><circle cx="5" cy="5" r="2"/><circle cx="19" cy="5" r="2"/><circle cx="5" cy="19" r="2"/><circle cx="19" cy="19" r="2"/><line x1="9.5" y1="9.5" x2="6.5" y2="6.5"/><line x1="14.5" y1="9.5" x2="17.5" y2="6.5"/><line x1="9.5" y1="14.5" x2="6.5" y2="17.5"/><line x1="14.5" y1="14.5" x2="17.5" y2="17.5"/></svg>
+                Correlations
+            </a>
         </div>
         <div class="settings-dropdown">
             <button class="settings-btn" onclick="toggleSettings()">
@@ -96,37 +114,76 @@
     <!-- Pulse Score Explainer -->
     <div class="pulse-explainer" id="pulse-explainer">
         <div class="pulse-explainer-card">
-            <h3>What is the Pulse Score?</h3>
-            <p>Every market gets a <strong>0–99 confidence score</strong> based on 3 factors:</p>
+            <div class="explainer-top">
+                <div class="explainer-intro">
+                    <h3>What is the Pulse Score?</h3>
+                    <p>Every market on PULSE gets a <strong>0–99 confidence score</strong> — a single number that tells you how strong the signal is. It's calculated in real-time using a percentile-ranked composite of 3 factors across all live markets.</p>
+                </div>
+                <div class="explainer-demo">
+                    <div class="demo-score" style="border-color:#00d68f;">
+                        <span class="demo-score-num" style="color:#00d68f;">87</span>
+                        <span class="demo-score-label">PULSE</span>
+                    </div>
+                    <span class="demo-score-tag" style="color:#00d68f;">STRONG</span>
+                </div>
+            </div>
             <div class="pulse-factors">
                 <div class="pulse-factor">
                     <span class="pulse-factor-icon">📊</span>
                     <div>
                         <strong>Price Confidence</strong>
-                        <span>How far from 50/50 — markets at 90¢ or 10¢ score higher</span>
+                        <span>Bell curve peaks at 25¢/75¢ — strong lean with room to profit. Dead markets near 0¢ or 100¢ score near zero.</span>
                     </div>
                 </div>
                 <div class="pulse-factor">
                     <span class="pulse-factor-icon">💰</span>
                     <div>
                         <strong>Volume</strong>
-                        <span>More money traded = more reliable signal</span>
+                        <span>Log-scaled trading volume. $1M+ traded means institutional-level conviction. Low volume means the price could be noise.</span>
                     </div>
                 </div>
                 <div class="pulse-factor">
                     <span class="pulse-factor-icon">📈</span>
                     <div>
                         <strong>Momentum</strong>
-                        <span>Price moving fast? That's a market with conviction</span>
+                        <span>How fast is the price moving? A 10¢ swing signals strong conviction. No movement means the market is asleep.</span>
                     </div>
                 </div>
             </div>
-            <div class="pulse-scale">
-                <span class="pulse-scale-item" style="color:#ff3b5c;">0–39 WEAK</span>
-                <span class="pulse-scale-item" style="color:#f0b000;">40–69 MODERATE</span>
-                <span class="pulse-scale-item" style="color:#00d68f;">70–99 STRONG</span>
+            <div class="explainer-bottom">
+                <div class="pulse-scale">
+                    <div class="pulse-scale-block">
+                        <div class="scale-bar" style="background:#ff3b5c;"></div>
+                        <span class="pulse-scale-item" style="color:#ff3b5c;">0–39</span>
+                        <span class="scale-desc">WEAK — Low confidence, thin volume, or stale market</span>
+                    </div>
+                    <div class="pulse-scale-block">
+                        <div class="scale-bar" style="background:#f0b000;"></div>
+                        <span class="pulse-scale-item" style="color:#f0b000;">40–69</span>
+                        <span class="scale-desc">MODERATE — Decent signal, worth watching</span>
+                    </div>
+                    <div class="pulse-scale-block">
+                        <div class="scale-bar" style="background:#00d68f;"></div>
+                        <span class="pulse-scale-item" style="color:#00d68f;">70–99</span>
+                        <span class="scale-desc">STRONG — High confidence, heavy volume, clear momentum</span>
+                    </div>
+                </div>
+                <div class="explainer-features">
+                    <div class="explainer-feat">
+                        <span>⚡</span>
+                        <span>Scores update every 2 minutes with live data from Kalshi &amp; Polymarket</span>
+                    </div>
+                    <div class="explainer-feat">
+                        <span>🔔</span>
+                        <span>Get notified when a market's Pulse Score jumps 15+ points</span>
+                    </div>
+                    <div class="explainer-feat">
+                        <span>📊</span>
+                        <span>Percentile-ranked — scores spread evenly across all markets, no clustering</span>
+                    </div>
+                </div>
             </div>
-            <button class="pulse-dismiss" onclick="document.getElementById('pulse-explainer').style.display='none'; localStorage.setItem('pulse-explainer-dismissed','true');">Got it</button>
+            <button class="pulse-dismiss" onclick="document.getElementById('pulse-explainer').style.display='none'; localStorage.setItem('pulse-explainer-dismissed','true');">Got it, show me the markets</button>
         </div>
     </div>
 
@@ -173,12 +230,12 @@
                     </button>
                     <div class="custom-select-menu" id="sort-menu">
                         <div class="custom-select-option active" data-value="default" onclick="selectSort(this)">Default</div>
-                        <div class="custom-select-option" data-value="volume-desc" onclick="selectSort(this)">Volume ↓</div>
-                        <div class="custom-select-option" data-value="volume-asc" onclick="selectSort(this)">Volume ↑</div>
-                        <div class="custom-select-option" data-value="yes-desc" onclick="selectSort(this)">YES Price ↓</div>
-                        <div class="custom-select-option" data-value="yes-asc" onclick="selectSort(this)">YES Price ↑</div>
-                        <div class="custom-select-option" data-value="change-desc" onclick="selectSort(this)">Change ↓</div>
-                        <div class="custom-select-option" data-value="pulse-desc" onclick="selectSort(this)">Pulse Score ↓</div>
+                        <div class="custom-select-option" data-value="pulse-desc" onclick="selectSort(this)">Pulse Score</div>
+                        <div class="custom-select-option" data-value="volume-desc" onclick="selectSort(this)">Most Volume</div>
+                        <div class="custom-select-option" data-value="volume-asc" onclick="selectSort(this)">Least Volume</div>
+                        <div class="custom-select-option" data-value="yes-desc" onclick="selectSort(this)">Highest YES</div>
+                        <div class="custom-select-option" data-value="yes-asc" onclick="selectSort(this)">Lowest YES</div>
+                        <div class="custom-select-option" data-value="change-desc" onclick="selectSort(this)">Biggest Change</div>
                     </div>
                 </div>
             </div>
@@ -251,7 +308,7 @@
     </section>
 
     <!-- Email Signup -->
-    <section id="email-signup" class="reveal">
+    <section id="email-signup" class="reveal" style="display:none;">
         <div class="signup-card">
             <h3>Daily Market Digest</h3>
             <p>Get the top 5 movers and Pulse Score alerts delivered to your inbox every morning.</p>
@@ -334,6 +391,6 @@
         </a>
     </nav>
 
-    <script src="app.js?v=9"></script>
+    <script src="app.js?v=10"></script>
 </body>
 </html>
