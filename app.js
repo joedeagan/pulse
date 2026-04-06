@@ -485,8 +485,8 @@ function createMarketCard(market, platform, priceChange) {
 
     // Pulse Score — combines price confidence + volume strength + momentum
     const pulseScore = calcPulseScore(market, priceChange);
-    const pulseColor = pulseScore >= 70 ? '#00d68f' : pulseScore >= 40 ? '#f0b000' : '#ff3b5c';
-    const pulseLabel = pulseScore >= 70 ? 'STRONG' : pulseScore >= 40 ? 'MODERATE' : 'WEAK';
+    const pulseColor = pulseScore >= 67 ? '#00d68f' : pulseScore >= 34 ? '#f0b000' : '#ff3b5c';
+    const pulseLabel = pulseScore >= 67 ? 'TRADE' : pulseScore >= 34 ? 'WATCH' : 'SKIP';
 
     const badge = platform === 'kalshi'
         ? '<span class="badge kalshi-badge">KALSHI</span>'
@@ -566,98 +566,94 @@ function createMarketCard(market, platform, priceChange) {
 // so scores naturally spread from ~5 to ~95. No more clustering.
 let _pulseScoreCache = {};
 
+// ── PULSE SCORE ──
+// Simple 0-99 score: "How tradeable is this market?"
+// 3 factors, each scored 0-33, added together:
+//   PRICE (0-33): Is the price in a tradeable range? Best at 25¢/75¢.
+//   VOLUME (0-33): Are people actually trading? More volume = higher score.
+//   MOVEMENT (0-33): Is the price changing? Bigger moves = higher score.
+
 function computeAllPulseScores(allMarkets) {
     _pulseScoreCache = {};
     if (!allMarkets || allMarkets.length === 0) return;
 
-    // Build composite score for each market using continuous signals
-    const scored = allMarkets.map(m => {
-        const yes = m.yes || 50;
-        const change = Math.abs(getMarketChange(m.ticker) || 0);
-        const vol = m.volume || 0;
+    // Find max volume across all markets for relative scaling
+    const maxVol = Math.max(...allMarkets.map(m => m.volume || 0), 1);
 
-        // SIGNAL 1: Trading Interest (continuous 0-1)
-        // Bell curve peaks at 25¢/75¢ — strong lean, room to profit
-        // Dead markets (0-2¢/98-100¢) get near zero
-        const dist = Math.abs(yes - 50);
-        let interest;
-        if (yes <= 2 || yes >= 98) {
-            interest = 0.02;
+    for (const m of allMarkets) {
+        const yes = m.yes || 50;
+        const vol = m.volume || 0;
+        const change = Math.abs(getMarketChange(m.ticker) || 0);
+
+        // PRICE (0-33): Bell curve peaking at 25¢/75¢
+        // Dead markets (0-3¢ or 97-100¢) score 0
+        let priceScore;
+        if (yes <= 3 || yes >= 97) {
+            priceScore = 0;
         } else {
-            interest = Math.exp(-Math.pow(dist - 25, 2) / 450);
+            const dist = Math.abs(yes - 50);
+            priceScore = Math.round(33 * Math.exp(-Math.pow(dist - 25, 2) / 400));
         }
 
-        // SIGNAL 2: Volume (log-scaled, normalized to ~0-1)
-        const logVol = vol > 0 ? Math.log10(vol) : 0;
-        const volNorm = Math.min(logVol / 8, 1); // log10(100M) ≈ 8
+        // VOLUME (0-33): Log-scaled relative to all markets
+        // $0 = 0, $1K = ~11, $100K = ~22, $10M+ = 33
+        let volScore = 0;
+        if (vol > 0) {
+            volScore = Math.round(33 * Math.min(Math.log10(vol) / Math.log10(maxVol), 1));
+        }
 
-        // SIGNAL 3: Momentum
-        const momentum = Math.min(change / 10, 1); // 10¢ change = max
+        // MOVEMENT (0-33): How much has the price moved?
+        // 0¢ = 0, 3¢ = ~17, 5¢ = ~25, 8¢+ = 33
+        const moveScore = Math.round(33 * Math.min(change / 8, 1));
 
-        // SIGNAL 4: Price history richness
-        const history = getPriceHistory(m.ticker);
-        const historyBonus = Math.min(history.length / 10, 1);
-
-        // Composite raw score (0 to 1) — weighted blend
-        const hasAnyChange = change > 0;
-        const composite = hasAnyChange
-            ? interest * 0.35 + volNorm * 0.30 + momentum * 0.25 + historyBonus * 0.10
-            : interest * 0.45 + volNorm * 0.40 + historyBonus * 0.15;
-
-        return { ticker: m.ticker, composite };
-    });
-
-    // Now percentile-rank the COMPOSITE score for maximum spread
-    scored.sort((a, b) => a.composite - b.composite);
-    const n = scored.length;
-    scored.forEach((s, i) => {
-        // Percentile: 0 for lowest, 1 for highest
-        const pct = n > 1 ? i / (n - 1) : 0.5;
-
-        // Small tiebreaker from ticker hash
-        let hash = 0;
-        for (let j = 0; j < (s.ticker || '').length; j++) hash = ((hash << 5) - hash + s.ticker.charCodeAt(j)) | 0;
-        const jitter = (Math.abs(hash) % 100) / 5000; // ±0.02
-
-        // Scale to 5-95 range
-        const score = Math.round(5 + Math.min(pct + jitter, 1) * 90);
-        _pulseScoreCache[s.ticker] = Math.max(1, Math.min(score, 99));
-    });
+        const total = Math.max(1, Math.min(priceScore + volScore + moveScore, 99));
+        _pulseScoreCache[m.ticker] = total;
+    }
 }
 
 function calcPulseScore(market, priceChange) {
-    // Use cached percentile-based score if available
+    // Return cached score if available
     if (_pulseScoreCache[market.ticker] !== undefined) {
         return _pulseScoreCache[market.ticker];
     }
-    // Fallback for markets scored outside of bulk computation
+    // Quick fallback using same logic
     const yes = market.yes || 50;
-    const dist = Math.abs(yes - 50);
     const vol = market.volume || 0;
     const change = Math.abs(priceChange || 0);
-    let score = 20;
-    if (yes <= 2 || yes >= 98) score = 8;
-    else if (dist >= 20) score += 25;
-    else if (dist >= 10) score += 15;
-    if (vol > 100000) score += 20;
-    else if (vol > 10000) score += 12;
-    if (change > 3) score += 20;
-    else if (change > 0) score += 8;
-    return Math.min(Math.round(score), 99);
+
+    let priceScore = 0;
+    if (yes > 3 && yes < 97) {
+        const dist = Math.abs(yes - 50);
+        priceScore = Math.round(33 * Math.exp(-Math.pow(dist - 25, 2) / 400));
+    }
+    const volScore = vol > 0 ? Math.round(33 * Math.min(Math.log10(vol) / 7, 1)) : 0;
+    const moveScore = Math.round(33 * Math.min(change / 8, 1));
+
+    return Math.max(1, Math.min(priceScore + volScore + moveScore, 99));
 }
 
 // ── SHARE MARKET ──
 function shareMarket(market) {
-    const text = `${market.question}\nYES ${market.yes}¢ · NO ${market.no}¢\n${market.url || 'via PULSE'}`;
-    if (navigator.clipboard) {
+    const pulse = calcPulseScore(market, getMarketChange(market.ticker));
+    const label = pulse >= 67 ? 'TRADE' : pulse >= 34 ? 'WATCH' : 'SKIP';
+    const text = `${market.question}\n\nYES ${market.yes}¢  NO ${market.no}¢\nPulse Score: ${pulse}/99 (${label})\n\n${market.url || 'https://pulse-dashboard.onrender.com'}`;
+
+    // Use native share on mobile, clipboard on desktop
+    if (navigator.share) {
+        navigator.share({ title: market.question, text }).catch(() => {});
+    } else if (navigator.clipboard) {
         navigator.clipboard.writeText(text).then(() => {
-            const toast = document.createElement('div');
-            toast.className = 'toast';
-            toast.textContent = 'Copied to clipboard!';
-            document.body.appendChild(toast);
-            setTimeout(() => toast.remove(), 2000);
+            showToast('Copied to clipboard!');
         });
     }
+}
+
+function showToast(msg) {
+    const toast = document.createElement('div');
+    toast.className = 'toast';
+    toast.textContent = msg;
+    document.body.appendChild(toast);
+    setTimeout(() => toast.remove(), 2000);
 }
 
 // ── REAL PRICE HISTORY ──
@@ -742,35 +738,47 @@ function updateFilterCounts(allMarkets) {
 
 function findArbitrage(kalshiMarkets, polyMarkets) {
     const opportunities = [];
+    const seen = new Set();
 
-    // Look for keywords that match between platforms
-    const keywords = ['bitcoin', 'btc', 'ethereum', 'eth', 'fed', 'trump', 'election'];
+    // Extract key words from a title (remove common filler words)
+    const stopWords = new Set(['the','a','an','in','on','at','to','for','of','is','will','be','by','and','or','this','that','it','as','with','from']);
+    function getKeywords(title) {
+        return (title || '').toLowerCase().replace(/[^a-z0-9\s]/g, '').split(/\s+/).filter(w => w.length > 2 && !stopWords.has(w));
+    }
+
+    // Score how similar two titles are (0-1)
+    function similarity(a, b) {
+        const aWords = new Set(getKeywords(a));
+        const bWords = new Set(getKeywords(b));
+        if (aWords.size === 0 || bWords.size === 0) return 0;
+        let matches = 0;
+        for (const w of aWords) if (bWords.has(w)) matches++;
+        return matches / Math.min(aWords.size, bWords.size);
+    }
 
     for (const k of kalshiMarkets) {
-        const kTitle = (k.question || '').toLowerCase();
-
         for (const p of polyMarkets) {
-            const pTitle = (p.question || '').toLowerCase();
+            const sim = similarity(k.question, p.question);
+            if (sim < 0.4) continue; // Need at least 40% word overlap
 
-            // Check if they're about the same topic
-            for (const keyword of keywords) {
-                if (kTitle.includes(keyword) && pTitle.includes(keyword)) {
-                    const priceDiff = Math.abs(k.yes - p.yes);
-                    if (priceDiff >= 3) {  // At least 3¢ difference
-                        opportunities.push({
-                            topic: keyword.toUpperCase(),
-                            kalshi: k,
-                            poly: p,
-                            diff: priceDiff,
-                            direction: k.yes > p.yes ? 'Buy POLY, Sell KALSHI' : 'Buy KALSHI, Sell POLY',
-                        });
-                    }
-                }
-            }
+            const priceDiff = Math.abs(k.yes - p.yes);
+            if (priceDiff < 2) continue; // Need at least 2¢ difference
+
+            const key = [k.ticker, p.ticker].sort().join('|');
+            if (seen.has(key)) continue;
+            seen.add(key);
+
+            const cheaper = k.yes < p.yes ? 'KALSHI' : 'POLY';
+            opportunities.push({
+                kalshi: k,
+                poly: p,
+                diff: priceDiff,
+                similarity: sim,
+                direction: `Buy YES on ${cheaper} (cheaper)`,
+            });
         }
     }
 
-    // Sort by biggest difference
     opportunities.sort((a, b) => b.diff - a.diff);
     return opportunities;
 }
@@ -781,19 +789,35 @@ function showArbitrage(opportunities) {
     const section = document.getElementById('arbitrage');
     if (!section) return;
 
-    let html = '<h2>Arbitrage Opportunities</h2><div class="market-grid">';
+    let html = '<h2>Arbitrage Opportunities</h2>';
+    if (opportunities.length === 0) {
+        html += '<p style="color:var(--text-dim);font-size:14px;">No arbitrage opportunities found right now. Cross-platform price differences are checked every refresh.</p>';
+        section.innerHTML = html;
+        return;
+    }
+    html += `<p style="color:var(--text-dim);font-size:14px;margin-bottom:16px;">${opportunities.length} price difference${opportunities.length > 1 ? 's' : ''} found across Kalshi &amp; Polymarket</p>`;
+    html += '<div class="market-grid">';
 
-    for (const opp of opportunities.slice(0, 5)) {
+    for (const opp of opportunities.slice(0, 8)) {
+        const kName = opp.kalshi.question?.substring(0, 60) || 'Kalshi Market';
+        const pName = opp.poly.question?.substring(0, 60) || 'Poly Market';
         html += `
-            <div class="market-card arb-card">
-                <span class="badge arb-badge">ARBITRAGE</span>
-                <h3>${opp.topic}</h3>
-                <div style="margin:8px 0;">
-                    <div><span class="badge kalshi-badge">KALSHI</span> YES ${opp.kalshi.yes}¢</div>
-                    <div style="margin-top:4px;"><span class="badge poly-badge">POLY</span> YES ${opp.poly.yes}¢</div>
+            <div class="market-card arb-card" style="border-color:rgba(240,176,0,0.3);">
+                <span class="badge" style="background:rgba(240,176,0,0.15);color:#f0b000;border:1px solid rgba(240,176,0,0.3);">${opp.diff}¢ SPREAD</span>
+                <h3 style="font-size:14px;margin:8px 0;">${kName}</h3>
+                <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin:8px 0;">
+                    <div style="text-align:center;flex:1;">
+                        <span class="badge kalshi-badge" style="font-size:10px;">KALSHI</span>
+                        <div style="font-size:20px;font-weight:700;margin-top:4px;">YES ${opp.kalshi.yes}¢</div>
+                    </div>
+                    <span style="color:var(--text-dim);font-size:12px;">vs</span>
+                    <div style="text-align:center;flex:1;">
+                        <span class="badge poly-badge" style="font-size:10px;">POLY</span>
+                        <div style="font-size:20px;font-weight:700;margin-top:4px;">YES ${opp.poly.yes}¢</div>
+                    </div>
                 </div>
-                <div style="color:#f0b000;font-weight:600;margin-top:8px;">
-                    ${opp.diff}¢ spread — ${opp.direction}
+                <div style="color:#f0b000;font-weight:600;font-size:13px;margin-top:auto;padding-top:8px;border-top:1px solid var(--border);">
+                    ${opp.direction}
                 </div>
             </div>
         `;
@@ -801,6 +825,7 @@ function showArbitrage(opportunities) {
 
     html += '</div>';
     section.innerHTML = html;
+    section.querySelectorAll('.market-card').forEach(c => c.classList.add('card-visible'));
 }
 
 
@@ -1839,8 +1864,8 @@ function openDetail(market, platform) {
     // Actions
     const url = market.url || '#';
     const pulseScore = calcPulseScore(market, getMarketChange(market.ticker));
-    const pulseColor = pulseScore >= 70 ? 'var(--green)' : pulseScore >= 40 ? 'var(--gold)' : 'var(--red)';
-    const pulseLabel = pulseScore >= 70 ? 'STRONG' : pulseScore >= 40 ? 'MODERATE' : 'WEAK';
+    const pulseColor = pulseScore >= 67 ? 'var(--green)' : pulseScore >= 34 ? 'var(--gold)' : 'var(--red)';
+    const pulseLabel = pulseScore >= 67 ? 'TRADE' : pulseScore >= 34 ? 'WATCH' : 'SKIP';
     document.getElementById('detail-actions').innerHTML = `
         <div class="detail-pulse-row">
             <div class="detail-pulse-score" style="border-color:${pulseColor};">
@@ -2604,15 +2629,18 @@ function buildTrendingPanel() {
     }
 
     if (grid.children.length === 0) {
-        grid.innerHTML = '<div class="market-card"><h3 style="color:var(--text-dim);">No trending data yet — scores update every refresh cycle</h3></div>';
+        grid.innerHTML = '<div class="market-card card-visible"><h3 style="color:var(--text-dim);">No trending data yet — scores update every refresh cycle</h3></div>';
     }
+
+    // Make trending cards visible (they start with opacity:0 from .market-card CSS)
+    grid.querySelectorAll('.market-card').forEach(c => c.classList.add('card-visible'));
 }
 
 function makeTrendingCard(m, value, type) {
     const card = document.createElement('div');
     card.className = 'market-card trending-card';
     const pulseScore = calcPulseScore(m, 0);
-    const pulseColor = pulseScore >= 70 ? '#00d68f' : pulseScore >= 40 ? '#f0b000' : '#ff3b5c';
+    const pulseColor = pulseScore >= 67 ? '#00d68f' : pulseScore >= 34 ? '#f0b000' : '#ff3b5c';
 
     let tagHtml = '';
     if (type === 'price') {

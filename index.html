@@ -117,36 +117,36 @@
             <div class="explainer-top">
                 <div class="explainer-intro">
                     <h3>What is the Pulse Score?</h3>
-                    <p>Every market on PULSE gets a <strong>0–99 confidence score</strong> — a single number that tells you how strong the signal is. It's calculated in real-time using a percentile-ranked composite of 3 factors across all live markets.</p>
+                    <p>Every market gets a <strong>0–99 score</strong> that tells you how tradeable it is right now. Higher score = better opportunity. It does NOT tell you which side to bet — use the YES/NO prices and AI Analysis for that.</p>
                 </div>
                 <div class="explainer-demo">
                     <div class="demo-score" style="border-color:#00d68f;">
                         <span class="demo-score-num" style="color:#00d68f;">87</span>
                         <span class="demo-score-label">PULSE</span>
                     </div>
-                    <span class="demo-score-tag" style="color:#00d68f;">STRONG</span>
+                    <span class="demo-score-tag" style="color:#00d68f;">HIGH ACTIVITY</span>
                 </div>
             </div>
             <div class="pulse-factors">
                 <div class="pulse-factor">
                     <span class="pulse-factor-icon">📊</span>
                     <div>
-                        <strong>Price Confidence</strong>
-                        <span>Bell curve peaks at 25¢/75¢ — strong lean with room to profit. Dead markets near 0¢ or 100¢ score near zero.</span>
+                        <strong>Price (0–33 pts)</strong>
+                        <span>Is the price interesting? Markets around 25¢ or 75¢ score highest — there's a clear lean with room to profit. Dead markets near 0¢ or 100¢ score zero.</span>
                     </div>
                 </div>
                 <div class="pulse-factor">
                     <span class="pulse-factor-icon">💰</span>
                     <div>
-                        <strong>Volume</strong>
-                        <span>Log-scaled trading volume. $1M+ traded means institutional-level conviction. Low volume means the price could be noise.</span>
+                        <strong>Volume (0–33 pts)</strong>
+                        <span>Are people trading it? More money flowing = more reliable price. Low volume markets can have misleading prices.</span>
                     </div>
                 </div>
                 <div class="pulse-factor">
                     <span class="pulse-factor-icon">📈</span>
                     <div>
-                        <strong>Momentum</strong>
-                        <span>How fast is the price moving? A 10¢ swing signals strong conviction. No movement means the market is asleep.</span>
+                        <strong>Movement (0–33 pts)</strong>
+                        <span>Is the price changing? Moving prices mean something is happening. Stale markets with no movement score zero.</span>
                     </div>
                 </div>
             </div>
@@ -154,32 +154,28 @@
                 <div class="pulse-scale">
                     <div class="pulse-scale-block">
                         <div class="scale-bar" style="background:#ff3b5c;"></div>
-                        <span class="pulse-scale-item" style="color:#ff3b5c;">0–39</span>
-                        <span class="scale-desc">WEAK — Low confidence, thin volume, or stale market</span>
+                        <span class="pulse-scale-item" style="color:#ff3b5c;">0–33</span>
+                        <span class="scale-desc">SKIP IT — Dead, no volume, or not moving</span>
                     </div>
                     <div class="pulse-scale-block">
                         <div class="scale-bar" style="background:#f0b000;"></div>
-                        <span class="pulse-scale-item" style="color:#f0b000;">40–69</span>
-                        <span class="scale-desc">MODERATE — Decent signal, worth watching</span>
+                        <span class="pulse-scale-item" style="color:#f0b000;">34–66</span>
+                        <span class="scale-desc">WATCH — Some activity, worth keeping an eye on</span>
                     </div>
                     <div class="pulse-scale-block">
                         <div class="scale-bar" style="background:#00d68f;"></div>
-                        <span class="pulse-scale-item" style="color:#00d68f;">70–99</span>
-                        <span class="scale-desc">STRONG — High confidence, heavy volume, clear momentum</span>
+                        <span class="pulse-scale-item" style="color:#00d68f;">67–99</span>
+                        <span class="scale-desc">TRADE — Active market, good price, things are moving</span>
                     </div>
                 </div>
                 <div class="explainer-features">
                     <div class="explainer-feat">
                         <span>⚡</span>
-                        <span>Scores update every 2 minutes with live data from Kalshi &amp; Polymarket</span>
+                        <span>Scores update every 2 minutes with live data</span>
                     </div>
                     <div class="explainer-feat">
-                        <span>🔔</span>
-                        <span>Get notified when a market's Pulse Score jumps 15+ points</span>
-                    </div>
-                    <div class="explainer-feat">
-                        <span>📊</span>
-                        <span>Percentile-ranked — scores spread evenly across all markets, no clustering</span>
+                        <span>💡</span>
+                        <span>High Pulse = good time to trade. Click any card and hit AI Analysis to see which side.</span>
                     </div>
                 </div>
             </div>
