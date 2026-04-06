@@ -462,10 +462,7 @@ function createMarketCard(market, platform, priceChange) {
                 ${badge}
                 ${catDot}
             </div>
-            <div style="display:flex;align-items:center;gap:6px;">
-                <span class="card-pulse" style="color:${pulseColor};" title="Pulse Score: ${pulseLabel}">${pulseScore}</span>
-                <button class="${starClass}" title="Add to watchlist">${starChar}</button>
-            </div>
+            <button class="${starClass}" title="Add to watchlist">${starChar}</button>
         </div>
         <h3>${title}</h3>
         <div class="prices">
@@ -482,6 +479,12 @@ function createMarketCard(market, platform, priceChange) {
     const sparkCanvas = document.createElement('canvas');
     sparkDiv.appendChild(sparkCanvas);
     card.appendChild(sparkDiv);
+
+    // Pulse Score footer — always at bottom of card
+    const pulseFooter = document.createElement('div');
+    pulseFooter.className = 'card-pulse-footer';
+    pulseFooter.innerHTML = `<span class="card-pulse-label">PULSE</span><span class="card-pulse-score" style="color:${pulseColor};">${pulseScore}</span>`;
+    card.appendChild(pulseFooter);
 
     const realHistory = getPriceHistory(market.ticker);
     let chartData;
@@ -2259,13 +2262,17 @@ function createGroupCard(group) {
     card.innerHTML = `
         <div class="card-top-row">
             <span class="badge group-badge">GROUP</span>
-            <span class="card-pulse" style="color:${scoreColor};">${avgScore}</span>
+            <span style="font-size:12px;color:var(--text-dim);">${group.markets.length} markets</span>
         </div>
         <h3>${group.groupTitle}</h3>
         <div class="group-preview">
             ${topMarkets.map(m => `<div class="group-item"><span>${shortenTitle(m.question)}</span><span style="color:${m.yes >= 50 ? '#00d68f' : '#ff3b5c'}">YES ${m.yes}\u00A2</span></div>`).join('')}
         </div>
         <button class="group-toggle" onclick="expandGroup(this, '${group.groupTitle.replace(/'/g, "\\'")}')">${remaining} more markets \u2192</button>
+        <div class="card-pulse-footer">
+            <span class="card-pulse-label">PULSE</span>
+            <span class="card-pulse-score" style="color:${scoreColor};">${avgScore}</span>
+        </div>
     `;
     return card;
 }
