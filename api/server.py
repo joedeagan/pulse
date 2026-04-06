@@ -62,6 +62,26 @@ async def serve_js():
     return FileResponse(os.path.join(static_dir, "app.js"), media_type="application/javascript")
 
 
+@app.get("/manifest.json")
+async def serve_manifest():
+    return FileResponse(os.path.join(static_dir, "manifest.json"), media_type="application/manifest+json")
+
+
+@app.get("/sw.js")
+async def serve_sw():
+    return FileResponse(os.path.join(static_dir, "sw.js"), media_type="application/javascript")
+
+
+@app.get("/icon-192.png")
+async def serve_icon_192():
+    return FileResponse(os.path.join(static_dir, "icon-192.png"), media_type="image/png")
+
+
+@app.get("/icon-512.png")
+async def serve_icon_512():
+    return FileResponse(os.path.join(static_dir, "icon-512.png"), media_type="image/png")
+
+
 def _expires_before(market, max_dt):
     """Check if a market expires before the given datetime."""
     exp = market.get("expiration_time") or market.get("close_time", "")
