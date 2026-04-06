@@ -119,18 +119,19 @@ nav {
 .nav-search {
     display: flex;
     align-items: center;
-    gap: 8px;
-    background: rgba(255, 255, 255, 0.04);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 8px 14px;
-    width: 300px;
-    transition: all 0.2s;
+    gap: 10px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 10px;
+    padding: 10px 18px;
+    width: 340px;
+    transition: all 0.25s;
 }
 
 .nav-search:focus-within {
     border-color: var(--accent);
-    background: rgba(0, 136, 255, 0.04);
+    background: rgba(0, 136, 255, 0.06);
+    box-shadow: 0 0 0 3px rgba(0, 136, 255, 0.08);
 }
 
 .nav-search input {
@@ -139,12 +140,12 @@ nav {
     outline: none;
     color: var(--text);
     font-family: var(--font);
-    font-size: 13px;
+    font-size: 14px;
     width: 100%;
 }
 
 .nav-search input::placeholder {
-    color: var(--text-dim);
+    color: #444;
 }
 
 /* ── HERO ── */
