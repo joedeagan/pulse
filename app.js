@@ -458,10 +458,7 @@ function createMarketCard(market, platform, priceChange) {
 
     card.innerHTML = `
         <div class="card-top-row">
-            <div style="display:flex;align-items:center;gap:6px;">
-                ${badge}
-                ${catDot}
-            </div>
+            ${badge}
             <button class="${starClass}" title="Add to watchlist">${starChar}</button>
         </div>
         <h3>${title}</h3>
