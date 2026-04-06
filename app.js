@@ -76,9 +76,17 @@ function isStarred(ticker) {
 let firstLoad = true;
 async function loadMarkets() {
     const grid = document.querySelector('.market-grid');
-    // Only show "Loading..." on first load — don't flash it on refresh
+    // Show skeleton loading on first load
     if (firstLoad) {
-        grid.innerHTML = '<div class="market-card"><h3>Loading...</h3></div>';
+        grid.innerHTML = Array(6).fill(`
+            <div class="market-card skeleton-card">
+                <div class="skel skel-badge"></div>
+                <div class="skel skel-title"></div>
+                <div class="skel skel-title-sm"></div>
+                <div class="skel skel-prices"></div>
+                <div class="skel skel-chart"></div>
+            </div>
+        `).join('');
     }
 
     // Try our backend server first (has no CORS issues)
@@ -120,6 +128,10 @@ async function loadMarkets() {
         ];
     }
 
+    // Save price snapshots for real sparklines
+    const allMkts = [...kalshiMarkets, ...polyMarkets];
+    savePriceSnapshot(allMkts);
+
     grid.innerHTML = '';
     allMarketCards = [];  // Reset for filtering
     firstLoad = false;
@@ -134,6 +146,21 @@ async function loadMarkets() {
         });
     };
 
+    // Calculate biggest movers
+    const movers = findBiggestMovers(allMkts);
+
+    // Show Biggest Movers section if any
+    if (movers.length > 0) {
+        const moverHeader = document.createElement('div');
+        moverHeader.className = 'platform-header movers-header';
+        moverHeader.innerHTML = '<h3>🔥 BIGGEST MOVERS</h3>';
+        grid.appendChild(moverHeader);
+
+        for (const m of movers.slice(0, 4)) {
+            grid.appendChild(createMarketCard(m.market, m.market.source || 'kalshi', m.change));
+        }
+    }
+
     // Show Kalshi markets
     if (kalshiMarkets.length > 0) {
         const header = document.createElement('div');
@@ -142,7 +169,8 @@ async function loadMarkets() {
         grid.appendChild(header);
 
         for (const m of sortByStarred(kalshiMarkets)) {
-            grid.appendChild(createMarketCard(m, 'kalshi'));
+            const change = getMarketChange(m.ticker);
+            grid.appendChild(createMarketCard(m, 'kalshi', change));
         }
     }
 
@@ -154,7 +182,8 @@ async function loadMarkets() {
         grid.appendChild(header);
 
         for (const m of sortByStarred(polyMarkets)) {
-            grid.appendChild(createMarketCard(m, 'poly'));
+            const change = getMarketChange(m.ticker);
+            grid.appendChild(createMarketCard(m, 'poly', change));
         }
     }
 
@@ -170,6 +199,9 @@ async function loadMarkets() {
 
     // Generate AI market brief
     generateMarketBrief(kalshiMarkets, polyMarkets);
+
+    // Update filter chip counts
+    updateFilterCounts(allMkts);
 
     const total = kalshiMarkets.length + polyMarkets.length;
     document.getElementById('market-count').textContent = total;
@@ -342,8 +374,7 @@ function shortenTitle(t) {
 }
 
 // ── CREATE A MARKET CARD ──
-// This function builds the HTML for one market card
-function createMarketCard(market, platform) {
+function createMarketCard(market, platform, priceChange) {
     const card = document.createElement('div');
     card.className = 'market-card';
 
@@ -351,28 +382,38 @@ function createMarketCard(market, platform) {
     const yesColor = market.yes >= 70 ? '#00d68f' : market.yes <= 30 ? '#ff3b5c' : '#8b8b99';
     const noColor = market.no >= 70 ? '#00d68f' : market.no <= 30 ? '#ff3b5c' : '#8b8b99';
 
-    // Clean up the title — make it short and punchy
     let title = shortenTitle(market.question);
 
-    let extraInfo = '';
+    // Category badge
+    const cat = market.category || categorize(market.question);
+    const catColors = { crypto:'#ffb800', sports:'#00d68f', politics:'#0088ff', weather:'#64b5f6', entertainment:'#8b5cf6', finance:'#f0b000', science:'#00d68f', other:'#5a5a6e' };
+    const catDot = `<span class="cat-dot" style="background:${catColors[cat] || '#5a5a6e'}" title="${cat}"></span>`;
 
-    // Show P&L if it's a position
+    // Price change indicator
+    let changeHtml = '';
+    if (priceChange && priceChange !== 0) {
+        const changeColor = priceChange > 0 ? '#00d68f' : '#ff3b5c';
+        const arrow = priceChange > 0 ? '▲' : '▼';
+        changeHtml = `<span class="price-change" style="color:${changeColor}">${arrow}${Math.abs(priceChange)}¢</span>`;
+    }
+
+    // Pulse Score — combines price confidence + volume strength + momentum
+    const pulseScore = calcPulseScore(market, priceChange);
+    const pulseColor = pulseScore >= 70 ? '#00d68f' : pulseScore >= 40 ? '#f0b000' : '#ff3b5c';
+    const pulseLabel = pulseScore >= 70 ? 'STRONG' : pulseScore >= 40 ? 'MODERATE' : 'WEAK';
+
+    let extraInfo = '';
     if (market.pnl !== undefined && market.pnl !== 0) {
         const pnlColor = market.pnl >= 0 ? '#00cc88' : '#ff4466';
         extraInfo += `<div style="margin-top:6px;"><span style="color:${pnlColor};font-weight:600;">${market.side.toUpperCase()} · P&L: ${market.pnl >= 0 ? '+' : ''}$${market.pnl.toFixed(2)}</span></div>`;
     }
-
-    // Show edge if it's a signal
     if (market.edge && market.edge > 0) {
         extraInfo += `<div style="margin-top:6px;color:#00b4ff;font-size:13px;">Edge: ${(market.edge * 100).toFixed(1)}% ${market.side.toUpperCase()}</div>`;
     }
-
-    // Show volume
     if (market.volume > 0) {
         extraInfo += `<div class="volume">Vol: $${Math.round(market.volume).toLocaleString()}</div>`;
     }
 
-    // Platform badge
     const badge = platform === 'kalshi'
         ? '<span class="badge kalshi-badge">KALSHI</span>'
         : '<span class="badge poly-badge">POLY</span>';
@@ -384,16 +425,22 @@ function createMarketCard(market, platform) {
 
     card.innerHTML = `
         <div class="card-top-row">
-            ${badge}
             <div style="display:flex;align-items:center;gap:6px;">
+                ${badge}
+                ${catDot}
+            </div>
+            <div style="display:flex;align-items:center;gap:6px;">
+                <span class="pulse-score" style="color:${pulseColor}" title="Pulse Score: ${pulseLabel}">${pulseScore}</span>
                 <button class="${starClass}" title="Add to watchlist">${starChar}</button>
                 <button class="ai-btn" title="AI Analysis">\u26A1</button>
+                <button class="share-btn" title="Share">\u2197</button>
             </div>
         </div>
         <h3>${title}</h3>
         <div class="prices">
             <span style="color:${yesColor};font-weight:600;">YES ${market.yes}\u00A2</span>
-            <span style="color:#333;margin:0 8px;">\u00B7</span>
+            ${changeHtml}
+            <span style="color:#333;margin:0 4px;">\u00B7</span>
             <span style="color:${noColor};font-weight:600;">NO ${market.no}\u00A2</span>
         </div>
         <div class="buy-btns">
@@ -403,50 +450,167 @@ function createMarketCard(market, platform) {
         ${extraInfo}
     `;
 
-    // Add sparkline chart with fake price history
-    // (Real price history requires a paid API — we simulate it for now)
+    // Sparkline — use real price history if available
     const sparkDiv = document.createElement('div');
     sparkDiv.className = 'sparkline';
     const sparkCanvas = document.createElement('canvas');
     sparkDiv.appendChild(sparkCanvas);
     card.appendChild(sparkDiv);
 
-    // Generate simulated price data based on current price
-    const basePrice = market.yes;
-    const fakeHistory = [];
-    let price = basePrice - 5 + Math.random() * 10;
-    for (let i = 0; i < 20; i++) {
-        price += (Math.random() - 0.48) * 3;
-        price = Math.max(5, Math.min(95, price));
-        fakeHistory.push(price);
+    const realHistory = getPriceHistory(market.ticker);
+    let chartData;
+    if (realHistory.length >= 3) {
+        chartData = realHistory;
+    } else {
+        // Fallback to simulated data with current price as anchor
+        const basePrice = market.yes;
+        chartData = [];
+        let p = basePrice - 5 + Math.random() * 10;
+        for (let i = 0; i < 20; i++) {
+            p += (Math.random() - 0.48) * 3;
+            p = Math.max(5, Math.min(95, p));
+            chartData.push(p);
+        }
+        chartData.push(basePrice);
     }
-    fakeHistory.push(basePrice);  // End at current price
-
-    // Draw after card is in the DOM
-    setTimeout(() => drawSparkline(sparkCanvas, fakeHistory), 100);
+    setTimeout(() => drawSparkline(sparkCanvas, chartData), 100);
 
     // Card click → open detail page
     card.addEventListener('click', (e) => {
-        if (e.target.closest('.ai-btn') || e.target.closest('.star-btn') || e.target.closest('.buy-btn')) return;
+        if (e.target.closest('.ai-btn') || e.target.closest('.star-btn') || e.target.closest('.buy-btn') || e.target.closest('.share-btn')) return;
         openDetail(market, platform);
     });
 
-    // AI button → analysis popup
     card.querySelector('.ai-btn').addEventListener('click', (e) => {
         e.stopPropagation();
         analyzeMarket(market);
     });
 
-    // Star button → toggle watchlist
     card.querySelector('.star-btn').addEventListener('click', (e) => {
         e.stopPropagation();
         toggleWatchlist(market.ticker, e.target);
     });
 
-    // Store for filtering
-    allMarketCards.push({ card, market });
+    // Share button
+    card.querySelector('.share-btn').addEventListener('click', (e) => {
+        e.stopPropagation();
+        shareMarket(market);
+    });
 
+    allMarketCards.push({ card, market });
     return card;
+}
+
+// ── PULSE SCORE — confidence rating ──
+function calcPulseScore(market, priceChange) {
+    let score = 0;
+    // Price confidence (further from 50 = more confident)
+    const confidence = Math.abs(market.yes - 50);
+    score += Math.min(confidence * 1.2, 40); // max 40 pts
+
+    // Volume strength
+    const vol = market.volume || 0;
+    if (vol > 100000) score += 30;
+    else if (vol > 10000) score += 20;
+    else if (vol > 1000) score += 10;
+    else if (vol > 100) score += 5;
+
+    // Momentum (price change)
+    const change = Math.abs(priceChange || 0);
+    if (change > 5) score += 20;
+    else if (change > 2) score += 10;
+    else if (change > 0) score += 5;
+
+    // Edge bonus
+    if (market.edge && market.edge > 0.05) score += 10;
+
+    return Math.min(Math.round(score), 99);
+}
+
+// ── SHARE MARKET ──
+function shareMarket(market) {
+    const text = `${market.question}\nYES ${market.yes}¢ · NO ${market.no}¢\n${market.url || 'via PULSE'}`;
+    if (navigator.clipboard) {
+        navigator.clipboard.writeText(text).then(() => {
+            const toast = document.createElement('div');
+            toast.className = 'toast';
+            toast.textContent = 'Copied to clipboard!';
+            document.body.appendChild(toast);
+            setTimeout(() => toast.remove(), 2000);
+        });
+    }
+}
+
+// ── REAL PRICE HISTORY ──
+function getPriceSnapshots() {
+    try { return JSON.parse(localStorage.getItem('pulse-snapshots') || '{}'); }
+    catch { return {}; }
+}
+
+function savePriceSnapshot(allMarkets) {
+    const snapshots = getPriceSnapshots();
+    const now = Date.now();
+    for (const m of allMarkets) {
+        if (!m.ticker) continue;
+        if (!snapshots[m.ticker]) snapshots[m.ticker] = [];
+        const arr = snapshots[m.ticker];
+        // Only save if price changed or every 5 min
+        const last = arr[arr.length - 1];
+        if (!last || last.p !== m.yes || (now - last.t) > 300000) {
+            arr.push({ t: now, p: m.yes });
+        }
+        // Keep last 50 snapshots per market
+        if (arr.length > 50) arr.splice(0, arr.length - 50);
+    }
+    localStorage.setItem('pulse-snapshots', JSON.stringify(snapshots));
+}
+
+function getPriceHistory(ticker) {
+    const snapshots = getPriceSnapshots();
+    return (snapshots[ticker] || []).map(s => s.p);
+}
+
+function getMarketChange(ticker) {
+    const snapshots = getPriceSnapshots();
+    const arr = snapshots[ticker] || [];
+    if (arr.length < 2) return 0;
+    return arr[arr.length - 1].p - arr[0].p;
+}
+
+// ── BIGGEST MOVERS ──
+function findBiggestMovers(allMarkets) {
+    const movers = [];
+    for (const m of allMarkets) {
+        if (!m.ticker) continue;
+        const change = getMarketChange(m.ticker);
+        if (Math.abs(change) >= 2) {
+            movers.push({ market: m, change });
+        }
+    }
+    movers.sort((a, b) => Math.abs(b.change) - Math.abs(a.change));
+    return movers;
+}
+
+// ── FILTER CHIP COUNTS ──
+function updateFilterCounts(allMarkets) {
+    const counts = { all: allMarkets.length };
+    for (const m of allMarkets) {
+        const cat = m.category || categorize(m.question);
+        counts[cat] = (counts[cat] || 0) + 1;
+    }
+    counts.watchlist = getWatchlist().length;
+
+    document.querySelectorAll('.chip').forEach(chip => {
+        const onclick = chip.getAttribute('onclick') || '';
+        const match = onclick.match(/setFilter\('(\w+)'/);
+        if (match) {
+            const filter = match[1];
+            const count = counts[filter] || 0;
+            // Update chip text — keep label, add count
+            const label = chip.textContent.replace(/\s*\(\d+\)$/, '');
+            chip.textContent = count > 0 ? `${label} (${count})` : label;
+        }
+    });
 }
 
 
@@ -2330,6 +2494,31 @@ loadPortfolio = function() {
     _origLoadPortfolio();
     drawPortfolioChart();
 };
+
+
+// ── KEYBOARD SHORTCUTS ──
+document.addEventListener('keydown', (e) => {
+    // Don't trigger shortcuts when typing in inputs
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || e.target.tagName === 'TEXTAREA') return;
+
+    const tabs = ['markets', 'bot', 'portfolio', 'arbitrage', 'correlations'];
+    const links = document.querySelectorAll('.nav-links a');
+
+    if (e.key >= '1' && e.key <= '5') {
+        const idx = parseInt(e.key) - 1;
+        if (tabs[idx] && links[idx]) {
+            switchTab(tabs[idx], links[idx]);
+        }
+    }
+    if (e.key === 'Escape') {
+        closeDetail();
+        closeAI();
+    }
+    if (e.key === '/' && !e.ctrlKey) {
+        e.preventDefault();
+        document.getElementById('search-input')?.focus();
+    }
+});
 
 
 // ── SERVICE WORKER (PWA) ──

@@ -340,31 +340,50 @@ def categorize(title):
 
 
 def find_arbitrage(kalshi_markets, poly_markets):
+    import re
     opportunities = []
-    # Broad keyword list to match similar markets across platforms
+
+    # Keywords with minimum length to avoid substring false positives
+    # Use word boundary matching for short keywords
     keywords = [
         "bitcoin", "btc", "ethereum", "eth", "crypto",
         "trump", "election", "president", "biden",
-        "fed", "rate", "interest rate", "inflation", "cpi",
-        "recession", "gdp", "unemployment",
-        "pope", "ukraine", "russia", "china", "nato",
-        "ai", "openai", "chatgpt",
-        "tesla", "spacex", "musk",
-        "world cup", "super bowl", "nba", "mlb",
+        "interest rate", "inflation",
+        "recession", "unemployment",
+        "pope", "ukraine", "russia",
+        "openai", "chatgpt",
+        "tesla", "spacex",
+        "world cup", "super bowl",
+        "stanley cup", "nba finals",
+        "gta vi", "gta 6",
     ]
 
-    seen = set()  # avoid duplicate pairs
+    def has_keyword(title, kw):
+        """Check if keyword appears as a whole word (not substring)."""
+        if len(kw) <= 3:
+            # Short keywords need word boundary check
+            return bool(re.search(r'\b' + re.escape(kw) + r'\b', title))
+        return kw in title
+
+    seen = set()
     for k in kalshi_markets:
         k_title = (k.get("question") or "").lower()
+        k_cat = k.get("category", "")
         for p in poly_markets:
             p_title = (p.get("question") or "").lower()
+            p_cat = p.get("category", "")
             pair_key = (k.get("ticker", ""), p.get("ticker", ""))
             if pair_key in seen:
                 continue
+
+            # Must be in same category (or both uncategorized)
+            if k_cat and p_cat and k_cat != p_cat:
+                continue
+
             for keyword in keywords:
-                if keyword in k_title and keyword in p_title:
+                if has_keyword(k_title, keyword) and has_keyword(p_title, keyword):
                     diff = abs(k["yes"] - p["yes"])
-                    if diff >= 2:  # lowered threshold from 3 to 2
+                    if diff >= 3:
                         seen.add(pair_key)
                         opportunities.append({
                             "topic": keyword.upper(),
@@ -373,7 +392,7 @@ def find_arbitrage(kalshi_markets, poly_markets):
                             "diff": diff,
                             "direction": "Buy POLY" if k["yes"] > p["yes"] else "Buy KALSHI",
                         })
-                    break  # only match first keyword per pair
+                    break
 
     opportunities.sort(key=lambda x: x["diff"], reverse=True)
     return opportunities[:10]
