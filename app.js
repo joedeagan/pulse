@@ -1097,6 +1097,7 @@ if (localStorage.getItem('pulse-theme') === 'light') {
 
 
 // ── NAV MINI ORB — matches badass hero orb ──
+// Runs immediately (tiny, always visible in nav)
 (function() {
     const c = document.getElementById('nav-orb');
     if (!c) return;
@@ -1106,13 +1107,13 @@ if (localStorage.getItem('pulse-theme') === 'light') {
     c.height = 32 * dpr;
     ctx.scale(dpr, dpr);
     let t = 0;
+    let _navOrbRAF;
 
     function draw() {
         t += 0.02;
         ctx.clearRect(0, 0, 32, 32);
         const cx = 16, cy = 16;
 
-        // Outer hexagon
         ctx.beginPath();
         for (let i = 0; i < 6; i++) {
             const a = (i / 6) * Math.PI * 2 + t * 0.3;
@@ -1123,7 +1124,6 @@ if (localStorage.getItem('pulse-theme') === 'light') {
         ctx.lineWidth = 0.5;
         ctx.stroke();
 
-        // Segmented ring (rotating)
         ctx.save();
         ctx.translate(cx, cy);
         ctx.rotate(t * 0.5);
@@ -1138,7 +1138,6 @@ if (localStorage.getItem('pulse-theme') === 'light') {
         }
         ctx.restore();
 
-        // Inner ring (counter-rotate)
         ctx.save();
         ctx.translate(cx, cy);
         ctx.rotate(-t * 0.8);
@@ -1152,16 +1151,12 @@ if (localStorage.getItem('pulse-theme') === 'light') {
         }
         ctx.restore();
 
-        // Orbiting dot
         const dotA = t * 1.5;
-        const dx = cx + Math.cos(dotA) * 10;
-        const dy = cy + Math.sin(dotA) * 10;
         ctx.beginPath();
-        ctx.arc(dx, dy, 1.2, 0, Math.PI * 2);
+        ctx.arc(cx + Math.cos(dotA) * 10, cy + Math.sin(dotA) * 10, 1.2, 0, Math.PI * 2);
         ctx.fillStyle = 'rgba(0, 214, 143, 0.8)';
         ctx.fill();
 
-        // Core glow
         const p = Math.sin(t * 2) * 0.2 + 0.8;
         const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, 5 * p);
         g.addColorStop(0, `rgba(255, 255, 255, ${0.9 * p})`);
@@ -1172,30 +1167,48 @@ if (localStorage.getItem('pulse-theme') === 'light') {
         ctx.arc(cx, cy, 5 * p, 0, Math.PI * 2);
         ctx.fill();
 
-        // Center dot
         ctx.beginPath();
         ctx.arc(cx, cy, 1.5, 0, Math.PI * 2);
         ctx.fillStyle = `rgba(255, 255, 255, ${0.8 + Math.sin(t * 3) * 0.2})`;
         ctx.fill();
 
-        requestAnimationFrame(draw);
+        _navOrbRAF = requestAnimationFrame(draw);
     }
     draw();
+
+    // Pause when tab is hidden
+    document.addEventListener('visibilitychange', () => {
+        if (document.hidden) { cancelAnimationFrame(_navOrbRAF); }
+        else { draw(); }
+    });
 })();
 
 // ── ANIMATED LOGO ORB — v5 BADASS EDITION ──
+// Lazy-loaded: only starts when hero is visible, pauses when off-screen or tab hidden
+let _heroOrbRAF = null;
+let _heroOrbRunning = false;
+
+function initHeroOrb() {
+    if (_heroOrbRunning) return;
+    _heroOrbRunning = true;
+
 (function() {
     const canvas = document.getElementById('logo-canvas');
     if (!canvas) return;
+    // Skip on mobile for performance
+    if (window.innerWidth < 768) {
+        canvas.style.display = 'none';
+        _heroOrbRunning = false;
+        return;
+    }
     const ctx = canvas.getContext('2d');
     const dpr = window.devicePixelRatio || 1;
-    const S = 200; // canvas logical size
+    const S = 200;
     canvas.width = S * dpr;
     canvas.height = S * dpr;
     ctx.scale(dpr, dpr);
     let t = 0;
 
-    // Hexagon helper
     function hexPath(cx, cy, r, rot) {
         ctx.beginPath();
         for (let i = 0; i < 6; i++) {
@@ -1454,17 +1467,42 @@ if (localStorage.getItem('pulse-theme') === 'light') {
         ctx.lineTo(cx, cy + 95);
         ctx.stroke();
 
-        requestAnimationFrame(drawLogo);
+        _heroOrbRAF = requestAnimationFrame(drawLogo);
     }
     drawLogo();
+
+    // Pause/resume on visibility
+    document.addEventListener('visibilitychange', () => {
+        if (document.hidden) { cancelAnimationFrame(_heroOrbRAF); }
+        else if (_heroOrbRunning) { drawLogo(); }
+    });
+})();
+} // end initHeroOrb
+
+// Lazy-load hero orb: only start when hero section scrolls into view
+(function() {
+    const hero = document.querySelector('.hero');
+    if (!hero) return;
+    const heroObserver = new IntersectionObserver((entries) => {
+        if (entries[0].isIntersecting) {
+            initHeroOrb();
+            heroObserver.disconnect();
+        }
+    }, { threshold: 0.1 });
+    heroObserver.observe(hero);
 })();
 
 // ── PARTICLE BACKGROUND ──
+// Performance: fewer particles on mobile, pause when tab hidden
 (function() {
     const canvas = document.getElementById('particles');
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
     let w, h, particles = [];
+    let _particleRAF;
+    const isMobile = window.innerWidth < 768;
+    const particleCount = isMobile ? 20 : 60;
+    const lineThreshold = isMobile ? 100 : 150;
 
     function resize() {
         w = canvas.width = window.innerWidth;
@@ -1473,11 +1511,10 @@ if (localStorage.getItem('pulse-theme') === 'light') {
     resize();
     window.addEventListener('resize', resize);
 
-    // Create particles
-    for (let i = 0; i < 60; i++) {
+    for (let i = 0; i < particleCount; i++) {
         particles.push({
-            x: Math.random() * w,
-            y: Math.random() * h,
+            x: Math.random() * (w || 1000),
+            y: Math.random() * (h || 800),
             vx: (Math.random() - 0.5) * 0.3,
             vy: (Math.random() - 0.5) * 0.3,
             size: Math.random() * 1.5 + 0.5,
@@ -1502,26 +1539,34 @@ if (localStorage.getItem('pulse-theme') === 'light') {
             ctx.fill();
         }
 
-        // Draw lines between nearby particles
-        for (let i = 0; i < particles.length; i++) {
-            for (let j = i + 1; j < particles.length; j++) {
-                const dx = particles[i].x - particles[j].x;
-                const dy = particles[i].y - particles[j].y;
-                const dist = Math.sqrt(dx * dx + dy * dy);
-                if (dist < 150) {
-                    ctx.beginPath();
-                    ctx.moveTo(particles[i].x, particles[i].y);
-                    ctx.lineTo(particles[j].x, particles[j].y);
-                    ctx.strokeStyle = `rgba(0, 136, 255, ${0.06 * (1 - dist / 150)})`;
-                    ctx.lineWidth = 0.5;
-                    ctx.stroke();
+        // Skip line drawing on mobile (O(n²) is expensive)
+        if (!isMobile) {
+            for (let i = 0; i < particles.length; i++) {
+                for (let j = i + 1; j < particles.length; j++) {
+                    const dx = particles[i].x - particles[j].x;
+                    const dy = particles[i].y - particles[j].y;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+                    if (dist < lineThreshold) {
+                        ctx.beginPath();
+                        ctx.moveTo(particles[i].x, particles[i].y);
+                        ctx.lineTo(particles[j].x, particles[j].y);
+                        ctx.strokeStyle = `rgba(0, 136, 255, ${0.06 * (1 - dist / lineThreshold)})`;
+                        ctx.lineWidth = 0.5;
+                        ctx.stroke();
+                    }
                 }
             }
         }
 
-        requestAnimationFrame(draw);
+        _particleRAF = requestAnimationFrame(draw);
     }
     draw();
+
+    // Pause when tab hidden
+    document.addEventListener('visibilitychange', () => {
+        if (document.hidden) { cancelAnimationFrame(_particleRAF); }
+        else { draw(); }
+    });
 })();
 
 
@@ -3103,6 +3148,81 @@ function calculateAccuracy() {
     }
     return total > 5 ? Math.round((correct / total) * 100) : null;
 }
+
+// ── DAILY RECAP BANNER ──
+// Shows what changed since the user's last visit
+function showRecapBanner() {
+    const banner = document.getElementById('recap-banner');
+    if (!banner) return;
+
+    const lastVisit = localStorage.getItem('pulse-last-visit');
+    const now = Date.now();
+    localStorage.setItem('pulse-last-visit', now);
+
+    // Only show if user has been away 1+ hours
+    if (!lastVisit || (now - parseInt(lastVisit)) < 3600000) return;
+
+    const hoursSince = Math.round((now - parseInt(lastVisit)) / 3600000);
+    const timeAgo = hoursSince >= 24 ? Math.round(hoursSince / 24) + 'd' : hoursSince + 'h';
+
+    // Count price movers since last visit
+    const snapshots = getPriceSnapshots();
+    let bigMovers = 0;
+    let biggestMove = { ticker: '', change: 0, question: '' };
+    for (const {market} of allMarketCards) {
+        const arr = snapshots[market.ticker] || [];
+        if (arr.length < 2) continue;
+        const change = Math.abs(arr[arr.length - 1].p - arr[0].p);
+        if (change >= 5) {
+            bigMovers++;
+            if (change > Math.abs(biggestMove.change)) {
+                biggestMove = { ticker: market.ticker, change: arr[arr.length - 1].p - arr[0].p, question: market.question };
+            }
+        }
+    }
+
+    // Count arbitrage opportunities
+    const arbCount = document.querySelectorAll('.arb-card').length;
+
+    // Build recap
+    const parts = [];
+    parts.push(`<span class="recap-time">Since ${timeAgo} ago</span>`);
+    if (bigMovers > 0) {
+        parts.push(`<span class="recap-stat">🔥 ${bigMovers} market${bigMovers > 1 ? 's' : ''} moved 5¢+</span>`);
+    }
+    if (biggestMove.question) {
+        const dir = biggestMove.change > 0 ? '📈' : '📉';
+        const name = shortenTitle(biggestMove.question);
+        parts.push(`<span class="recap-stat">${dir} ${name}: ${biggestMove.change > 0 ? '+' : ''}${biggestMove.change}¢</span>`);
+    }
+    if (arbCount > 0) {
+        parts.push(`<span class="recap-stat">💰 ${arbCount} arbitrage opportunit${arbCount > 1 ? 'ies' : 'y'}</span>`);
+    }
+
+    if (bigMovers === 0 && arbCount === 0) return; // Nothing interesting to show
+
+    banner.innerHTML = `
+        <div class="recap-content">
+            ${parts.join('<span class="recap-sep">·</span>')}
+        </div>
+        <button class="recap-close" onclick="this.closest('.recap-banner').style.display='none'">✕</button>
+    `;
+    banner.style.display = 'flex';
+}
+
+// Hook recap into loadMarkets
+const _origLoadMarkets2 = loadMarkets;
+loadMarkets = async function() {
+    await _origLoadMarkets2();
+    if (firstLoad === false) {
+        // Show recap on first successful load
+        showRecapBanner();
+    }
+    // Update accuracy stat
+    const acc = calculateAccuracy();
+    const accEl = document.getElementById('accuracy-stat');
+    if (accEl && acc !== null) accEl.textContent = acc + '%';
+};
 
 // ── PULSE SCORE EXPLAINER ──
 if (localStorage.getItem('pulse-explainer-dismissed') === 'true') {

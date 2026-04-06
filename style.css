@@ -1318,19 +1318,24 @@ body.light .buy-no:hover { background: #e53e3e; color: #fff; }
     font-size: 12px !important;
 }
 
-/* ── PULSE SCORE EXPLAINER ── */
+/* ── PULSE SCORE EXPLAINER — full-width banner ── */
 .pulse-explainer {
-    max-width: 700px;
-    margin: 0 auto;
-    padding: 0 20px 20px;
+    width: 100%;
+    padding: 0;
+    margin: 0;
+    position: relative;
 }
 
 .pulse-explainer-card {
-    background: linear-gradient(135deg, rgba(0, 136, 255, 0.1), rgba(0, 214, 143, 0.06));
-    border: 1px solid rgba(0, 136, 255, 0.25);
-    border-radius: 16px;
-    padding: 32px;
+    background: linear-gradient(135deg, rgba(0, 136, 255, 0.08) 0%, rgba(0, 214, 143, 0.04) 50%, rgba(139, 92, 246, 0.06) 100%);
+    border-top: 1px solid rgba(0, 136, 255, 0.15);
+    border-bottom: 1px solid rgba(0, 136, 255, 0.15);
+    border-left: none;
+    border-right: none;
+    border-radius: 0;
+    padding: 40px 40px;
     text-align: center;
+    max-width: 100%;
 }
 
 .pulse-explainer-card h3 {
@@ -1350,10 +1355,14 @@ body.light .buy-no:hover { background: #e53e3e; color: #fff; }
 
 .pulse-factors {
     display: flex;
-    flex-direction: column;
-    gap: 10px;
+    flex-direction: row;
+    gap: 12px;
     text-align: left;
     margin-bottom: 16px;
+    max-width: 900px;
+    margin-left: auto;
+    margin-right: auto;
+    margin-bottom: 20px;
 }
 
 .pulse-factor {
@@ -1364,6 +1373,7 @@ body.light .buy-no:hover { background: #e53e3e; color: #fff; }
     background: rgba(255, 255, 255, 0.04);
     border-radius: 10px;
     border: 1px solid rgba(255, 255, 255, 0.04);
+    flex: 1;
 }
 
 .pulse-factor-icon {
@@ -1847,6 +1857,28 @@ body.light .buy-no:hover { background: #e53e3e; color: #fff; }
     .portfolio-chart-section canvas {
         height: 120px;
     }
+    /* Pulse explainer mobile */
+    .pulse-explainer-card {
+        padding: 24px 16px;
+    }
+    .pulse-factors {
+        flex-direction: column;
+    }
+    .pulse-scale {
+        flex-direction: column;
+        gap: 8px;
+        align-items: center;
+    }
+    /* Recap banner mobile */
+    .recap-banner {
+        flex-direction: column;
+        gap: 8px;
+    }
+    .recap-content {
+        flex-direction: column;
+        gap: 4px;
+    }
+    .recap-sep { display: none; }
 }
 
 /* ── PULSE RING ── */
@@ -2136,4 +2168,60 @@ body.light .buy-no:hover { background: #e53e3e; color: #fff; }
     font-size: 12px;
     color: var(--green);
     margin-top: 8px;
+}
+
+/* ── DAILY RECAP BANNER ── */
+.recap-banner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 40px;
+    background: linear-gradient(90deg, rgba(0, 136, 255, 0.1), rgba(0, 214, 143, 0.08), rgba(139, 92, 246, 0.06));
+    border-bottom: 1px solid rgba(0, 136, 255, 0.15);
+    position: relative;
+    z-index: 99;
+    animation: recap-slide 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+}
+@keyframes recap-slide {
+    from { transform: translateY(-100%); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+}
+.recap-content {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    font-size: 13px;
+    font-family: var(--font);
+}
+.recap-time {
+    color: var(--text-dim);
+    font-weight: 600;
+    letter-spacing: 0.5px;
+}
+.recap-stat {
+    color: var(--text);
+    font-weight: 500;
+}
+.recap-sep {
+    color: var(--text-dim);
+    font-size: 10px;
+}
+.recap-close {
+    background: none;
+    border: none;
+    color: var(--text-dim);
+    font-size: 16px;
+    cursor: pointer;
+    padding: 4px 8px;
+    transition: color 0.2s;
+    flex-shrink: 0;
+}
+.recap-close:hover {
+    color: var(--text);
+}
+
+/* ── PULSE DISMISS — positioned for full-width banner ── */
+.pulse-dismiss {
+    margin-top: 4px;
 }

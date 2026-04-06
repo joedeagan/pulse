@@ -88,6 +88,16 @@ async def serve_icon_512():
     return FileResponse(os.path.join(static_dir, "icon-512.png"), media_type="image/png")
 
 
+@app.get("/og-image.png")
+async def serve_og_image():
+    """Serve OG image — falls back to icon if no og-image.png exists."""
+    og_path = os.path.join(static_dir, "og-image.png")
+    if os.path.exists(og_path):
+        return FileResponse(og_path, media_type="image/png")
+    # Fallback: serve the app icon
+    return FileResponse(os.path.join(static_dir, "icon-512.png"), media_type="image/png")
+
+
 def _expires_before(market, max_dt):
     """Check if a market expires before the given datetime."""
     exp = market.get("expiration_time") or market.get("close_time", "")
