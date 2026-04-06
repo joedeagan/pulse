@@ -910,6 +910,30 @@ function setFilter(filter, btn) {
 
 // ── SORT MARKETS ──
 let currentSort = 'default';
+// ── CUSTOM SORT DROPDOWN ──
+function toggleSortDropdown() {
+    const menu = document.getElementById('sort-menu');
+    menu.classList.toggle('open');
+}
+
+function selectSort(el) {
+    const value = el.dataset.value;
+    const label = el.textContent;
+    document.getElementById('sort-label').textContent = value === 'default' ? 'Sort: Default' : 'Sort: ' + label;
+    document.querySelectorAll('.custom-select-option').forEach(o => o.classList.remove('active'));
+    el.classList.add('active');
+    document.getElementById('sort-menu').classList.remove('open');
+    sortMarkets(value);
+}
+
+// Close sort dropdown when clicking outside
+document.addEventListener('click', (e) => {
+    if (!e.target.closest('.custom-select')) {
+        const menu = document.getElementById('sort-menu');
+        if (menu) menu.classList.remove('open');
+    }
+});
+
 function sortMarkets(sort) {
     currentSort = sort;
     const grid = document.querySelector('.market-grid');

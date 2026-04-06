@@ -166,15 +166,21 @@
             </div>
             <div class="sort-controls">
                 <button class="chip show-all-chip" id="show-all-toggle" onclick="toggleLowVolume()">Show All</button>
-                <select id="sort-select" onchange="sortMarkets(this.value)">
-                    <option value="default">Sort: Default</option>
-                    <option value="volume-desc">Volume ↓</option>
-                    <option value="volume-asc">Volume ↑</option>
-                    <option value="yes-desc">YES Price ↓</option>
-                    <option value="yes-asc">YES Price ↑</option>
-                    <option value="change-desc">Change ↓</option>
-                    <option value="pulse-desc">Pulse Score ↓</option>
-                </select>
+                <div class="custom-select" id="sort-dropdown">
+                    <button class="custom-select-btn" onclick="toggleSortDropdown()">
+                        <span id="sort-label">Sort: Default</span>
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+                    </button>
+                    <div class="custom-select-menu" id="sort-menu">
+                        <div class="custom-select-option active" data-value="default" onclick="selectSort(this)">Default</div>
+                        <div class="custom-select-option" data-value="volume-desc" onclick="selectSort(this)">Volume ↓</div>
+                        <div class="custom-select-option" data-value="volume-asc" onclick="selectSort(this)">Volume ↑</div>
+                        <div class="custom-select-option" data-value="yes-desc" onclick="selectSort(this)">YES Price ↓</div>
+                        <div class="custom-select-option" data-value="yes-asc" onclick="selectSort(this)">YES Price ↑</div>
+                        <div class="custom-select-option" data-value="change-desc" onclick="selectSort(this)">Change ↓</div>
+                        <div class="custom-select-option" data-value="pulse-desc" onclick="selectSort(this)">Pulse Score ↓</div>
+                    </div>
+                </div>
             </div>
         </div>
     </section>
