@@ -283,27 +283,59 @@ async def get_bot():
 
 def categorize(title):
     t = (title or "").lower()
-    if any(w in t for w in ["bitcoin", "btc", "ethereum", "eth", "crypto", "sol ", "doge", "coin", "token"]):
+    if any(w in t for w in ["bitcoin", "btc", "ethereum", "eth", "crypto", "sol ", "doge", "coin", "token",
+                             "solana", "ripple", "xrp", "dogecoin", "shiba"]):
         return "crypto"
     if any(w in t for w in ["nba", "mlb", "nfl", "nhl", "hockey", "baseball", "basketball", "football",
                              "soccer", "tennis", "golf", "ufc", "mma", "boxing", "f1", "nascar",
-                             "world cup", "champions league", "premier league", "serie a",
+                             "formula 1", "formula one", "verstappen", "hamilton", "leclerc",
+                             "world cup", "fifa", "champions league", "premier league", "serie a",
+                             "la liga", "bundesliga", "ligue 1", "eredivisie",
                              "lakers", "yankees", "braves", "dodgers", "cubs", "mets",
                              "warriors", "celtics", "playoffs", "championship", "match",
-                             "grand slam", "olympics", "medal"]):
+                             "grand slam", "olympics", "medal", "stanley cup", "super bowl",
+                             "hornets", "spurs", "suns", "raptors", "clippers", "nuggets",
+                             "trail blazers", "thunder", "pacers", "magic", "hawks", "nets",
+                             "avalanche", "rangers", "bruins", "panthers", "oilers",
+                             "wimbledon", "us open", "french open", "australian open",
+                             "retirement" if "season" in t else "NOMATCH"]):
         return "sports"
     if any(w in t for w in ["trump", "election", "president", "senate", "congress", "biden",
                              "governor", "democrat", "republican", "vote", "poll", "cabinet",
                              "minister", "parliament", "legislation", "bill pass",
-                             "supreme court", "political", "party", "primary"]):
+                             "supreme court", "political", "party", "primary",
+                             "tariff", "sanction", "executive order", "impeach",
+                             "speaker of the house", "jeffries", "jim jordan",
+                             "african leaders", "leave office", "climate goal"]):
         return "politics"
     if any(w in t for w in ["rain", "snow", "weather", "temperature", "hurricane", "tornado",
-                             "flood", "drought", "heat wave", "storm", "celsius", "fahrenheit"]):
+                             "flood", "drought", "heat wave", "storm", "celsius", "fahrenheit",
+                             "wildfire", "earthquake"]):
         return "weather"
-    # Catch war/geopolitics separately from weather
+    # Catch war/geopolitics
     if any(w in t for w in ["war", "ukraine", "russia", "china", "nato", "military",
-                             "cease", "invasion", "conflict", "missile", "nuclear"]):
+                             "cease", "invasion", "conflict", "missile", "nuclear",
+                             "iran", "israel", "gaza", "taiwan"]):
         return "politics"
+    # Entertainment / pop culture
+    if any(w in t for w in ["gta", "album", "movie", "film", "cast", "released", "rihanna",
+                             "carti", "drake", "kanye", "taylor swift", "beyonce",
+                             "oscar", "grammy", "emmy", "netflix", "disney", "marvel",
+                             "star wars", "james bond", "miami vice", "season",
+                             "weinstein", "sentenced", "prison", "trial", "verdict",
+                             "pope", "catholic", "vatican"]):
+        return "entertainment"
+    # Finance / economics
+    if any(w in t for w in ["fed ", "rate cut", "rate hike", "inflation", "cpi", "gdp",
+                             "recession", "unemployment", "s&p", "nasdaq", "dow",
+                             "stock", "ipo", "interest rate", "treasury",
+                             "ev market", "electric vehicle", "market share"]):
+        return "finance"
+    # Science / tech
+    if any(w in t for w in ["moon", "mars", "spacex", "nasa", "robot", "humanoid",
+                             "agi", "openai", "ai ", "fda", "cure", "diabetes",
+                             "vaccine", "asteroid", "space"]):
+        return "science"
     return "other"
 
 

@@ -697,15 +697,36 @@ function getSortFn(sort) {
 // Categorize a market by its title
 function categorize(title) {
     const t = (title || '').toLowerCase();
-    if (['bitcoin','btc','ethereum','eth','crypto','doge','token'].some(w => t.includes(w))) return 'crypto';
-    if (['nba','mlb','nfl','nhl','soccer','tennis','golf','ufc','boxing','f1',
-         'world cup','champions league','premier league','playoffs','championship',
+    if (['bitcoin','btc','ethereum','eth','crypto','doge','token','solana','ripple','xrp'].some(w => t.includes(w))) return 'crypto';
+    if (['nba','mlb','nfl','nhl','soccer','tennis','golf','ufc','boxing','f1','formula 1',
+         'verstappen','hamilton','leclerc','world cup','fifa',
+         'champions league','premier league','serie a','la liga','bundesliga',
+         'playoffs','championship','stanley cup','super bowl',
          'lakers','yankees','braves','dodgers','warriors','celtics',
+         'hornets','spurs','suns','raptors','clippers','nuggets','hawks','nets',
+         'avalanche','rangers','bruins','panthers','oilers',
+         'wimbledon','us open','french open','australian open',
          'olympics','medal','grand slam','hockey','baseball','basketball','football'].some(w => t.includes(w))) return 'sports';
+    if (t.includes('retirement') && t.includes('season')) return 'sports';
     if (['trump','election','president','senate','congress','biden','governor',
          'democrat','republican','vote','parliament','supreme court',
-         'war','ukraine','russia','china','nato','military','invasion','conflict'].some(w => t.includes(w))) return 'politics';
-    if (['rain','snow','weather','temperature','hurricane','tornado','storm','flood','drought'].some(w => t.includes(w))) return 'weather';
+         'tariff','sanction','executive order','impeach',
+         'speaker of the house','jeffries','jim jordan',
+         'african leaders','leave office','climate goal',
+         'war','ukraine','russia','china','nato','military','invasion','conflict',
+         'iran','israel','gaza','taiwan'].some(w => t.includes(w))) return 'politics';
+    if (['rain','snow','weather','temperature','hurricane','tornado','storm','flood','drought',
+         'wildfire','earthquake'].some(w => t.includes(w))) return 'weather';
+    if (['gta','album','movie','film','cast','released','rihanna','carti','drake',
+         'kanye','taylor swift','beyonce','oscar','grammy','emmy','netflix','disney',
+         'marvel','star wars','james bond','miami vice','season',
+         'weinstein','sentenced','prison','trial','verdict',
+         'pope','catholic','vatican'].some(w => t.includes(w))) return 'entertainment';
+    if (['fed ','rate cut','rate hike','inflation','cpi','gdp','recession',
+         'unemployment','s&p','nasdaq','dow','stock','ipo','interest rate',
+         'ev market','electric vehicle','market share'].some(w => t.includes(w))) return 'finance';
+    if (['moon','mars','spacex','nasa','robot','humanoid','agi','openai','ai ',
+         'fda','cure','diabetes','vaccine','asteroid','space'].some(w => t.includes(w))) return 'science';
     return 'other';
 }
 
