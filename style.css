@@ -1281,6 +1281,108 @@ body.light .refresh-countdown { color: #5a6080; }
     font-size: 12px !important;
 }
 
+/* ── PULSE SCORE EXPLAINER ── */
+.pulse-explainer {
+    max-width: 600px;
+    margin: 0 auto;
+    padding: 0 20px 10px;
+}
+
+.pulse-explainer-card {
+    background: linear-gradient(135deg, rgba(0, 136, 255, 0.08), rgba(0, 214, 143, 0.05));
+    border: 1px solid rgba(0, 136, 255, 0.2);
+    border-radius: var(--radius);
+    padding: 24px;
+    text-align: center;
+}
+
+.pulse-explainer-card h3 {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--accent);
+    margin-bottom: 8px;
+}
+
+.pulse-explainer-card > p {
+    font-size: 13px;
+    color: var(--text-mid);
+    margin-bottom: 16px;
+}
+
+.pulse-factors {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    text-align: left;
+    margin-bottom: 16px;
+}
+
+.pulse-factor {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 8px 12px;
+    background: rgba(255, 255, 255, 0.03);
+    border-radius: 8px;
+}
+
+.pulse-factor-icon {
+    font-size: 18px;
+    flex-shrink: 0;
+    margin-top: 2px;
+}
+
+.pulse-factor strong {
+    display: block;
+    font-size: 13px;
+    color: var(--text);
+}
+
+.pulse-factor span {
+    font-size: 11px;
+    color: var(--text-dim);
+}
+
+.pulse-scale {
+    display: flex;
+    justify-content: center;
+    gap: 16px;
+    margin-bottom: 14px;
+}
+
+.pulse-scale-item {
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+}
+
+.pulse-dismiss {
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    padding: 8px 24px;
+    font-family: var(--font);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.pulse-dismiss:hover {
+    background: #0077dd;
+    transform: translateY(-1px);
+}
+
+/* ── SHOW ALL TOGGLE ── */
+.show-all-chip {
+    background: rgba(255, 184, 0, 0.08) !important;
+    border-color: rgba(255, 184, 0, 0.2) !important;
+    color: var(--gold) !important;
+    font-size: 12px !important;
+    white-space: nowrap;
+}
+
 /* ── FILTER + SORT ROW ── */
 .filter-sort-row {
     display: flex;

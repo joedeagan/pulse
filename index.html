@@ -8,7 +8,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="PULSE">
     <title>PULSE — Trading. Logically.</title>
-    <link rel="stylesheet" href="style.css?v=5">
+    <link rel="stylesheet" href="style.css?v=6">
     <link rel="manifest" href="/manifest.json">
     <link rel="icon" type="image/png" href="/icon-192.png">
     <link rel="apple-touch-icon" href="/icon-192.png">
@@ -66,8 +66,45 @@
         <canvas id="logo-canvas" width="200" height="200"></canvas>
         <h1>PULSE</h1>
         <p class="tagline">TRADING. LOGICALLY.</p>
-        <p>Cross-platform prediction market analytics. Real-time odds. AI-powered insights.</p>
+        <p>Cross-platform prediction market analytics. Real-time odds from Kalshi &amp; Polymarket. AI-powered Pulse Scores, arbitrage detection, and price tracking.</p>
     </section>
+
+    <!-- Pulse Score Explainer -->
+    <div class="pulse-explainer" id="pulse-explainer">
+        <div class="pulse-explainer-card">
+            <h3>What is the Pulse Score?</h3>
+            <p>Every market gets a <strong>0–99 confidence score</strong> based on 3 factors:</p>
+            <div class="pulse-factors">
+                <div class="pulse-factor">
+                    <span class="pulse-factor-icon">📊</span>
+                    <div>
+                        <strong>Price Confidence</strong>
+                        <span>How far from 50/50 — markets at 90¢ or 10¢ score higher</span>
+                    </div>
+                </div>
+                <div class="pulse-factor">
+                    <span class="pulse-factor-icon">💰</span>
+                    <div>
+                        <strong>Volume</strong>
+                        <span>More money traded = more reliable signal</span>
+                    </div>
+                </div>
+                <div class="pulse-factor">
+                    <span class="pulse-factor-icon">📈</span>
+                    <div>
+                        <strong>Momentum</strong>
+                        <span>Price moving fast? That's a market with conviction</span>
+                    </div>
+                </div>
+            </div>
+            <div class="pulse-scale">
+                <span class="pulse-scale-item" style="color:#ff3b5c;">0–39 WEAK</span>
+                <span class="pulse-scale-item" style="color:#f0b000;">40–69 MODERATE</span>
+                <span class="pulse-scale-item" style="color:#00d68f;">70–99 STRONG</span>
+            </div>
+            <button class="pulse-dismiss" onclick="document.getElementById('pulse-explainer').style.display='none'; localStorage.setItem('pulse-explainer-dismissed','true');">Got it</button>
+        </div>
+    </div>
 
     <!-- Stats bar -->
     <div class="stats-bar">
@@ -100,6 +137,7 @@
                 <button class="chip" onclick="setFilter('watchlist', this)">&#9733; Watchlist</button>
             </div>
             <div class="sort-controls">
+                <button class="chip show-all-chip" id="show-all-toggle" onclick="toggleLowVolume()">Show All</button>
                 <select id="sort-select" onchange="sortMarkets(this.value)">
                     <option value="default">Sort: Default</option>
                     <option value="volume-desc">Volume ↓</option>
@@ -218,6 +256,6 @@
         <div id="bot-positions"></div>
     </section>
 
-    <script src="app.js?v=5"></script>
+    <script src="app.js?v=6"></script>
 </body>
 </html>

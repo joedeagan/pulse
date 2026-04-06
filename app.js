@@ -136,13 +136,14 @@ async function loadMarkets() {
     allMarketCards = [];  // Reset for filtering
     firstLoad = false;
 
-    // Sort starred markets to top within each platform
+    // Sort: starred first, then by volume (highest first)
     const wl = getWatchlist();
     const sortByStarred = (arr) => {
         return [...arr].sort((a, b) => {
             const aStarred = wl.includes(a.ticker) ? 1 : 0;
             const bStarred = wl.includes(b.ticker) ? 1 : 0;
-            return bStarred - aStarred;
+            if (bStarred !== aStarred) return bStarred - aStarred;
+            return (b.volume || 0) - (a.volume || 0); // Then by volume
         });
     };
 
@@ -207,6 +208,9 @@ async function loadMarkets() {
     document.getElementById('market-count').textContent = total;
     document.getElementById('arb-count').textContent = arbitrage.length || '0';
     document.getElementById('refresh-time').textContent = `Updated ${new Date().toLocaleTimeString([], {hour: 'numeric', minute: '2-digit'})}`;
+
+    // Apply volume filter
+    filterMarkets();
 
     // Trigger scroll-based card animations
     if (typeof observeCards === 'function') observeCards();
@@ -786,10 +790,13 @@ document.getElementById('ai-popup')?.addEventListener('click', (e) => {
 // ── SEARCH & FILTER ──
 let allMarketCards = [];  // Store all cards for filtering
 let currentFilter = 'all';
+let showLowVolume = false;
+const MIN_VOLUME = 1000; // $1K minimum to be "high value"
 
 function filterMarkets() {
     const query = document.getElementById('search-input').value.toLowerCase();
     const wl = getWatchlist();
+    let visibleCount = 0;
     for (const {card, market} of allMarketCards) {
         const text = (market.question || '').toLowerCase();
         const matchesSearch = !query || text.includes(query);
@@ -799,8 +806,25 @@ function filterMarkets() {
         } else if (currentFilter !== 'all') {
             matchesFilter = (market.category || categorize(market.question)) === currentFilter;
         }
-        card.style.display = (matchesSearch && matchesFilter) ? '' : 'none';
+        // Volume filter — hide low volume unless toggled
+        const vol = market.volume || 0;
+        const isStarred = wl.includes(market.ticker);
+        const passesVolume = showLowVolume || vol >= MIN_VOLUME || isStarred || currentFilter === 'watchlist';
+        const show = matchesSearch && matchesFilter && passesVolume;
+        card.style.display = show ? '' : 'none';
+        if (show) visibleCount++;
     }
+    // Update the "Show All" toggle count
+    const toggleEl = document.getElementById('show-all-toggle');
+    if (toggleEl) {
+        const hiddenCount = allMarketCards.filter(c => (c.market.volume || 0) < MIN_VOLUME && !wl.includes(c.market.ticker)).length;
+        toggleEl.textContent = showLowVolume ? 'Hide Low Volume' : `Show All (+${hiddenCount} low volume)`;
+    }
+}
+
+function toggleLowVolume() {
+    showLowVolume = !showLowVolume;
+    filterMarkets();
 }
 
 function setFilter(filter, btn) {
@@ -2495,6 +2519,12 @@ loadPortfolio = function() {
     drawPortfolioChart();
 };
 
+
+// ── PULSE SCORE EXPLAINER ──
+if (localStorage.getItem('pulse-explainer-dismissed') === 'true') {
+    const expl = document.getElementById('pulse-explainer');
+    if (expl) expl.style.display = 'none';
+}
 
 // ── KEYBOARD SHORTCUTS ──
 document.addEventListener('keydown', (e) => {
