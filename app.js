@@ -158,6 +158,10 @@ async function loadMarkets() {
         showArbitrage(arbitrage);
     }
 
+    // Check for notification-worthy changes
+    checkPriceAlerts(kalshiMarkets, polyMarkets);
+    checkArbAlerts(arbitrage);
+
     const total = kalshiMarkets.length + polyMarkets.length;
     document.getElementById('market-count').textContent = total;
     document.getElementById('arb-count').textContent = arbitrage.length || '0';
@@ -1278,6 +1282,9 @@ async function loadBot() {
 
         document.getElementById('bot-trades').textContent = bot.trades_today || 0;
 
+        // Check for bot trade alerts
+        checkBotAlerts(bot);
+
         // Total P&L
         const totalPnl = (bot.positions || []).reduce((sum, p) => sum + (p.upnl || p.pnl || 0), 0);
         const pnlEl = document.getElementById('bot-total-pnl');
@@ -1315,6 +1322,120 @@ async function loadBot() {
         document.getElementById('bot-status').className = 'bot-stat-value stopped';
     }
 }
+
+// ── NOTIFICATIONS ──
+let notificationsEnabled = localStorage.getItem('pulse-notifications') === 'true';
+let previousPrices = {};
+try { previousPrices = JSON.parse(localStorage.getItem('pulse-prices') || '{}'); } catch {}
+let previousBotTrades = null;
+
+function updateNotifLabel() {
+    const label = document.getElementById('notif-label');
+    if (label) label.textContent = 'Alerts: ' + (notificationsEnabled ? 'ON' : 'OFF');
+}
+
+async function toggleNotifications() {
+    if (!notificationsEnabled) {
+        // Request permission
+        if (!('Notification' in window)) {
+            alert('Your browser doesn\'t support notifications');
+            return;
+        }
+        const perm = await Notification.requestPermission();
+        if (perm === 'granted') {
+            notificationsEnabled = true;
+            localStorage.setItem('pulse-notifications', 'true');
+            sendNotification('PULSE Alerts Enabled', 'You\'ll be notified when watchlisted markets move 5%+ or your bot trades.');
+        } else {
+            alert('Notifications blocked — enable them in browser settings');
+            return;
+        }
+    } else {
+        notificationsEnabled = false;
+        localStorage.setItem('pulse-notifications', 'false');
+    }
+    updateNotifLabel();
+}
+
+function sendNotification(title, body, tag) {
+    if (!notificationsEnabled || Notification.permission !== 'granted') return;
+    try {
+        new Notification(title, {
+            body: body,
+            icon: 'https://pulse-api-joed.onrender.com/favicon.ico',
+            badge: 'https://pulse-api-joed.onrender.com/favicon.ico',
+            tag: tag || undefined,  // prevents duplicate notifs with same tag
+            silent: false,
+        });
+    } catch (e) { console.warn('Notification failed:', e); }
+}
+
+function checkPriceAlerts(kalshiMarkets, polyMarkets) {
+    if (!notificationsEnabled) return;
+    const watchlist = getWatchlist();
+    if (watchlist.length === 0) return;
+
+    const allMarkets = [...kalshiMarkets, ...polyMarkets];
+    const newPrices = {};
+
+    for (const m of allMarkets) {
+        if (!m.ticker) continue;
+        newPrices[m.ticker] = m.yes;
+
+        // Only alert on watchlisted markets
+        if (!watchlist.includes(m.ticker)) continue;
+
+        const oldPrice = previousPrices[m.ticker];
+        if (oldPrice === undefined) continue;  // First time seeing this market
+
+        const diff = Math.abs(m.yes - oldPrice);
+        if (diff >= 5) {
+            const direction = m.yes > oldPrice ? '📈' : '📉';
+            const title = shortenTitle(m.question);
+            sendNotification(
+                `${direction} ${title}`,
+                `Moved ${diff}¢ → now YES ${m.yes}¢ (was ${oldPrice}¢)`,
+                'price-' + m.ticker
+            );
+        }
+    }
+
+    // Save current prices
+    previousPrices = newPrices;
+    localStorage.setItem('pulse-prices', JSON.stringify(newPrices));
+}
+
+function checkBotAlerts(bot) {
+    if (!notificationsEnabled || !bot) return;
+
+    const trades = bot.trades_today || 0;
+    if (previousBotTrades !== null && trades > previousBotTrades) {
+        const newCount = trades - previousBotTrades;
+        sendNotification(
+            `🤖 Bot Made ${newCount} New Trade${newCount > 1 ? 's' : ''}`,
+            `Total today: ${trades} | Balance: $${(bot.balance || 0).toFixed(2)}`,
+            'bot-trade'
+        );
+    }
+    previousBotTrades = trades;
+}
+
+function checkArbAlerts(opportunities) {
+    if (!notificationsEnabled || opportunities.length === 0) return;
+
+    const bestArb = opportunities[0];
+    if (bestArb.diff >= 5) {
+        sendNotification(
+            `💰 Arbitrage: ${bestArb.diff}¢ Spread`,
+            `${bestArb.topic} — ${bestArb.direction}`,
+            'arb-' + bestArb.topic
+        );
+    }
+}
+
+// Init label on load
+updateNotifLabel();
+
 
 // ── AUTO REFRESH with countdown ──
 let refreshCountdown = 120;
