@@ -8,7 +8,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="PULSE">
     <title>PULSE — Trading. Logically.</title>
-    <link rel="stylesheet" href="style.css?v=3">
+    <link rel="stylesheet" href="style.css?v=4">
     <link rel="manifest" href="/manifest.json">
     <link rel="icon" type="image/png" href="/icon-192.png">
     <link rel="apple-touch-icon" href="/icon-192.png">
@@ -31,6 +31,7 @@
             <a href="#" onclick="switchTab('bot', this); return false;">Bot</a>
             <a href="#" onclick="switchTab('portfolio', this); return false;">Portfolio</a>
             <a href="#" onclick="switchTab('arbitrage', this); return false;">Arbitrage</a>
+            <a href="#" onclick="switchTab('correlations', this); return false;">Correlations</a>
         </div>
         <div class="settings-dropdown">
             <button class="settings-btn" onclick="toggleSettings()">
@@ -84,14 +85,27 @@
         </div>
     </div>
 
-    <!-- Filter chips -->
+    <!-- Filter chips + Sort -->
     <section id="filters" class="reveal">
-        <div class="filter-chips">
-            <button class="chip active" onclick="setFilter('all', this)">All</button>
-            <button class="chip" onclick="setFilter('crypto', this)">Crypto</button>
-            <button class="chip" onclick="setFilter('sports', this)">Sports</button>
-            <button class="chip" onclick="setFilter('politics', this)">Politics</button>
-            <button class="chip" onclick="setFilter('weather', this)">Weather</button>
+        <div class="filter-sort-row">
+            <div class="filter-chips">
+                <button class="chip active" onclick="setFilter('all', this)">All</button>
+                <button class="chip" onclick="setFilter('crypto', this)">Crypto</button>
+                <button class="chip" onclick="setFilter('sports', this)">Sports</button>
+                <button class="chip" onclick="setFilter('politics', this)">Politics</button>
+                <button class="chip" onclick="setFilter('weather', this)">Weather</button>
+                <button class="chip" onclick="setFilter('watchlist', this)">&#9733; Watchlist</button>
+            </div>
+            <div class="sort-controls">
+                <select id="sort-select" onchange="sortMarkets(this.value)">
+                    <option value="default">Sort: Default</option>
+                    <option value="volume-desc">Volume ↓</option>
+                    <option value="volume-asc">Volume ↑</option>
+                    <option value="yes-desc">YES Price ↓</option>
+                    <option value="yes-asc">YES Price ↑</option>
+                    <option value="change-desc">Change ↓</option>
+                </select>
+            </div>
         </div>
     </section>
 
@@ -114,6 +128,7 @@
             <div id="detail-stats"></div>
             <div id="detail-actions"></div>
             <div id="detail-paper-trade"></div>
+            <div id="detail-alert-section"></div>
         </div>
     </div>
 
@@ -147,6 +162,10 @@
                 <div class="bot-stat-value" id="paper-trades">0</div>
             </div>
         </div>
+        <div class="portfolio-chart-section">
+            <h3 style="font-size:13px;color:var(--text-dim);letter-spacing:2px;margin-bottom:8px;">PORTFOLIO VALUE OVER TIME</h3>
+            <canvas id="portfolio-chart" width="800" height="200"></canvas>
+        </div>
         <div id="paper-positions"></div>
     </section>
 
@@ -159,6 +178,13 @@
     <section id="arbitrage" class="view-hidden">
         <h2>Arbitrage Opportunities</h2>
         <p style="color: var(--text-dim); font-size: 14px;">Scanning for cross-platform price differences...</p>
+    </section>
+
+    <!-- Correlations -->
+    <section id="correlations-panel" class="view-hidden">
+        <h2>Market Correlations</h2>
+        <p style="color: var(--text-dim); font-size: 14px; margin-bottom: 16px;">Which markets move together? Categories that share price patterns.</p>
+        <div id="correlation-grid"></div>
     </section>
 
     <!-- Trading Bot -->
@@ -189,6 +215,6 @@
         <div id="bot-positions"></div>
     </section>
 
-    <script src="app.js?v=3"></script>
+    <script src="app.js?v=4"></script>
 </body>
 </html>

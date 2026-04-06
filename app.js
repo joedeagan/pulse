@@ -26,12 +26,14 @@ function switchTab(tab, btn) {
     const botEl = document.getElementById('bot-panel');
     const portfolioEl = document.getElementById('portfolio-panel');
     const arbEl = document.getElementById('arbitrage');
+    const corrEl = document.getElementById('correlations-panel');
 
     const marketsView = [heroEl, statsEl, filtersEl, marketsEl, briefEl];
     const botView = [botEl];
     const portfolioView = [portfolioEl];
     const arbView = [arbEl];
-    const allSections = [...marketsView, ...botView, ...portfolioView, ...arbView];
+    const corrView = [corrEl];
+    const allSections = [...marketsView, ...botView, ...portfolioView, ...arbView, ...corrView];
 
     // Hide everything
     allSections.forEach(el => { if (el) el.classList.add('view-hidden'); });
@@ -623,10 +625,16 @@ let currentFilter = 'all';
 
 function filterMarkets() {
     const query = document.getElementById('search-input').value.toLowerCase();
+    const wl = getWatchlist();
     for (const {card, market} of allMarketCards) {
         const text = (market.question || '').toLowerCase();
         const matchesSearch = !query || text.includes(query);
-        const matchesFilter = currentFilter === 'all' || (market.category || categorize(market.question)) === currentFilter;
+        let matchesFilter = true;
+        if (currentFilter === 'watchlist') {
+            matchesFilter = wl.includes(market.ticker);
+        } else if (currentFilter !== 'all') {
+            matchesFilter = (market.category || categorize(market.question)) === currentFilter;
+        }
         card.style.display = (matchesSearch && matchesFilter) ? '' : 'none';
     }
 }
@@ -636,6 +644,54 @@ function setFilter(filter, btn) {
     document.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
     btn.classList.add('active');
     filterMarkets();
+}
+
+// ── SORT MARKETS ──
+let currentSort = 'default';
+function sortMarkets(sort) {
+    currentSort = sort;
+    const grid = document.querySelector('.market-grid');
+    if (!grid) return;
+
+    // Separate platform headers from cards
+    const headers = grid.querySelectorAll('.platform-header');
+    const kalshiHeader = headers[0];
+    const polyHeader = headers[1];
+
+    // Split cards by platform
+    const kalshiCards = allMarketCards.filter(c => c.market.source === 'kalshi');
+    const polyCards = allMarketCards.filter(c => c.market.source === 'poly');
+
+    const sortFn = getSortFn(sort);
+    if (sortFn) {
+        kalshiCards.sort(sortFn);
+        polyCards.sort(sortFn);
+    }
+
+    // Rebuild grid
+    grid.innerHTML = '';
+    if (kalshiHeader) grid.appendChild(kalshiHeader);
+    kalshiCards.forEach(c => grid.appendChild(c.card));
+    if (polyHeader) grid.appendChild(polyHeader);
+    polyCards.forEach(c => grid.appendChild(c.card));
+
+    filterMarkets(); // Re-apply filters
+}
+
+function getSortFn(sort) {
+    const prev = previousPrices;
+    switch(sort) {
+        case 'volume-desc': return (a, b) => (b.market.volume || 0) - (a.market.volume || 0);
+        case 'volume-asc': return (a, b) => (a.market.volume || 0) - (b.market.volume || 0);
+        case 'yes-desc': return (a, b) => b.market.yes - a.market.yes;
+        case 'yes-asc': return (a, b) => a.market.yes - b.market.yes;
+        case 'change-desc': return (a, b) => {
+            const aChange = Math.abs(a.market.yes - (prev[a.market.ticker] || a.market.yes));
+            const bChange = Math.abs(b.market.yes - (prev[b.market.ticker] || b.market.yes));
+            return bChange - aChange;
+        };
+        default: return null;
+    }
 }
 
 // Categorize a market by its title
@@ -1412,6 +1468,27 @@ function openDetail(market, platform) {
         </div>
     `;
 
+    // Price alert section
+    const alerts = getPriceAlerts();
+    const existingAlert = alerts.find(a => a.ticker === market.ticker);
+    document.getElementById('detail-alert-section').innerHTML = `
+        <div class="paper-trade-section">
+            <h4>Price Alert</h4>
+            <div class="paper-trade-row">
+                <span style="font-size:12px;color:var(--text-dim);">Alert when YES</span>
+                <select id="alert-direction">
+                    <option value="above" ${existingAlert?.direction === 'above' ? 'selected' : ''}>goes above</option>
+                    <option value="below" ${existingAlert?.direction === 'below' ? 'selected' : ''}>drops below</option>
+                </select>
+                <input type="number" id="alert-threshold" placeholder="¢" value="${existingAlert?.threshold || ''}" min="1" max="99" style="width:70px;">
+                <span style="font-size:12px;color:var(--text-dim);">¢</span>
+                <button class="detail-btn detail-btn-paper" onclick="setPriceAlert()" style="flex:0;padding:10px 16px;">${existingAlert ? 'Update' : 'Set Alert'}</button>
+                ${existingAlert ? '<button class="detail-btn" onclick="removePriceAlert()" style="flex:0;padding:10px 12px;background:rgba(255,59,92,0.1);color:var(--red);border-color:rgba(255,59,92,0.3);">✕</button>' : ''}
+            </div>
+            ${existingAlert ? `<p class="paper-cost">Active: Alert when YES ${existingAlert.direction} ${existingAlert.threshold}¢</p>` : ''}
+        </div>
+    `;
+
     // Update cost preview on input change
     setTimeout(() => {
         const amtInput = document.getElementById('paper-amount');
@@ -1799,6 +1876,440 @@ setInterval(() => {
 }, 1000);
 loadMarkets();
 loadBot();
+
+// ── PRICE ALERT THRESHOLDS (Feature 4) ──
+function getPriceAlerts() {
+    try { return JSON.parse(localStorage.getItem('pulse-price-alerts') || '[]'); }
+    catch { return []; }
+}
+
+function savePriceAlerts(alerts) {
+    localStorage.setItem('pulse-price-alerts', JSON.stringify(alerts));
+}
+
+function setPriceAlert() {
+    if (!currentDetailMarket) return;
+    const direction = document.getElementById('alert-direction').value;
+    const threshold = parseInt(document.getElementById('alert-threshold').value);
+    if (!threshold || threshold < 1 || threshold > 99) { alert('Enter a threshold between 1-99¢'); return; }
+
+    let alerts = getPriceAlerts();
+    alerts = alerts.filter(a => a.ticker !== currentDetailMarket.ticker);
+    alerts.push({
+        ticker: currentDetailMarket.ticker,
+        question: currentDetailMarket.question,
+        direction: direction,
+        threshold: threshold,
+    });
+    savePriceAlerts(alerts);
+
+    const toast = document.createElement('div');
+    toast.className = 'toast';
+    toast.textContent = `Alert set: ${shortenTitle(currentDetailMarket.question)} YES ${direction} ${threshold}¢`;
+    document.body.appendChild(toast);
+    setTimeout(() => toast.remove(), 3000);
+    closeDetail();
+}
+
+function removePriceAlert() {
+    if (!currentDetailMarket) return;
+    let alerts = getPriceAlerts();
+    alerts = alerts.filter(a => a.ticker !== currentDetailMarket.ticker);
+    savePriceAlerts(alerts);
+
+    const toast = document.createElement('div');
+    toast.className = 'toast';
+    toast.textContent = 'Price alert removed';
+    document.body.appendChild(toast);
+    setTimeout(() => toast.remove(), 3000);
+    closeDetail();
+}
+
+function checkCustomAlerts(allMarkets) {
+    if (!notificationsEnabled) return;
+    const alerts = getPriceAlerts();
+    const triggered = [];
+
+    for (const alert of alerts) {
+        const market = allMarkets.find(m => m.ticker === alert.ticker);
+        if (!market) continue;
+
+        const hit = (alert.direction === 'above' && market.yes >= alert.threshold) ||
+                    (alert.direction === 'below' && market.yes <= alert.threshold);
+
+        if (hit) {
+            sendNotification(
+                `🔔 ${shortenTitle(alert.question)}`,
+                `YES is now ${market.yes}¢ (alert: ${alert.direction} ${alert.threshold}¢)`,
+                'custom-alert-' + alert.ticker
+            );
+            triggered.push(alert.ticker);
+        }
+    }
+
+    // Remove triggered alerts so they don't fire again
+    if (triggered.length > 0) {
+        savePriceAlerts(alerts.filter(a => !triggered.includes(a.ticker)));
+    }
+}
+
+
+// ── PORTFOLIO P&L CHART (Feature 5) ──
+function getPortfolioHistory() {
+    try { return JSON.parse(localStorage.getItem('pulse-portfolio-history') || '[]'); }
+    catch { return []; }
+}
+
+function recordPortfolioSnapshot() {
+    const portfolio = getPaperPortfolio();
+    const trades = portfolio.trades || [];
+    const invested = trades.filter(t => !t.settled).reduce((s, t) => s + t.cost, 0);
+
+    // Estimate current portfolio value
+    let currentValue = portfolio.balance;
+    for (const t of trades.filter(tr => !tr.settled)) {
+        const currentMarket = allMarketCards.find(c => c.market.ticker === t.ticker);
+        const currentPrice = currentMarket ? (t.side === 'yes' ? currentMarket.market.yes : currentMarket.market.no) : t.entryPrice;
+        currentValue += (currentPrice * t.contracts) / 100;
+    }
+
+    const history = getPortfolioHistory();
+    history.push({
+        timestamp: Date.now(),
+        value: currentValue,
+        balance: portfolio.balance,
+        invested: invested,
+    });
+
+    // Keep last 100 snapshots
+    if (history.length > 100) history.splice(0, history.length - 100);
+    localStorage.setItem('pulse-portfolio-history', JSON.stringify(history));
+}
+
+function drawPortfolioChart() {
+    const canvas = document.getElementById('portfolio-chart');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    const w = canvas.width;
+    const h = canvas.height;
+    ctx.clearRect(0, 0, w, h);
+
+    const history = getPortfolioHistory();
+    if (history.length < 2) {
+        ctx.fillStyle = 'rgba(255,255,255,0.15)';
+        ctx.font = '13px Sora, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('Portfolio chart will appear after a few refreshes', w/2, h/2);
+        return;
+    }
+
+    const values = history.map(h => h.value);
+    const min = Math.min(...values) * 0.98;
+    const max = Math.max(...values) * 1.02;
+    const range = max - min || 1;
+    const trending = values[values.length - 1] >= values[0];
+    const color = trending ? '0, 214, 143' : '255, 59, 92';
+
+    // Grid
+    ctx.strokeStyle = 'rgba(255,255,255,0.04)';
+    ctx.lineWidth = 1;
+    for (let i = 0; i < 4; i++) {
+        const y = (h / 4) * i + 10;
+        ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke();
+        // Label
+        const val = max - (i / 4) * range;
+        ctx.fillStyle = 'rgba(255,255,255,0.2)';
+        ctx.font = '10px Sora, sans-serif';
+        ctx.textAlign = 'left';
+        ctx.fillText('$' + val.toFixed(0), 4, y - 2);
+    }
+
+    // Fill
+    ctx.beginPath();
+    ctx.moveTo(0, h);
+    for (let i = 0; i < values.length; i++) {
+        const x = (i / (values.length - 1)) * w;
+        const y = h - 10 - ((values[i] - min) / range) * (h - 20);
+        ctx.lineTo(x, y);
+    }
+    ctx.lineTo(w, h);
+    ctx.closePath();
+    const grad = ctx.createLinearGradient(0, 0, 0, h);
+    grad.addColorStop(0, `rgba(${color}, 0.15)`);
+    grad.addColorStop(1, `rgba(${color}, 0)`);
+    ctx.fillStyle = grad;
+    ctx.fill();
+
+    // Line
+    ctx.beginPath();
+    for (let i = 0; i < values.length; i++) {
+        const x = (i / (values.length - 1)) * w;
+        const y = h - 10 - ((values[i] - min) / range) * (h - 20);
+        i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+    }
+    ctx.strokeStyle = `rgba(${color}, 0.9)`;
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    // End dot
+    const lastY = h - 10 - ((values[values.length - 1] - min) / range) * (h - 20);
+    ctx.beginPath();
+    ctx.arc(w - 2, lastY, 4, 0, Math.PI * 2);
+    ctx.fillStyle = `rgb(${color})`;
+    ctx.fill();
+
+    // Current value label
+    ctx.fillStyle = `rgb(${color})`;
+    ctx.font = 'bold 14px Sora, sans-serif';
+    ctx.textAlign = 'right';
+    ctx.fillText('$' + values[values.length - 1].toFixed(2), w - 10, lastY - 10);
+}
+
+
+// ── MARKET CORRELATIONS (Feature 7) ──
+function buildCorrelations(kalshiMarkets, polyMarkets) {
+    const allMarkets = [...kalshiMarkets, ...polyMarkets];
+    const categories = {};
+
+    // Group markets by category
+    for (const m of allMarkets) {
+        const cat = m.category || categorize(m.question);
+        if (!categories[cat]) categories[cat] = [];
+        categories[cat].push(m);
+    }
+
+    const catNames = Object.keys(categories).filter(c => categories[c].length >= 2);
+
+    // Calculate average price per category
+    const catAvgs = {};
+    for (const c of catNames) {
+        const markets = categories[c];
+        catAvgs[c] = {
+            avgYes: Math.round(markets.reduce((s, m) => s + m.yes, 0) / markets.length),
+            count: markets.length,
+            avgVol: Math.round(markets.reduce((s, m) => s + (m.volume || 0), 0) / markets.length),
+            topMarket: markets.sort((a, b) => (b.volume || 0) - (a.volume || 0))[0],
+        };
+    }
+
+    // Render correlation grid
+    const grid = document.getElementById('correlation-grid');
+    if (!grid) return;
+
+    let html = '<div class="corr-cards">';
+
+    for (const cat of catNames) {
+        const data = catAvgs[cat];
+        const color = cat === 'crypto' ? 'var(--gold)' :
+                      cat === 'sports' ? 'var(--green)' :
+                      cat === 'politics' ? 'var(--accent)' :
+                      cat === 'weather' ? '#64b5f6' : 'var(--purple)';
+
+        // Find related categories (share keywords)
+        const related = catNames.filter(c => c !== cat);
+
+        html += `
+            <div class="corr-card">
+                <div class="corr-card-header">
+                    <span class="corr-cat-dot" style="background:${color}"></span>
+                    <h3>${cat.charAt(0).toUpperCase() + cat.slice(1)}</h3>
+                    <span class="corr-count">${data.count} markets</span>
+                </div>
+                <div class="corr-stats">
+                    <div><span class="corr-label">Avg YES</span><span class="corr-value">${data.avgYes}¢</span></div>
+                    <div><span class="corr-label">Avg Volume</span><span class="corr-value">$${data.avgVol.toLocaleString()}</span></div>
+                </div>
+                <div class="corr-top-market">
+                    <span class="corr-label">Top Market</span>
+                    <span class="corr-market-name">${shortenTitle(data.topMarket.question)}</span>
+                    <span style="color:${data.topMarket.yes >= 50 ? 'var(--green)' : 'var(--red)'}; font-weight:600;">YES ${data.topMarket.yes}¢</span>
+                </div>
+                ${related.length > 0 ? `
+                <div class="corr-related">
+                    <span class="corr-label">Related</span>
+                    <div class="corr-tags">${related.map(r => `<span class="corr-tag">${r}</span>`).join('')}</div>
+                </div>` : ''}
+            </div>
+        `;
+    }
+
+    // Cross-platform comparison
+    const kalshiAvg = kalshiMarkets.length > 0 ? Math.round(kalshiMarkets.reduce((s, m) => s + m.yes, 0) / kalshiMarkets.length) : 0;
+    const polyAvg = polyMarkets.length > 0 ? Math.round(polyMarkets.reduce((s, m) => s + m.yes, 0) / polyMarkets.length) : 0;
+    const platformDiff = Math.abs(kalshiAvg - polyAvg);
+
+    html += `
+        <div class="corr-card corr-card-platform">
+            <div class="corr-card-header">
+                <span class="corr-cat-dot" style="background:var(--gold)"></span>
+                <h3>Platform Comparison</h3>
+            </div>
+            <div class="corr-platform-row">
+                <div class="corr-platform">
+                    <span class="badge kalshi-badge">KALSHI</span>
+                    <span class="corr-platform-avg">${kalshiAvg}¢ avg</span>
+                    <span class="corr-platform-count">${kalshiMarkets.length} markets</span>
+                </div>
+                <div class="corr-platform-vs">vs</div>
+                <div class="corr-platform">
+                    <span class="badge poly-badge">POLY</span>
+                    <span class="corr-platform-avg">${polyAvg}¢ avg</span>
+                    <span class="corr-platform-count">${polyMarkets.length} markets</span>
+                </div>
+            </div>
+            <div class="corr-insight">
+                ${platformDiff > 5 ? `<span style="color:var(--gold);">⚡ ${platformDiff}¢ average spread — potential systematic mispricing</span>` :
+                `<span style="color:var(--green);">✓ Platforms within ${platformDiff}¢ — markets in agreement</span>`}
+            </div>
+        </div>
+    `;
+
+    html += '</div>';
+    grid.innerHTML = html;
+}
+
+
+// ── IMPROVED ARBITRAGE (Feature 8) ──
+function showArbitrageImproved(opportunities) {
+    const section = document.getElementById('arbitrage');
+    if (!section) return;
+
+    let html = '<h2>Arbitrage Opportunities</h2>';
+
+    if (opportunities.length === 0) {
+        html += '<p style="color:var(--text-dim);font-size:14px;">No arbitrage opportunities detected right now. Markets are tightly priced.</p>';
+        section.innerHTML = html;
+        return;
+    }
+
+    html += '<div class="market-grid">';
+    for (const opp of opportunities.slice(0, 8)) {
+        const profit = opp.diff;
+        const investPerSide = 10; // $10 per side
+        const estProfit = ((profit / 100) * investPerSide).toFixed(2);
+        const roi = ((profit / Math.max(opp.kalshi.yes, opp.poly.yes)) * 100).toFixed(1);
+
+        html += `
+            <div class="market-card arb-card">
+                <div class="card-top-row">
+                    <span class="badge arb-badge">ARBITRAGE</span>
+                    <span style="color:var(--gold);font-size:13px;font-weight:700;">${profit}¢ spread</span>
+                </div>
+                <h3>${opp.topic}</h3>
+                <div class="arb-comparison">
+                    <div class="arb-side">
+                        <span class="badge kalshi-badge">KALSHI</span>
+                        <div class="arb-price">YES ${opp.kalshi.yes}¢</div>
+                        <div class="arb-question">${shortenTitle(opp.kalshi.question)}</div>
+                    </div>
+                    <div class="arb-vs">⇄</div>
+                    <div class="arb-side">
+                        <span class="badge poly-badge">POLY</span>
+                        <div class="arb-price">YES ${opp.poly.yes}¢</div>
+                        <div class="arb-question">${shortenTitle(opp.poly.question)}</div>
+                    </div>
+                </div>
+                <div class="arb-profit-row">
+                    <div><span class="arb-profit-label">Est. Profit ($10/side)</span><span class="arb-profit-value" style="color:var(--green);">+$${estProfit}</span></div>
+                    <div><span class="arb-profit-label">ROI</span><span class="arb-profit-value" style="color:var(--gold);">${roi}%</span></div>
+                </div>
+                <div style="margin-top:8px;color:var(--accent);font-weight:600;font-size:13px;">
+                    ${opp.direction}
+                </div>
+                <button class="detail-btn detail-btn-paper" style="margin-top:10px;width:100%;" onclick="paperTradeArb('${opp.kalshi.ticker}','${opp.poly.ticker}',${opp.kalshi.yes},${opp.poly.yes},'${opp.topic}')">Paper Trade This Spread</button>
+            </div>
+        `;
+    }
+    html += '</div>';
+    section.innerHTML = html;
+}
+
+function paperTradeArb(kalshiTicker, polyTicker, kalshiYes, polyYes, topic) {
+    const portfolio = getPaperPortfolio();
+    // Buy cheap YES, sell expensive YES (simulated as buying NO on expensive side)
+    const cheapSide = kalshiYes < polyYes ? 'kalshi' : 'poly';
+    const cheapPrice = Math.min(kalshiYes, polyYes);
+    const expensivePrice = Math.max(kalshiYes, polyYes);
+    const contracts = 10;
+    const cost = (contracts * cheapPrice / 100) + (contracts * (100 - expensivePrice) / 100);
+
+    if (cost > portfolio.balance) {
+        alert(`Not enough balance! Need $${cost.toFixed(2)}, have $${portfolio.balance.toFixed(2)}`);
+        return;
+    }
+
+    portfolio.balance -= cost;
+    portfolio.trades.push({
+        ticker: cheapSide === 'kalshi' ? kalshiTicker : polyTicker,
+        question: `ARB: ${topic} (${cheapSide === 'kalshi' ? 'KALSHI' : 'POLY'} YES)`,
+        side: 'yes',
+        contracts: contracts,
+        entryPrice: cheapPrice,
+        cost: cost,
+        timestamp: Date.now(),
+        platform: cheapSide,
+        settled: false,
+        isArb: true,
+    });
+
+    savePaperPortfolio(portfolio);
+
+    const toast = document.createElement('div');
+    toast.className = 'toast';
+    toast.textContent = `Arbitrage paper trade: ${topic} spread for $${cost.toFixed(2)}`;
+    document.body.appendChild(toast);
+    setTimeout(() => toast.remove(), 3000);
+}
+
+
+// ── UPDATE loadMarkets to include new features ──
+// Hook custom alerts into the existing checkPriceAlerts flow
+const _origCheckPriceAlerts = checkPriceAlerts;
+checkPriceAlerts = function(kalshiMarkets, polyMarkets) {
+    _origCheckPriceAlerts(kalshiMarkets, polyMarkets);
+    checkCustomAlerts([...kalshiMarkets, ...polyMarkets]);
+};
+
+// Hook correlations + improved arbitrage into loadMarkets
+const _origShowArbitrage = showArbitrage;
+showArbitrage = function(opportunities) {
+    showArbitrageImproved(opportunities);
+};
+
+// Store market data for correlations
+let lastKalshiMarkets = [];
+let lastPolyMarkets = [];
+const _origLoadMarkets = loadMarkets;
+loadMarkets = async function() {
+    await _origLoadMarkets();
+    // Record portfolio snapshot on each refresh
+    recordPortfolioSnapshot();
+};
+
+// Hook into switchTab for correlations
+const _origSwitchTab = switchTab;
+switchTab = function(tab, btn) {
+    const corrEl = document.getElementById('correlations-panel');
+    // First run original
+    _origSwitchTab(tab, btn);
+    // Handle correlations
+    if (corrEl) corrEl.classList.add('view-hidden');
+    if (tab === 'correlations') {
+        if (corrEl) corrEl.classList.remove('view-hidden');
+        // Build correlations with whatever markets we have
+        const kalshi = allMarketCards.filter(c => c.market.source === 'kalshi').map(c => c.market);
+        const poly = allMarketCards.filter(c => c.market.source === 'poly').map(c => c.market);
+        buildCorrelations(kalshi, poly);
+    }
+};
+
+// Hook loadPortfolio to also draw the chart
+const _origLoadPortfolio = loadPortfolio;
+loadPortfolio = function() {
+    _origLoadPortfolio();
+    drawPortfolioChart();
+};
+
 
 // ── SERVICE WORKER (PWA) ──
 if ('serviceWorker' in navigator) {
