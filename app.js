@@ -7,9 +7,17 @@
 // Pull data from BOTH Kalshi (via our bot) AND Polymarket
 // Show them side by side so you can spot arbitrage (price differences)
 
+// API base — uses same origin when served from backend, or Render URL from GitHub Pages
+const API_BASE = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+    ? '' : (window.location.origin.includes('github.io') ? 'https://pulse-api-joed.onrender.com' : '');
+
+let firstLoad = true;
 async function loadMarkets() {
     const grid = document.querySelector('.market-grid');
-    grid.innerHTML = '<div class="market-card"><h3>Loading...</h3></div>';
+    // Only show "Loading..." on first load — don't flash it on refresh
+    if (firstLoad) {
+        grid.innerHTML = '<div class="market-card"><h3>Loading...</h3></div>';
+    }
 
     // Try our backend server first (has no CORS issues)
     // Falls back to direct API calls if server isn't running
@@ -17,7 +25,7 @@ async function loadMarkets() {
     let polyMarkets = [];
 
     try {
-        const resp = await fetch('/api/markets');
+        const resp = await fetch(API_BASE + '/api/markets');
         if (resp.ok) {
             const data = await resp.json();
             kalshiMarkets = data.kalshi || [];
@@ -52,6 +60,7 @@ async function loadMarkets() {
 
     grid.innerHTML = '';
     allMarketCards = [];  // Reset for filtering
+    firstLoad = false;
 
     // Show Kalshi markets
     if (kalshiMarkets.length > 0) {
@@ -87,6 +96,9 @@ async function loadMarkets() {
     document.getElementById('market-count').textContent = total;
     document.getElementById('arb-count').textContent = arbitrage.length || '0';
     document.getElementById('refresh-time').textContent = `Updated ${new Date().toLocaleTimeString([], {hour: 'numeric', minute: '2-digit'})}`;
+
+    // Trigger scroll-based card animations
+    if (typeof observeCards === 'function') observeCards();
 }
 
 
@@ -183,6 +195,73 @@ async function fetchPolymarket() {
 }
 
 
+// ── SHORTEN LONG TITLES ──
+function shortenTitle(t) {
+    if (!t) return '?';
+    // Remove leading filler (but keep the subject after "Will")
+    t = t.replace(/^Will the /i, '').replace(/^Will /i, '');
+    t = t.replace(/^What will /i, '');
+    t = t.replace(/^How many /i, '');
+    t = t.replace(/^Which /i, '');
+    // Sports
+    t = t.replace(/win the (\d{4}) NHL Stanley Cup\??/i, '— Stanley Cup $1');
+    t = t.replace(/win the (\d{4}) NBA Championship\??/i, '— NBA Champs $1');
+    t = t.replace(/win the (\d{4}) World Series\??/i, '— World Series $1');
+    t = t.replace(/win the (\d{4}) Super Bowl\??/i, '— Super Bowl $1');
+    t = t.replace(/win (?:the )?(\d{4}) (\w+)/i, '— $2 $1');
+    t = t.replace(/win against /i, 'beat ');
+    t = t.replace(/win over /i, 'beat ');
+    // Sentencing
+    t = t.replace(/be sentenced to /i, 'Sentenced to ');
+    t = t.replace(/between (\d+) and (\d+) years in prison/i, '$1-$2 yrs prison');
+    t = t.replace(/more than (\d+) years in prison/i, '$1+ yrs prison');
+    t = t.replace(/less than (\d+) years in prison/i, '<$1 yrs prison');
+    t = t.replace(/no prison time/i, 'no prison');
+    // Finance / crypto
+    t = t.replace(/close (above|below|at or above|at or below) /i, '$1 ');
+    t = t.replace(/be (above|below|at or above|at or below) /i, '$1 ');
+    t = t.replace(/price of /i, '');
+    t = t.replace(/the price /i, '');
+    t = t.replace(/on or before /i, 'by ');
+    t = t.replace(/at the end of /i, 'end of ');
+    t = t.replace(/by the end of /i, 'by end of ');
+    t = t.replace(/Federal Reserve/i, 'Fed');
+    t = t.replace(/interest rate/i, 'rate');
+    // Dates — shorten month names
+    t = t.replace(/January/i, 'Jan').replace(/February/i, 'Feb').replace(/March/i, 'Mar');
+    t = t.replace(/April/i, 'Apr').replace(/August/i, 'Aug').replace(/September/i, 'Sep');
+    t = t.replace(/October/i, 'Oct').replace(/November/i, 'Nov').replace(/December/i, 'Dec');
+    // General
+    t = t.replace(/released before /i, 'by ');
+    t = t.replace(/before GTA VI\??/i, 'before GTA VI');
+    t = t.replace(/United States/i, 'US');
+    t = t.replace(/over pre-industrial levels /i, '');
+    t = t.replace(/the largest source of global primary energy consumption/i, 'top energy source');
+    t = t.replace(/a human land on Mars before California starts high-speed rail/i, 'Mars landing before CA high-speed rail');
+    t = t.replace(/a supervolcano erupt before /i, 'supervolcano before ');
+    t = t.replace(/humans colonize Mars before /i, 'Mars colony by ');
+    t = t.replace(/Next Pope be/i, 'Next Pope');
+    t = t.replace(/G7 leader will leave next/i, 'G7 leader out next');
+    t = t.replace(/become President of the US before /i, 'US President by ');
+    t = t.replace(/be President of the US before /i, 'US President by ');
+    t = t.replace(/country will be the next to send humans to the Moon/i, 'next country on the Moon');
+    t = t.replace(/When will any company achieve AGI: /i, 'AGI by ');
+    t = t.replace(/be cast(?:ed)? in (?:the )?next /i, 'Cast in ');
+    t = t.replace(/Before Jan 1, /i, 'Before ');
+    t = t.replace(/\?$/, '');
+    // Title Case — capitalize first letter of each word (skip small words)
+    const small = new Set(['a','an','the','and','but','or','for','nor','on','at','to','by','in','of','vs','is']);
+    t = t.replace(/\b\w+/g, (word, i) => {
+        if (i === 0 || !small.has(word.toLowerCase())) {
+            return word.charAt(0).toUpperCase() + word.slice(1);
+        }
+        return word;
+    });
+    // Cap length
+    if (t.length > 60) t = t.substring(0, 57) + '...';
+    return t;
+}
+
 // ── CREATE A MARKET CARD ──
 // This function builds the HTML for one market card
 function createMarketCard(market, platform) {
@@ -192,9 +271,8 @@ function createMarketCard(market, platform) {
     const yesColor = market.yes >= 50 ? '#00cc88' : '#888';
     const noColor = market.no >= 50 ? '#ff4466' : '#888';
 
-    // Clean up the title
-    let title = market.question;
-    if (title.length > 80) title = title.substring(0, 77) + '...';
+    // Clean up the title — make it short and punchy
+    let title = shortenTitle(market.question);
 
     let extraInfo = '';
 
@@ -522,150 +600,363 @@ if (localStorage.getItem('pulse-theme') === 'light') {
 }
 
 
-// ── NAV MINI ORB ──
+// ── NAV MINI ORB — matches badass hero orb ──
 (function() {
     const c = document.getElementById('nav-orb');
     if (!c) return;
     const ctx = c.getContext('2d');
+    const dpr = window.devicePixelRatio || 1;
+    c.width = 32 * dpr;
+    c.height = 32 * dpr;
+    ctx.scale(dpr, dpr);
     let t = 0;
+
     function draw() {
         t += 0.02;
         ctx.clearRect(0, 0, 32, 32);
         const cx = 16, cy = 16;
-        // Ring
-        ctx.save();
-        ctx.translate(cx, cy);
-        ctx.rotate(t);
+
+        // Outer hexagon
+        ctx.beginPath();
         for (let i = 0; i < 6; i++) {
-            const a = (i / 6) * Math.PI * 2;
-            ctx.beginPath();
-            ctx.arc(0, 0, 12, a + 0.1, a + 0.8);
-            ctx.strokeStyle = `rgba(0, 180, 255, ${i % 2 === 0 ? 0.5 : 0.2})`;
-            ctx.lineWidth = 1.5;
-            ctx.stroke();
+            const a = (i / 6) * Math.PI * 2 + t * 0.3;
+            ctx[i === 0 ? 'moveTo' : 'lineTo'](cx + Math.cos(a) * 14, cy + Math.sin(a) * 14);
         }
-        ctx.restore();
-        // Core
-        const p = Math.sin(t * 2) * 0.2 + 0.8;
-        const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, 6);
-        g.addColorStop(0, `rgba(200, 240, 255, ${p})`);
-        g.addColorStop(1, 'rgba(0, 136, 255, 0)');
-        ctx.fillStyle = g;
-        ctx.beginPath();
-        ctx.arc(cx, cy, 6, 0, Math.PI * 2);
-        ctx.fill();
-        requestAnimationFrame(draw);
-    }
-    draw();
-})();
-
-// ── ANIMATED LOGO ORB ──
-(function() {
-    const canvas = document.getElementById('logo-canvas');
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    const dpr = window.devicePixelRatio || 1;
-    canvas.width = 200 * dpr;
-    canvas.height = 200 * dpr;
-    ctx.scale(dpr, dpr);
-    let t = 0;
-
-    function drawLogo() {
-        t += 0.015;
-        ctx.clearRect(0, 0, 200, 200);
-        const cx = 100, cy = 100;
-
-        // Outer glow
-        const glow = ctx.createRadialGradient(cx, cy, 30, cx, cy, 95);
-        glow.addColorStop(0, 'rgba(0, 136, 255, 0.06)');
-        glow.addColorStop(1, 'rgba(0, 0, 0, 0)');
-        ctx.fillStyle = glow;
-        ctx.beginPath();
-        ctx.arc(cx, cy, 95, 0, Math.PI * 2);
-        ctx.fill();
-
-        // Outer ring
-        ctx.beginPath();
-        ctx.arc(cx, cy, 80, 0, Math.PI * 2);
-        ctx.strokeStyle = 'rgba(0, 136, 255, 0.15)';
-        ctx.lineWidth = 1;
+        ctx.closePath();
+        ctx.strokeStyle = 'rgba(0, 136, 255, 0.2)';
+        ctx.lineWidth = 0.5;
         ctx.stroke();
 
         // Segmented ring (rotating)
         ctx.save();
         ctx.translate(cx, cy);
         ctx.rotate(t * 0.5);
-        for (let i = 0; i < 12; i++) {
-            const a = (i / 12) * Math.PI * 2;
+        for (let i = 0; i < 8; i++) {
+            const a = (i / 8) * Math.PI * 2;
+            const bright = Math.sin(t * 2 + i) * 0.3 + 0.5;
             ctx.beginPath();
-            ctx.arc(0, 0, 70, a + 0.08, a + (Math.PI / 6) - 0.08);
-            ctx.strokeStyle = `rgba(0, 136, 255, ${i % 3 === 0 ? 0.3 : 0.1})`;
+            ctx.arc(0, 0, 12, a + 0.1, a + 0.6);
+            ctx.strokeStyle = `rgba(0, 180, 255, ${bright})`;
             ctx.lineWidth = 1.5;
             ctx.stroke();
         }
         ctx.restore();
 
-        // Inner dashed ring (counter-rotating)
+        // Inner ring (counter-rotate)
         ctx.save();
         ctx.translate(cx, cy);
         ctx.rotate(-t * 0.8);
-        ctx.setLineDash([4, 8]);
-        ctx.beginPath();
-        ctx.arc(0, 0, 55, 0, Math.PI * 2);
-        ctx.strokeStyle = 'rgba(0, 214, 143, 0.15)';
-        ctx.lineWidth = 1;
-        ctx.stroke();
-        ctx.setLineDash([]);
-        ctx.restore();
-
-        // Tick marks
-        for (let i = 0; i < 36; i++) {
-            const a = (i / 36) * Math.PI * 2 + t * 0.3;
-            const len = i % 3 === 0 ? 8 : 4;
-            const r1 = 60 - len;
-            const r2 = 60;
+        for (let i = 0; i < 6; i++) {
+            const a = (i / 6) * Math.PI * 2;
             ctx.beginPath();
-            ctx.moveTo(cx + Math.cos(a) * r1, cy + Math.sin(a) * r1);
-            ctx.lineTo(cx + Math.cos(a) * r2, cy + Math.sin(a) * r2);
-            ctx.strokeStyle = `rgba(0, 136, 255, ${i % 3 === 0 ? 0.25 : 0.08})`;
+            ctx.arc(0, 0, 8, a + 0.15, a + 0.7);
+            ctx.strokeStyle = i % 2 === 0 ? 'rgba(0, 214, 143, 0.3)' : 'rgba(0, 136, 255, 0.15)';
             ctx.lineWidth = 1;
             ctx.stroke();
         }
+        ctx.restore();
 
-        // Orbiting dots
-        for (let i = 0; i < 3; i++) {
-            const a = t * (1.2 + i * 0.4) + (i * Math.PI * 2 / 3);
-            const r = 45 + i * 15;
-            const x = cx + Math.cos(a) * r;
-            const y = cy + Math.sin(a) * r;
-            const size = 2 + (i === 0 ? 1 : 0);
-            const colors = ['0, 136, 255', '0, 214, 143', '139, 92, 246'];
+        // Orbiting dot
+        const dotA = t * 1.5;
+        const dx = cx + Math.cos(dotA) * 10;
+        const dy = cy + Math.sin(dotA) * 10;
+        ctx.beginPath();
+        ctx.arc(dx, dy, 1.2, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(0, 214, 143, 0.8)';
+        ctx.fill();
+
+        // Core glow
+        const p = Math.sin(t * 2) * 0.2 + 0.8;
+        const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, 5 * p);
+        g.addColorStop(0, `rgba(255, 255, 255, ${0.9 * p})`);
+        g.addColorStop(0.4, `rgba(0, 180, 255, ${0.5 * p})`);
+        g.addColorStop(1, 'rgba(0, 100, 200, 0)');
+        ctx.fillStyle = g;
+        ctx.beginPath();
+        ctx.arc(cx, cy, 5 * p, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Center dot
+        ctx.beginPath();
+        ctx.arc(cx, cy, 1.5, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(255, 255, 255, ${0.8 + Math.sin(t * 3) * 0.2})`;
+        ctx.fill();
+
+        requestAnimationFrame(draw);
+    }
+    draw();
+})();
+
+// ── ANIMATED LOGO ORB — v5 BADASS EDITION ──
+(function() {
+    const canvas = document.getElementById('logo-canvas');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    const dpr = window.devicePixelRatio || 1;
+    const S = 200; // canvas logical size
+    canvas.width = S * dpr;
+    canvas.height = S * dpr;
+    ctx.scale(dpr, dpr);
+    let t = 0;
+
+    // Hexagon helper
+    function hexPath(cx, cy, r, rot) {
+        ctx.beginPath();
+        for (let i = 0; i < 6; i++) {
+            const a = (i / 6) * Math.PI * 2 + rot;
+            const method = i === 0 ? 'moveTo' : 'lineTo';
+            ctx[method](cx + Math.cos(a) * r, cy + Math.sin(a) * r);
+        }
+        ctx.closePath();
+    }
+
+    // Data stream particles
+    const streams = [];
+    for (let i = 0; i < 20; i++) {
+        streams.push({
+            angle: Math.random() * Math.PI * 2,
+            r: 30 + Math.random() * 60,
+            speed: 0.3 + Math.random() * 0.7,
+            size: 0.5 + Math.random() * 1.5,
+            brightness: 0.3 + Math.random() * 0.7,
+        });
+    }
+
+    function drawLogo() {
+        t += 0.012;
+        ctx.clearRect(0, 0, S, S);
+        const cx = S / 2, cy = S / 2;
+
+        // === DEEP BACKGROUND GLOW ===
+        const bgGlow = ctx.createRadialGradient(cx, cy, 0, cx, cy, 98);
+        bgGlow.addColorStop(0, 'rgba(0, 136, 255, 0.08)');
+        bgGlow.addColorStop(0.5, 'rgba(0, 80, 180, 0.03)');
+        bgGlow.addColorStop(1, 'rgba(0, 0, 0, 0)');
+        ctx.fillStyle = bgGlow;
+        ctx.beginPath();
+        ctx.arc(cx, cy, 98, 0, Math.PI * 2);
+        ctx.fill();
+
+        // === OUTER HEXAGON (slow rotate) ===
+        ctx.save();
+        hexPath(cx, cy, 90, t * 0.2);
+        ctx.strokeStyle = `rgba(0, 136, 255, ${0.08 + Math.sin(t) * 0.04})`;
+        ctx.lineWidth = 0.5;
+        ctx.stroke();
+        ctx.restore();
+
+        // === SECOND HEXAGON (counter-rotate, slightly smaller) ===
+        ctx.save();
+        hexPath(cx, cy, 82, -t * 0.15 + Math.PI / 6);
+        ctx.strokeStyle = 'rgba(0, 214, 143, 0.06)';
+        ctx.lineWidth = 0.5;
+        ctx.stroke();
+        ctx.restore();
+
+        // === SCANNING SWEEP (radar-style) ===
+        ctx.save();
+        ctx.translate(cx, cy);
+        const sweepAngle = t * 1.5;
+        const sweep = ctx.createConicGradient(sweepAngle, 0, 0);
+        sweep.addColorStop(0, 'rgba(0, 136, 255, 0.12)');
+        sweep.addColorStop(0.15, 'rgba(0, 136, 255, 0)');
+        sweep.addColorStop(1, 'rgba(0, 136, 255, 0)');
+        ctx.fillStyle = sweep;
+        ctx.beginPath();
+        ctx.arc(0, 0, 75, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+
+        // === SEGMENTED OUTER RING (24 segments, rotating) ===
+        ctx.save();
+        ctx.translate(cx, cy);
+        ctx.rotate(t * 0.3);
+        for (let i = 0; i < 24; i++) {
+            const a = (i / 24) * Math.PI * 2;
+            const gap = 0.04;
+            const arcLen = (Math.PI * 2 / 24) - gap * 2;
+            const bright = (Math.sin(t * 2 + i * 0.5) * 0.5 + 0.5);
             ctx.beginPath();
-            ctx.arc(x, y, size, 0, Math.PI * 2);
-            ctx.fillStyle = `rgba(${colors[i]}, 0.8)`;
+            ctx.arc(0, 0, 75, a + gap, a + arcLen + gap);
+            ctx.strokeStyle = `rgba(0, 136, 255, ${0.08 + bright * 0.25})`;
+            ctx.lineWidth = 2;
+            ctx.stroke();
+        }
+        ctx.restore();
+
+        // === MIDDLE RING — thick, pulsing ===
+        const midPulse = Math.sin(t * 1.5) * 0.1 + 0.9;
+        ctx.save();
+        ctx.translate(cx, cy);
+        ctx.rotate(-t * 0.5);
+        for (let i = 0; i < 16; i++) {
+            const a = (i / 16) * Math.PI * 2;
+            const gap = 0.06;
+            const arcLen = (Math.PI * 2 / 16) - gap * 2;
+            ctx.beginPath();
+            ctx.arc(0, 0, 58 * midPulse, a + gap, a + arcLen + gap);
+            ctx.strokeStyle = i % 4 === 0
+                ? `rgba(0, 214, 143, 0.35)`
+                : `rgba(0, 136, 255, 0.12)`;
+            ctx.lineWidth = i % 4 === 0 ? 2.5 : 1;
+            ctx.stroke();
+        }
+        ctx.restore();
+
+        // === INNER HEXAGON (fast rotate) ===
+        ctx.save();
+        hexPath(cx, cy, 42, t * 0.8);
+        ctx.strokeStyle = 'rgba(0, 136, 255, 0.2)';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+        ctx.restore();
+
+        // === TICK MARKS (48 of them, subtle) ===
+        ctx.save();
+        ctx.translate(cx, cy);
+        ctx.rotate(t * 0.2);
+        for (let i = 0; i < 48; i++) {
+            const a = (i / 48) * Math.PI * 2;
+            const isMajor = i % 6 === 0;
+            const len = isMajor ? 10 : 4;
+            const r1 = 65;
+            const r2 = r1 + len;
+            ctx.beginPath();
+            ctx.moveTo(Math.cos(a) * r1, Math.sin(a) * r1);
+            ctx.lineTo(Math.cos(a) * r2, Math.sin(a) * r2);
+            ctx.strokeStyle = isMajor
+                ? 'rgba(0, 214, 143, 0.3)'
+                : 'rgba(0, 136, 255, 0.08)';
+            ctx.lineWidth = isMajor ? 1.5 : 0.5;
+            ctx.stroke();
+        }
+        ctx.restore();
+
+        // === DATA STREAM PARTICLES ===
+        for (const s of streams) {
+            s.angle += 0.005 * s.speed;
+            const wobble = Math.sin(t * 3 + s.angle * 5) * 3;
+            const x = cx + Math.cos(s.angle) * (s.r + wobble);
+            const y = cy + Math.sin(s.angle) * (s.r + wobble);
+            const flicker = Math.sin(t * 5 + s.angle * 10) * 0.3 + 0.7;
+            ctx.beginPath();
+            ctx.arc(x, y, s.size, 0, Math.PI * 2);
+            ctx.fillStyle = `rgba(0, 180, 255, ${s.brightness * flicker * 0.6})`;
             ctx.fill();
-            ctx.shadowColor = `rgba(${colors[i]}, 0.5)`;
-            ctx.shadowBlur = 8;
+        }
+
+        // === ORBITING SATELLITES (3 big ones with trails) ===
+        const satColors = [
+            { r: '0, 180, 255', glow: 'rgba(0, 180, 255, 0.3)' },
+            { r: '0, 214, 143', glow: 'rgba(0, 214, 143, 0.3)' },
+            { r: '139, 92, 246', glow: 'rgba(139, 92, 246, 0.3)' },
+        ];
+        for (let i = 0; i < 3; i++) {
+            const speed = 0.8 + i * 0.3;
+            const radius = 48 + i * 18;
+            const a = t * speed + (i * Math.PI * 2 / 3);
+            const x = cx + Math.cos(a) * radius;
+            const y = cy + Math.sin(a) * radius;
+
+            // Trail
+            for (let tr = 1; tr <= 6; tr++) {
+                const ta = a - tr * 0.08;
+                const tx = cx + Math.cos(ta) * radius;
+                const ty = cy + Math.sin(ta) * radius;
+                ctx.beginPath();
+                ctx.arc(tx, ty, 2 - tr * 0.25, 0, Math.PI * 2);
+                ctx.fillStyle = `rgba(${satColors[i].r}, ${0.3 - tr * 0.04})`;
+                ctx.fill();
+            }
+
+            // Satellite dot
+            ctx.beginPath();
+            ctx.arc(x, y, 3, 0, Math.PI * 2);
+            ctx.fillStyle = `rgba(${satColors[i].r}, 0.9)`;
+            ctx.shadowColor = satColors[i].glow;
+            ctx.shadowBlur = 12;
             ctx.fill();
             ctx.shadowBlur = 0;
         }
 
-        // Core glow
-        const pulse = Math.sin(t * 2) * 0.15 + 0.85;
-        const core = ctx.createRadialGradient(cx, cy, 0, cx, cy, 18 * pulse);
-        core.addColorStop(0, `rgba(200, 240, 255, ${0.9 * pulse})`);
-        core.addColorStop(0.4, `rgba(0, 180, 255, ${0.4 * pulse})`);
-        core.addColorStop(1, 'rgba(0, 100, 200, 0)');
-        ctx.fillStyle = core;
+        // === ENERGY PULSE RINGS (expanding outward) ===
+        const pulsePhase = (t * 0.8) % (Math.PI * 2);
+        const pulseR = 20 + (pulsePhase / (Math.PI * 2)) * 70;
+        const pulseAlpha = 1 - (pulsePhase / (Math.PI * 2));
+        if (pulseAlpha > 0.05) {
+            ctx.beginPath();
+            ctx.arc(cx, cy, pulseR, 0, Math.PI * 2);
+            ctx.strokeStyle = `rgba(0, 136, 255, ${pulseAlpha * 0.15})`;
+            ctx.lineWidth = 1;
+            ctx.stroke();
+        }
+        // Second pulse offset
+        const pulse2Phase = ((t * 0.8) + Math.PI) % (Math.PI * 2);
+        const pulse2R = 20 + (pulse2Phase / (Math.PI * 2)) * 70;
+        const pulse2Alpha = 1 - (pulse2Phase / (Math.PI * 2));
+        if (pulse2Alpha > 0.05) {
+            ctx.beginPath();
+            ctx.arc(cx, cy, pulse2R, 0, Math.PI * 2);
+            ctx.strokeStyle = `rgba(0, 214, 143, ${pulse2Alpha * 0.1})`;
+            ctx.lineWidth = 0.5;
+            ctx.stroke();
+        }
+
+        // === CORE — intense glowing center ===
+        const corePulse = Math.sin(t * 2) * 0.2 + 0.8;
+
+        // Core outer halo
+        const halo = ctx.createRadialGradient(cx, cy, 0, cx, cy, 30 * corePulse);
+        halo.addColorStop(0, `rgba(0, 200, 255, ${0.3 * corePulse})`);
+        halo.addColorStop(0.5, `rgba(0, 100, 255, ${0.1 * corePulse})`);
+        halo.addColorStop(1, 'rgba(0, 50, 150, 0)');
+        ctx.fillStyle = halo;
         ctx.beginPath();
-        ctx.arc(cx, cy, 18 * pulse, 0, Math.PI * 2);
+        ctx.arc(cx, cy, 30 * corePulse, 0, Math.PI * 2);
         ctx.fill();
 
-        // Bright center dot
+        // Core bright sphere
+        const coreGrad = ctx.createRadialGradient(cx, cy, 0, cx, cy, 14 * corePulse);
+        coreGrad.addColorStop(0, `rgba(255, 255, 255, ${0.95 * corePulse})`);
+        coreGrad.addColorStop(0.3, `rgba(100, 220, 255, ${0.7 * corePulse})`);
+        coreGrad.addColorStop(0.7, `rgba(0, 136, 255, ${0.4 * corePulse})`);
+        coreGrad.addColorStop(1, 'rgba(0, 80, 200, 0)');
+        ctx.fillStyle = coreGrad;
         ctx.beginPath();
-        ctx.arc(cx, cy, 4, 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(255, 255, 255, ${0.7 + Math.sin(t * 3) * 0.3})`;
+        ctx.arc(cx, cy, 14 * corePulse, 0, Math.PI * 2);
         ctx.fill();
+
+        // Core white-hot center
+        ctx.beginPath();
+        ctx.arc(cx, cy, 5, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(255, 255, 255, ${0.8 + Math.sin(t * 4) * 0.2})`;
+        ctx.shadowColor = 'rgba(0, 200, 255, 0.8)';
+        ctx.shadowBlur = 20;
+        ctx.fill();
+        ctx.shadowBlur = 0;
+
+        // === CROSSHAIR LINES (subtle targeting) ===
+        const crossAlpha = 0.06 + Math.sin(t * 1.5) * 0.03;
+        ctx.strokeStyle = `rgba(0, 136, 255, ${crossAlpha})`;
+        ctx.lineWidth = 0.5;
+        // Horizontal
+        ctx.beginPath();
+        ctx.moveTo(cx - 95, cy);
+        ctx.lineTo(cx - 25, cy);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(cx + 25, cy);
+        ctx.lineTo(cx + 95, cy);
+        ctx.stroke();
+        // Vertical
+        ctx.beginPath();
+        ctx.moveTo(cx, cy - 95);
+        ctx.lineTo(cx, cy - 25);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(cx, cy + 25);
+        ctx.lineTo(cx, cy + 95);
+        ctx.stroke();
 
         requestAnimationFrame(drawLogo);
     }
@@ -750,7 +1041,25 @@ const revealObserver = new IntersectionObserver((entries) => {
 
 document.querySelectorAll('.reveal').forEach(el => revealObserver.observe(el));
 
+// ── CARD SCROLL REVEAL (staggered) ──
+const cardObserver = new IntersectionObserver((entries) => {
+    entries.forEach((e, i) => {
+        if (e.isIntersecting) {
+            // Stagger delay based on position in the current batch
+            const delay = (i % 3) * 80; // 0ms, 80ms, 160ms per row
+            setTimeout(() => e.target.classList.add('card-visible'), delay);
+            cardObserver.unobserve(e.target);
+        }
+    });
+}, { threshold: 0.1 });
 
-// ── AUTO REFRESH ──
-setInterval(loadMarkets, 30000);
+function observeCards() {
+    document.querySelectorAll('.market-card:not(.card-visible)').forEach(el => {
+        cardObserver.observe(el);
+    });
+}
+
+
+// ── AUTO REFRESH (every 2 min so it doesn't disrupt scrolling) ──
+setInterval(loadMarkets, 120000);
 loadMarkets();

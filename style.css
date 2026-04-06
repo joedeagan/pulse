@@ -171,21 +171,30 @@ nav {
 }
 
 .hero h1 {
-    font-size: 52px;
+    font-size: 62px;
     font-weight: 800;
-    letter-spacing: 6px;
-    background: linear-gradient(135deg, #fff 0%, #0088ff 50%, #00d68f 100%);
+    letter-spacing: 12px;
+    background: linear-gradient(135deg, #fff 0%, #4dc9ff 30%, #0088ff 60%, #00d68f 100%);
+    background-size: 200% 200%;
+    animation: hero-enter 1s cubic-bezier(0.16, 1, 0.3, 1) 0.2s both, title-shimmer 4s ease-in-out infinite;
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
     margin-bottom: 8px;
+    filter: drop-shadow(0 0 30px rgba(0, 136, 255, 0.3)) drop-shadow(0 0 60px rgba(0, 136, 255, 0.1));
+    text-shadow: none;
+}
+
+@keyframes title-shimmer {
+    0%, 100% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
 }
 
 .tagline {
-    font-size: 16px;
-    font-weight: 500;
+    font-size: 17px;
+    font-weight: 600;
     color: var(--accent);
-    letter-spacing: 6px;
+    letter-spacing: 8px;
     text-transform: uppercase;
     margin-bottom: 12px;
 }
@@ -514,7 +523,7 @@ section h2 span {
     left: 0;
     width: 100%;
     height: 100%;
-    z-index: 0;
+    z-index: -1;
     pointer-events: none;
 }
 
@@ -537,27 +546,11 @@ nav, section, .stats-bar, #ai-popup, #filters {
     transform: translateY(0) scale(1);
 }
 
-/* Staggered card animations */
+/* Cards are always visible — parent .reveal handles the section fade-in */
 .market-card {
-    opacity: 0;
-    transform: translateY(25px) scale(0.98);
-    animation: card-enter 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    opacity: 1;
+    transform: none;
 }
-
-@keyframes card-enter {
-    to {
-        opacity: 1;
-        transform: translateY(0) scale(1);
-    }
-}
-
-.market-card:nth-child(1) { animation-delay: 0.05s; }
-.market-card:nth-child(2) { animation-delay: 0.1s; }
-.market-card:nth-child(3) { animation-delay: 0.15s; }
-.market-card:nth-child(4) { animation-delay: 0.2s; }
-.market-card:nth-child(5) { animation-delay: 0.25s; }
-.market-card:nth-child(6) { animation-delay: 0.3s; }
-.market-card:nth-child(7) { animation-delay: 0.35s; }
 .market-card:nth-child(8) { animation-delay: 0.4s; }
 
 /* Hero elements animate in on load */

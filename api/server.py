@@ -42,8 +42,8 @@ app.add_middleware(
 )
 
 # Serve the frontend files too (HTML, CSS, JS)
-static_dir = os.path.join(os.path.dirname(__file__), "..")
-app.mount("/static", StaticFiles(directory=static_dir), name="static")
+# The static_dir points to market-dashboard/ (one level up from api/)
+static_dir = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
 
 
 @app.get("/")
@@ -51,35 +51,105 @@ async def index():
     return FileResponse(os.path.join(static_dir, "index.html"))
 
 
+@app.get("/style.css")
+async def serve_css():
+    return FileResponse(os.path.join(static_dir, "style.css"), media_type="text/css")
+
+
+@app.get("/app.js")
+async def serve_js():
+    return FileResponse(os.path.join(static_dir, "app.js"), media_type="application/javascript")
+
+
 # ─── KALSHI MARKETS ───
 @app.get("/api/kalshi")
 async def get_kalshi():
-    """Fetch live markets from Kalshi."""
+    """Fetch live markets from Kalshi via events (avoids parlay spam)."""
     try:
         async with httpx.AsyncClient() as client:
-            # Get markets from Kalshi's public API
+            # Fetch events — the clean parent questions
             resp = await client.get(
-                "https://api.elections.kalshi.com/trade-api/v2/markets",
-                params={"limit": 30, "status": "open"},
+                "https://api.elections.kalshi.com/trade-api/v2/events",
+                params={"limit": 40, "status": "open"},
                 timeout=15,
             )
-            data = resp.json()
-            markets = data.get("markets", [])
+            events = resp.json().get("events", [])
 
-            # Clean up the data into a simple format
             result = []
-            for m in markets:
-                result.append({
-                    "question": m.get("title", m.get("ticker", "?")),
-                    "ticker": m.get("ticker", ""),
-                    "yes": m.get("yes_ask", 50),
-                    "no": 100 - m.get("yes_ask", 50),
-                    "volume": m.get("volume_24h", m.get("volume", 0)),
-                    "source": "kalshi",
-                    "category": categorize(m.get("title", "")),
-                })
+            for ev in events:
+                event_ticker = ev.get("event_ticker", "")
+                event_title = ev.get("title", "?")
 
-            return {"markets": result, "count": len(result)}
+                # Get markets for this event
+                mresp = await client.get(
+                    "https://api.elections.kalshi.com/trade-api/v2/markets",
+                    params={"event_ticker": event_ticker, "limit": 10},
+                    timeout=10,
+                )
+                markets = mresp.json().get("markets", [])
+
+                # Filter out parlays
+                clean = [m for m in markets if not ("," in m.get("title", "") and ("yes " in m.get("title", "").lower() or "no " in m.get("title", "").lower()))]
+
+                is_multi = len(clean) > 1
+
+                # For multi-option events (Pope, energy source, etc),
+                # pick only the top 2 by price
+                if is_multi:
+                    clean.sort(key=lambda m: float(m.get("yes_ask_dollars", "0") or "0"), reverse=True)
+                    clean = clean[:2]
+
+                for m in clean:
+                    title = m.get("title", event_title)
+                    sub = m.get("yes_sub_title", "")
+
+                    # If market title has blanks (Kalshi strips names), use event title
+                    if "  " in title or title.startswith("Will  "):
+                        title = event_title
+
+                    # For multi-option: combine event name + option
+                    if is_multi and sub and sub != title:
+                        # Shorten event title for combo
+                        short_event = event_title.replace("Who will the next ", "Next ").replace("Who will be the next new ", "Next ").replace("Who will be the next ", "Next ").replace("Which ", "").replace("?", "").strip()
+                        title = f"{short_event}: {sub}"
+
+                    # Parse dollar prices → cents
+                    yes_price = 50
+                    try:
+                        yes_ask = m.get("yes_ask_dollars", "0")
+                        if yes_ask and float(yes_ask) > 0:
+                            yes_price = round(float(yes_ask) * 100)
+                        else:
+                            yes_price = m.get("yes_ask", 50)
+                    except (ValueError, TypeError):
+                        yes_price = m.get("yes_ask", 50)
+
+                    vol = 0
+                    try:
+                        vol = float(m.get("volume_24h_fp", 0) or 0)
+                        if vol == 0:
+                            vol = m.get("volume_24h", m.get("volume", 0)) or 0
+                    except (ValueError, TypeError):
+                        pass
+
+                    if yes_price == 0:
+                        continue
+
+                    result.append({
+                        "question": title,
+                        "ticker": m.get("ticker", ""),
+                        "yes": yes_price,
+                        "no": 100 - yes_price,
+                        "volume": vol,
+                        "source": "kalshi",
+                        "category": categorize(title + " " + event_title),
+                    })
+
+                if len(result) >= 30:
+                    break
+
+            result.sort(key=lambda x: x["volume"], reverse=True)
+            return {"markets": result[:30], "count": min(len(result), 30)}
     except Exception as e:
         return {"markets": [], "error": str(e)}
 
@@ -118,6 +188,7 @@ async def get_polymarket():
                     "category": categorize(m.get("question", "")),
                 })
 
+            result.sort(key=lambda x: x["volume"], reverse=True)
             return {"markets": result, "count": len(result)}
     except Exception as e:
         return {"markets": [], "error": str(e)}
@@ -207,4 +278,5 @@ def find_arbitrage(kalshi_markets, poly_markets):
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8080)
+    port = int(os.environ.get("PORT", 8095))
+    uvicorn.run(app, host="0.0.0.0", port=port)
