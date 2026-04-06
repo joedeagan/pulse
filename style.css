@@ -47,7 +47,7 @@ nav {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 0 40px;
+    padding: 0 24px;
     height: 64px;
     background: rgba(6, 6, 11, 0.9);
     backdrop-filter: blur(20px);
@@ -55,6 +55,7 @@ nav {
     position: sticky;
     top: 0;
     z-index: 100;
+    gap: 8px;
 }
 
 .logo {
@@ -87,7 +88,8 @@ nav {
 
 .nav-links {
     display: flex;
-    gap: 8px;
+    gap: 4px;
+    flex-shrink: 0;
 }
 
 .nav-links a {
@@ -95,12 +97,13 @@ nav {
     text-decoration: none;
     font-size: 13px;
     font-weight: 500;
-    padding: 8px 16px;
+    padding: 6px 10px;
     border-radius: 8px;
     transition: all 0.2s;
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: 5px;
+    white-space: nowrap;
 }
 
 .nav-links a svg {
@@ -136,8 +139,9 @@ nav {
     border: 1px solid rgba(255, 255, 255, 0.08);
     border-radius: 12px;
     padding: 9px 18px;
-    width: 500px;
-    max-width: 35vw;
+    width: 280px;
+    min-width: 160px;
+    flex-shrink: 1;
     transition: all 0.25s;
 }
 
@@ -507,6 +511,13 @@ section h2 span {
 /* ── FILTERS ── */
 #filters {
     padding-bottom: 0;
+}
+
+.sort-controls {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 10px;
 }
 
 /* ── FILTER CHIPS ── */
