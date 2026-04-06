@@ -406,18 +406,6 @@ function createMarketCard(market, platform, priceChange) {
     const pulseColor = pulseScore >= 70 ? '#00d68f' : pulseScore >= 40 ? '#f0b000' : '#ff3b5c';
     const pulseLabel = pulseScore >= 70 ? 'STRONG' : pulseScore >= 40 ? 'MODERATE' : 'WEAK';
 
-    let extraInfo = '';
-    if (market.pnl !== undefined && market.pnl !== 0) {
-        const pnlColor = market.pnl >= 0 ? '#00cc88' : '#ff4466';
-        extraInfo += `<div style="margin-top:6px;"><span style="color:${pnlColor};font-weight:600;">${market.side.toUpperCase()} · P&L: ${market.pnl >= 0 ? '+' : ''}$${market.pnl.toFixed(2)}</span></div>`;
-    }
-    if (market.edge && market.edge > 0) {
-        extraInfo += `<div style="margin-top:6px;color:#00b4ff;font-size:13px;">Edge: ${(market.edge * 100).toFixed(1)}% ${market.side.toUpperCase()}</div>`;
-    }
-    if (market.volume > 0) {
-        extraInfo += `<div class="volume">Vol: $${Math.round(market.volume).toLocaleString()}</div>`;
-    }
-
     const badge = platform === 'kalshi'
         ? '<span class="badge kalshi-badge">KALSHI</span>'
         : '<span class="badge poly-badge">POLY</span>';
@@ -436,8 +424,6 @@ function createMarketCard(market, platform, priceChange) {
             <div style="display:flex;align-items:center;gap:6px;">
                 <span class="pulse-score" style="color:${pulseColor}" title="Pulse Score: ${pulseLabel}">${pulseScore}</span>
                 <button class="${starClass}" title="Add to watchlist">${starChar}</button>
-                <button class="ai-btn" title="AI Analysis">\u26A1</button>
-                <button class="share-btn" title="Share">\u2197</button>
             </div>
         </div>
         <h3>${title}</h3>
@@ -447,11 +433,6 @@ function createMarketCard(market, platform, priceChange) {
             <span style="color:#333;margin:0 4px;">\u00B7</span>
             <span style="color:${noColor};font-weight:600;">NO ${market.no}\u00A2</span>
         </div>
-        <div class="buy-btns">
-            <a class="buy-btn buy-yes" href="${marketUrl}" target="_blank" onclick="event.stopPropagation();">Buy YES</a>
-            <a class="buy-btn buy-no" href="${marketUrl}" target="_blank" onclick="event.stopPropagation();">Buy NO</a>
-        </div>
-        ${extraInfo}
     `;
 
     // Sparkline — use real price history if available
@@ -481,24 +462,13 @@ function createMarketCard(market, platform, priceChange) {
 
     // Card click → open detail page
     card.addEventListener('click', (e) => {
-        if (e.target.closest('.ai-btn') || e.target.closest('.star-btn') || e.target.closest('.buy-btn') || e.target.closest('.share-btn')) return;
+        if (e.target.closest('.star-btn')) return;
         openDetail(market, platform);
-    });
-
-    card.querySelector('.ai-btn').addEventListener('click', (e) => {
-        e.stopPropagation();
-        analyzeMarket(market);
     });
 
     card.querySelector('.star-btn').addEventListener('click', (e) => {
         e.stopPropagation();
         toggleWatchlist(market.ticker, e.target);
-    });
-
-    // Share button
-    card.querySelector('.share-btn').addEventListener('click', (e) => {
-        e.stopPropagation();
-        shareMarket(market);
     });
 
     allMarketCards.push({ card, market });
@@ -508,25 +478,44 @@ function createMarketCard(market, platform, priceChange) {
 // ── PULSE SCORE — confidence rating ──
 function calcPulseScore(market, priceChange) {
     let score = 0;
-    // Price confidence (further from 50 = more confident)
-    const confidence = Math.abs(market.yes - 50);
-    score += Math.min(confidence * 1.2, 40); // max 40 pts
+    const yes = market.yes;
 
-    // Volume strength
+    // Price confidence — rewards markets with clear direction but NOT settled/dead ones
+    // Best score: 70-90¢ or 10-30¢ range (strong lean, still tradeable)
+    // Worst score: 0-3¢ or 97-100¢ (basically settled, no action)
+    // Medium score: 40-60¢ range (uncertain, could go either way)
+    if (yes <= 3 || yes >= 97) {
+        score += 5; // Basically settled — low interest
+    } else if (yes <= 10 || yes >= 90) {
+        score += 30; // Very confident
+    } else if (yes <= 20 || yes >= 80) {
+        score += 35; // Strong lean, good trading range
+    } else if (yes <= 30 || yes >= 70) {
+        score += 25; // Moderate lean
+    } else {
+        score += 15; // Near 50/50 — uncertain
+    }
+
+    // Volume strength — logarithmic scale for better spread
     const vol = market.volume || 0;
-    if (vol > 100000) score += 30;
-    else if (vol > 10000) score += 20;
-    else if (vol > 1000) score += 10;
-    else if (vol > 100) score += 5;
+    if (vol > 1000000) score += 25;
+    else if (vol > 500000) score += 22;
+    else if (vol > 100000) score += 18;
+    else if (vol > 50000) score += 14;
+    else if (vol > 10000) score += 10;
+    else if (vol > 1000) score += 6;
+    else if (vol > 100) score += 3;
 
-    // Momentum (price change)
+    // Momentum (price change) — biggest differentiator
     const change = Math.abs(priceChange || 0);
-    if (change > 5) score += 20;
-    else if (change > 2) score += 10;
-    else if (change > 0) score += 5;
+    if (change > 10) score += 30;
+    else if (change > 5) score += 22;
+    else if (change > 3) score += 15;
+    else if (change > 1) score += 8;
+    else if (change > 0) score += 3;
 
     // Edge bonus
-    if (market.edge && market.edge > 0.05) score += 10;
+    if (market.edge && market.edge > 0.05) score += 8;
 
     return Math.min(Math.round(score), 99);
 }
@@ -1654,10 +1643,27 @@ function openDetail(market, platform) {
 
     // Actions
     const url = market.url || '#';
+    const pulseScore = calcPulseScore(market, getMarketChange(market.ticker));
+    const pulseColor = pulseScore >= 70 ? 'var(--green)' : pulseScore >= 40 ? 'var(--gold)' : 'var(--red)';
+    const pulseLabel = pulseScore >= 70 ? 'STRONG' : pulseScore >= 40 ? 'MODERATE' : 'WEAK';
     document.getElementById('detail-actions').innerHTML = `
+        <div class="detail-pulse-row">
+            <div class="detail-pulse-score" style="border-color:${pulseColor};">
+                <span class="detail-pulse-num" style="color:${pulseColor}">${pulseScore}</span>
+                <span class="detail-pulse-label">PULSE</span>
+            </div>
+            <div class="detail-pulse-info">
+                <span style="color:${pulseColor};font-weight:700;">${pulseLabel}</span> signal
+                <span style="color:var(--text-dim);font-size:12px;display:block;">Based on price confidence, volume, and momentum</span>
+            </div>
+        </div>
         <div class="detail-btn-row">
             <a class="detail-btn detail-btn-yes" href="${url}" target="_blank">Buy YES on ${platform === 'kalshi' ? 'Kalshi' : 'Polymarket'}</a>
             <a class="detail-btn detail-btn-no" href="${url}" target="_blank">Buy NO on ${platform === 'kalshi' ? 'Kalshi' : 'Polymarket'}</a>
+        </div>
+        <div class="detail-btn-row">
+            <button class="detail-btn" style="background:rgba(0,136,255,0.1);color:var(--accent);border-color:rgba(0,136,255,0.3);" onclick="analyzeMarket(currentDetailMarket)">⚡ AI Analysis</button>
+            <button class="detail-btn" style="background:rgba(255,255,255,0.05);color:var(--text-mid);border-color:var(--border);" onclick="shareMarket(currentDetailMarket)">↗ Share</button>
         </div>
     `;
 
