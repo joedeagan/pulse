@@ -1073,6 +1073,99 @@ function observeCards() {
 }
 
 
+// ── BOT PANEL ──
+// MLB team codes to names
+const TEAMS = {
+    ATL:'Braves',NYY:'Yankees',LAD:'Dodgers',HOU:'Astros',BOS:'Red Sox',CHC:'Cubs',
+    NYM:'Mets',PHI:'Phillies',SD:'Padres',SF:'Giants',STL:'Cardinals',WSH:'Nationals',
+    MIA:'Marlins',CIN:'Reds',MIL:'Brewers',PIT:'Pirates',COL:'Rockies',ARI:'D-backs',
+    LAA:'Angels',SEA:'Mariners',TEX:'Rangers',OAK:'Athletics',MIN:'Twins',CLE:'Guardians',
+    DET:'Tigers',KC:'Royals',CWS:'White Sox',TB:'Rays',TOR:'Blue Jays',BAL:'Orioles',
+    // NBA
+    LAL:'Lakers',GSW:'Warriors',BKN:'Nets',MEM:'Grizzlies',DAL:'Mavs',DEN:'Nuggets',
+    PHX:'Suns',SAC:'Kings',POR:'Trail Blazers',OKC:'Thunder',IND:'Pacers',ORL:'Magic',
+    CHA:'Hornets',WAS:'Wizards',SAS:'Spurs',UTA:'Jazz',NOP:'Pelicans',
+};
+
+function decodeTicker(ticker) {
+    // KXMLBGAME-26APR081607ATLLAA-ATL → "Braves vs Angels"
+    // KXNBAGAME-26APR05... → NBA game
+    if (!ticker) return '?';
+    const parts = ticker.split('-');
+    if (parts.length < 2) return ticker;
+
+    const type = parts[0]; // KXMLBGAME, KXNBAGAME, etc
+    const sport = type.includes('MLB') ? 'MLB' : type.includes('NBA') ? 'NBA' : type.includes('NHL') ? 'NHL' : '';
+
+    // Last part is usually the team this contract is for
+    const lastPart = parts[parts.length - 1];
+
+    // Try to extract two team codes from the middle section
+    const mid = parts[1] || '';
+    // Pattern: 26APR081607ATLLAA — date then team codes
+    const teamMatch = mid.match(/\d+[A-Z]{3}\d+(\w+)/);
+
+    if (teamMatch) {
+        const teamStr = teamMatch[1];
+        // Try to find known 2-3 letter team codes
+        for (const [code, name] of Object.entries(TEAMS)) {
+            if (lastPart === code) {
+                return `${sport} ${name}`;
+            }
+        }
+    }
+
+    // Fallback: use last part as team
+    if (TEAMS[lastPart]) return `${sport} ${TEAMS[lastPart]}`;
+    if (sport) return `${sport} Game`;
+    return ticker.substring(0, 25) + '...';
+}
+
+async function loadBot() {
+    try {
+        const resp = await fetch(API_BASE + '/api/bot');
+        if (!resp.ok) throw new Error('Bot unavailable');
+        const bot = await resp.json();
+        if (bot.error) throw new Error(bot.error);
+
+        document.getElementById('bot-balance').textContent = '$' + (bot.balance || 0).toFixed(2);
+        document.getElementById('bot-portfolio').textContent = '$' + (bot.portfolio_value || 0).toFixed(2);
+
+        const statusEl = document.getElementById('bot-status');
+        statusEl.textContent = bot.running ? 'Running' : 'Stopped';
+        statusEl.className = 'bot-stat-value ' + (bot.running ? 'running' : 'stopped');
+
+        document.getElementById('bot-trades').textContent = bot.trades_today || 0;
+
+        // Render positions
+        const posDiv = document.getElementById('bot-positions');
+        if (bot.positions && bot.positions.length > 0) {
+            posDiv.innerHTML = '<h3 style="font-size:13px;color:var(--text-dim);letter-spacing:2px;margin-bottom:8px;">OPEN POSITIONS</h3>' +
+                bot.positions.map(p => {
+                    const pnl = p.pnl || 0;
+                    const pnlClass = pnl >= 0 ? 'positive' : 'negative';
+                    const pnlStr = (pnl >= 0 ? '+' : '') + '$' + pnl.toFixed(2);
+                    const posTitle = p.title && !p.title.includes('KX') ? p.title : decodeTicker(p.ticker);
+                    const contracts = p.contracts || p.count || 1;
+                    return `<div class="bot-position">
+                        <div>
+                            <div class="bot-position-title">${posTitle}</div>
+                            <div class="bot-position-side">${(p.side || '').toUpperCase()} · ${contracts} contract${contracts > 1 ? 's' : ''}</div>
+                        </div>
+                        <div class="bot-position-pnl ${pnlClass}">${pnlStr}</div>
+                    </div>`;
+                }).join('');
+        } else {
+            posDiv.innerHTML = '<p style="color:var(--text-dim);font-size:13px;">No open positions</p>';
+        }
+    } catch(e) {
+        // Bot offline — hide panel
+        document.getElementById('bot-panel').style.display = 'none';
+    }
+}
+
 // ── AUTO REFRESH (every 2 min so it doesn't disrupt scrolling) ──
 setInterval(loadMarkets, 120000);
+setInterval(loadBot, 120000);
 loadMarkets();
+loadBot();

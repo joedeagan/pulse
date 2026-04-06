@@ -23,6 +23,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 import httpx
 import os
+from datetime import datetime, timezone, timedelta
 
 # WHAT IS FastAPI?
 # It's a Python framework for building web APIs.
@@ -61,6 +62,18 @@ async def serve_js():
     return FileResponse(os.path.join(static_dir, "app.js"), media_type="application/javascript")
 
 
+def _expires_before(market, max_dt):
+    """Check if a market expires before the given datetime."""
+    exp = market.get("expiration_time") or market.get("close_time", "")
+    if not exp:
+        return True  # No expiration = keep it
+    try:
+        exp_dt = datetime.fromisoformat(exp.replace("Z", "+00:00"))
+        return exp_dt < max_dt
+    except Exception:
+        return True
+
+
 # ─── KALSHI MARKETS ───
 @app.get("/api/kalshi")
 async def get_kalshi():
@@ -78,6 +91,7 @@ async def get_kalshi():
             result = []
             for ev in events:
                 event_ticker = ev.get("event_ticker", "")
+                series_ticker = ev.get("series_ticker", "")
                 event_title = ev.get("title", "?")
 
                 # Get markets for this event
@@ -98,6 +112,10 @@ async def get_kalshi():
                 if is_multi:
                     clean.sort(key=lambda m: float(m.get("yes_ask_dollars", "0") or "0"), reverse=True)
                     clean = clean[:2]
+
+                # Filter out markets expiring more than 10 years from now
+                max_exp = datetime.now(timezone.utc) + timedelta(days=3650)
+                clean = [m for m in clean if _expires_before(m, max_exp)]
 
                 for m in clean:
                     title = m.get("title", event_title)
@@ -143,12 +161,13 @@ async def get_kalshi():
                         "volume": vol,
                         "source": "kalshi",
                         "category": categorize(title + " " + event_title),
-                        "url": f"https://kalshi.com/markets/{event_ticker}",
+                        "url": f"https://kalshi.com/markets/{series_ticker}/{event_ticker}",
                     })
 
                 if len(result) >= 30:
                     break
 
+            # Keep all Kalshi markets (most have low volume but are still active)
             result.sort(key=lambda x: x["volume"], reverse=True)
             return {"markets": result[:30], "count": min(len(result), 30)}
     except Exception as e:

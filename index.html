@@ -21,6 +21,7 @@
         </div>
         <div class="nav-links">
             <a href="#markets" class="active">Markets</a>
+            <a href="#bot-panel">Bot</a>
             <a href="#arbitrage">Arbitrage</a>
         </div>
     </nav>
@@ -84,6 +85,30 @@
     <section id="arbitrage">
         <h2>Arbitrage Opportunities</h2>
         <p style="color: var(--text-dim); font-size: 14px;">Scanning for cross-platform price differences...</p>
+    </section>
+
+    <!-- Trading Bot -->
+    <section id="bot-panel">
+        <h2>Your Trading Bot</h2>
+        <div class="bot-grid">
+            <div class="bot-stat">
+                <div class="bot-stat-label">Cash Balance</div>
+                <div class="bot-stat-value" id="bot-balance">—</div>
+            </div>
+            <div class="bot-stat">
+                <div class="bot-stat-label">Portfolio Value</div>
+                <div class="bot-stat-value" id="bot-portfolio">—</div>
+            </div>
+            <div class="bot-stat">
+                <div class="bot-stat-label">Status</div>
+                <div class="bot-stat-value" id="bot-status">—</div>
+            </div>
+            <div class="bot-stat">
+                <div class="bot-stat-label">Trades Today</div>
+                <div class="bot-stat-value" id="bot-trades">—</div>
+            </div>
+        </div>
+        <div id="bot-positions"></div>
     </section>
 
     <script src="app.js"></script>

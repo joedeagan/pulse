@@ -585,6 +585,79 @@ nav, section, .stats-bar, #ai-popup, #filters {
 }
 
 
+/* ── BOT PANEL ── */
+#bot-panel {
+    border-bottom: 1px solid var(--border);
+}
+
+.bot-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+    margin-bottom: 16px;
+}
+
+.bot-stat {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px;
+    text-align: center;
+}
+
+.bot-stat-label {
+    font-size: 11px;
+    color: var(--text-dim);
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+}
+
+.bot-stat-value {
+    font-size: 20px;
+    font-weight: 700;
+    color: #fff;
+}
+
+.bot-stat-value.running {
+    color: var(--green);
+}
+
+.bot-stat-value.stopped {
+    color: var(--red);
+}
+
+.bot-position {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 14px 16px;
+    margin-top: 8px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.bot-position-title {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text);
+}
+
+.bot-position-side {
+    font-size: 11px;
+    color: var(--text-dim);
+    margin-top: 2px;
+}
+
+.bot-position-pnl {
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.bot-position-pnl.positive { color: var(--green); }
+.bot-position-pnl.negative { color: var(--red); }
+
 /* ── CARD TOP ROW (badge + AI button) ── */
 .card-top-row {
     display: flex;
@@ -674,6 +747,12 @@ nav, section, .stats-bar, #ai-popup, #filters {
     .chip {
         padding: 6px 14px;
         font-size: 12px;
+    }
+    .bot-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    .bot-stat-value {
+        font-size: 16px;
     }
     #ai-popup-content {
         padding: 24px 20px;
