@@ -17,6 +17,14 @@ function switchTab(tab, btn) {
     document.querySelectorAll('.nav-links a').forEach(a => a.classList.remove('active'));
     if (btn) btn.classList.add('active');
 
+    // Update mobile nav active states
+    document.querySelectorAll('.mobile-nav-item').forEach(a => a.classList.remove('active'));
+    const mobileItems = document.querySelectorAll('.mobile-nav-item');
+    mobileItems.forEach(item => {
+        const onclick = item.getAttribute('onclick') || '';
+        if (onclick.includes(`'${tab}'`)) item.classList.add('active');
+    });
+
     // Define which elements belong to each view
     const heroEl = document.querySelector('.hero');
     const statsEl = document.querySelector('.stats-bar');
@@ -27,13 +35,15 @@ function switchTab(tab, btn) {
     const portfolioEl = document.getElementById('portfolio-panel');
     const arbEl = document.getElementById('arbitrage');
     const corrEl = document.getElementById('correlations-panel');
+    const trendingEl = document.getElementById('trending-panel');
 
     const marketsView = [heroEl, statsEl, filtersEl, marketsEl, briefEl];
     const botView = [botEl];
     const portfolioView = [portfolioEl];
     const arbView = [arbEl];
     const corrView = [corrEl];
-    const allSections = [...marketsView, ...botView, ...portfolioView, ...arbView, ...corrView];
+    const trendingView = [trendingEl];
+    const allSections = [...marketsView, ...botView, ...portfolioView, ...arbView, ...corrView, ...trendingView];
 
     // Hide everything
     allSections.forEach(el => { if (el) el.classList.add('view-hidden'); });
@@ -44,6 +54,7 @@ function switchTab(tab, btn) {
     else if (tab === 'bot') visible = botView;
     else if (tab === 'portfolio') { visible = portfolioView; loadPortfolio(); }
     else if (tab === 'arbitrage') visible = arbView;
+    else if (tab === 'trending') { visible = trendingView; buildTrendingPanel(); }
 
     visible.forEach(el => { if (el) el.classList.remove('view-hidden'); });
 }
@@ -135,6 +146,9 @@ async function loadMarkets() {
     // Compute Pulse Scores for ALL markets at once (percentile-based)
     computeAllPulseScores(allMkts);
 
+    // Check for Pulse Score spikes
+    checkPulseScoreSpikes(allMkts);
+
     grid.innerHTML = '';
     allMarketCards = [];  // Reset for filtering
     firstLoad = false;
@@ -178,16 +192,27 @@ async function loadMarkets() {
         }
     }
 
-    // Show Polymarket markets
+    // Show Polymarket markets (with grouping for similar markets)
     if (polyMarkets.length > 0) {
         const header = document.createElement('div');
         header.className = 'platform-header';
         header.innerHTML = '<h3>POLYMARKET</h3>';
         grid.appendChild(header);
 
-        for (const m of sortByStarred(polyMarkets)) {
-            const change = getMarketChange(m.ticker);
-            grid.appendChild(createMarketCard(m, 'poly', change));
+        _marketGroups = {};
+        const grouped = groupSimilarMarkets(sortByStarred(polyMarkets));
+        for (const item of grouped) {
+            if (item.isGroup) {
+                _marketGroups[item.groupTitle] = item;
+                const gc = createGroupCard(item);
+                grid.appendChild(gc);
+                for (const m of item.markets.slice(0, 2)) {
+                    allMarketCards.push({ card: gc, market: m });
+                }
+            } else {
+                const change = getMarketChange(item.ticker);
+                grid.appendChild(createMarketCard(item, 'poly', change));
+            }
         }
     }
 
@@ -418,6 +443,14 @@ function createMarketCard(market, platform, priceChange) {
     const starClass = starred ? 'star-btn starred' : 'star-btn';
     const marketUrl = market.url || '#';
 
+    const pulseRing = `<svg class="pulse-ring" width="28" height="28" viewBox="0 0 36 36">
+        <circle cx="18" cy="18" r="15" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="3"/>
+        <circle cx="18" cy="18" r="15" fill="none" stroke="${pulseColor}" stroke-width="3"
+            stroke-dasharray="${pulseScore * 0.94} 100" stroke-dashoffset="0"
+            stroke-linecap="round" transform="rotate(-90 18 18)" style="transition:stroke-dasharray 0.5s"/>
+        <text x="18" y="20" text-anchor="middle" fill="${pulseColor}" font-size="11" font-weight="700" font-family="var(--font)">${pulseScore}</text>
+    </svg>`;
+
     card.innerHTML = `
         <div class="card-top-row">
             <div style="display:flex;align-items:center;gap:6px;">
@@ -425,7 +458,7 @@ function createMarketCard(market, platform, priceChange) {
                 ${catDot}
             </div>
             <div style="display:flex;align-items:center;gap:6px;">
-                <span class="pulse-score" style="color:${pulseColor}" title="Pulse Score: ${pulseLabel}">${pulseScore}</span>
+                ${pulseRing}
                 <button class="${starClass}" title="Add to watchlist">${starChar}</button>
             </div>
         </div>
@@ -911,6 +944,7 @@ function getSortFn(sort) {
             const bChange = Math.abs(b.market.yes - (prev[b.market.ticker] || b.market.yes));
             return bChange - aChange;
         };
+        case 'pulse-desc': return (a, b) => (calcPulseScore(b.market, 0)) - (calcPulseScore(a.market, 0));
         default: return null;
     }
 }
@@ -1763,18 +1797,24 @@ function openDetail(market, platform) {
         sideInput?.addEventListener('change', updateCost);
     }, 50);
 
-    // Draw bigger chart
+    // Draw bigger chart — use real history if available
     const canvas = document.getElementById('detail-chart');
-    const basePrice = market.yes;
-    const history = [];
-    let p = basePrice - 8 + Math.random() * 16;
-    for (let i = 0; i < 50; i++) {
-        p += (Math.random() - 0.48) * 2.5;
-        p = Math.max(2, Math.min(98, p));
-        history.push(p);
+    const realHistory = getPriceHistory(market.ticker);
+    let detailChartData;
+    if (realHistory.length >= 5) {
+        detailChartData = realHistory;
+    } else {
+        const basePrice = market.yes;
+        detailChartData = [];
+        let p = basePrice - 8 + Math.random() * 16;
+        for (let i = 0; i < 50; i++) {
+            p += (Math.random() - 0.48) * 2.5;
+            p = Math.max(2, Math.min(98, p));
+            detailChartData.push(p);
+        }
+        detailChartData.push(basePrice);
     }
-    history.push(basePrice);
-    setTimeout(() => drawDetailChart(canvas, history), 50);
+    setTimeout(() => drawDetailChart(canvas, detailChartData), 50);
 }
 
 function drawDetailChart(canvas, data) {
@@ -1831,6 +1871,22 @@ function drawDetailChart(canvas, data) {
     ctx.arc(lastX - 2, lastY, 4, 0, Math.PI * 2);
     ctx.fillStyle = `rgb(${color})`;
     ctx.fill();
+
+    // Y-axis labels
+    ctx.fillStyle = 'rgba(255,255,255,0.25)';
+    ctx.font = '11px Sora, sans-serif';
+    ctx.textAlign = 'right';
+    for (let i = 0; i <= 4; i++) {
+        const val = min + (i / 4) * range;
+        const y = h - 20 - (i / 4) * (h - 40);
+        ctx.fillText(Math.round(val) + '\u00A2', 35, y + 4);
+    }
+
+    // Current price label
+    ctx.fillStyle = `rgb(${color})`;
+    ctx.font = 'bold 13px Sora, sans-serif';
+    ctx.textAlign = 'left';
+    ctx.fillText(Math.round(data[data.length-1]) + '\u00A2', lastX + 6, lastY + 4);
 }
 
 function closeDetail() {
@@ -2122,6 +2178,203 @@ function checkArbAlerts(opportunities) {
 // Init label on load
 updateNotifLabel();
 
+
+// ── GROUP SIMILAR MARKETS (Kill Sports Spam) ──
+let _marketGroups = {};
+
+function groupSimilarMarkets(markets) {
+    // Known groupable patterns — match the suffix after a variable subject
+    const patterns = [
+        { regex: /win the (\d{4} FIFA World Cup)/i, label: m => m[1] },
+        { regex: /win the (\d{4} NBA (?:Finals|Championship))/i, label: m => m[1] },
+        { regex: /win the (\d{4} (?:NHL )?Stanley Cup)/i, label: m => m[1] },
+        { regex: /win the (\d{4} World Series)/i, label: m => m[1] },
+        { regex: /win the (\d{4} Super Bowl)/i, label: m => m[1] },
+        { regex: /sentenced to (.+(?:prison|years))/i, label: () => 'Weinstein Sentencing' },
+        { regex: /(\w+ (?:—|–|-) .+(?:World Cup|NBA|Stanley|Finals|Championship))/i, label: m => m[1] },
+    ];
+
+    const groups = {};
+
+    for (const m of markets) {
+        const title = m.question || '';
+        let matched = false;
+        for (const pat of patterns) {
+            const match = title.match(pat.regex);
+            if (match) {
+                const label = pat.label(match);
+                if (!groups[label]) groups[label] = [];
+                groups[label].push(m);
+                matched = true;
+                break;
+            }
+        }
+        // Also try dash-based grouping as fallback
+        if (!matched) {
+            const dashMatch = title.match(/\s*[\u2014\u2013-]\s*(.+)$/);
+            if (dashMatch) {
+                const suffix = dashMatch[1].trim();
+                if (!groups[suffix]) groups[suffix] = [];
+                groups[suffix].push(m);
+            }
+        }
+    }
+
+    const result = [];
+    const groupedTickers = new Set();
+
+    for (const [suffix, gMarkets] of Object.entries(groups)) {
+        if (gMarkets.length >= 5) {
+            gMarkets.sort((a, b) => (b.volume || 0) - (a.volume || 0));
+            result.push({ groupTitle: suffix, markets: gMarkets, isGroup: true });
+            gMarkets.forEach(m => groupedTickers.add(m.ticker));
+        }
+    }
+
+    // Ungrouped markets maintain original order
+    for (const m of markets) {
+        if (!groupedTickers.has(m.ticker)) {
+            result.push(m);
+        }
+    }
+
+    return result;
+}
+
+function createGroupCard(group) {
+    const card = document.createElement('div');
+    card.className = 'market-card group-card';
+    const topMarkets = group.markets.slice(0, 2);
+    const remaining = group.markets.length - 2;
+    const avgScore = Math.round(group.markets.reduce((s,m) => s + calcPulseScore(m, 0), 0) / group.markets.length);
+    const scoreColor = avgScore >= 70 ? '#00d68f' : avgScore >= 40 ? '#f0b000' : '#ff3b5c';
+
+    card.innerHTML = `
+        <div class="card-top-row">
+            <span class="badge group-badge">GROUP</span>
+            <span class="pulse-score" style="color:${scoreColor}" title="Avg Pulse Score">${avgScore}</span>
+        </div>
+        <h3>${group.groupTitle}</h3>
+        <div class="group-preview">
+            ${topMarkets.map(m => `<div class="group-item"><span>${shortenTitle(m.question)}</span><span style="color:${m.yes >= 50 ? '#00d68f' : '#ff3b5c'}">YES ${m.yes}\u00A2</span></div>`).join('')}
+        </div>
+        <button class="group-toggle" onclick="expandGroup(this, '${group.groupTitle.replace(/'/g, "\\'")}')">${remaining} more markets \u2192</button>
+    `;
+    return card;
+}
+
+function expandGroup(btn, groupTitle) {
+    const group = _marketGroups[groupTitle];
+    if (!group) return;
+    const card = btn.closest('.group-card');
+    const isExpanded = card.classList.contains('group-expanded');
+
+    if (isExpanded) {
+        card.classList.remove('group-expanded');
+        const expandedCards = card.parentElement.querySelectorAll(`.group-child[data-group="${groupTitle}"]`);
+        expandedCards.forEach(c => c.remove());
+        btn.textContent = `${group.markets.length - 2} more markets \u2192`;
+    } else {
+        card.classList.add('group-expanded');
+        const remaining = group.markets.slice(2);
+        remaining.forEach(m => {
+            const mCard = createMarketCard(m, m.source || 'poly', getMarketChange(m.ticker));
+            mCard.classList.add('group-child');
+            mCard.dataset.group = groupTitle;
+            card.after(mCard);
+        });
+        btn.textContent = 'Show less \u2190';
+        if (typeof observeCards === 'function') observeCards();
+    }
+}
+
+// ── PULSE SCORE SPIKE ALERTS ──
+let _prevPulseScores = {};
+try { _prevPulseScores = JSON.parse(localStorage.getItem('pulse-prev-scores') || '{}'); } catch {}
+
+function checkPulseScoreSpikes(allMarkets) {
+    if (!notificationsEnabled) return;
+    const newScores = {};
+    for (const m of allMarkets) {
+        if (!m.ticker) continue;
+        const score = calcPulseScore(m, 0);
+        newScores[m.ticker] = score;
+
+        const prev = _prevPulseScores[m.ticker];
+        if (prev !== undefined) {
+            const change = score - prev;
+            if (change >= 15) {
+                sendNotification(
+                    `\uD83D\uDCCA Pulse Score Spike: ${shortenTitle(m.question)}`,
+                    `Score jumped from ${prev} \u2192 ${score} (+${change})`,
+                    'pulse-spike-' + m.ticker
+                );
+            }
+        }
+    }
+    _prevPulseScores = newScores;
+    localStorage.setItem('pulse-prev-scores', JSON.stringify(newScores));
+}
+
+// ── TRENDING PANEL ──
+function buildTrendingPanel() {
+    const grid = document.getElementById('trending-grid');
+    if (!grid) return;
+
+    const prevScores = {};
+    try { Object.assign(prevScores, JSON.parse(localStorage.getItem('pulse-prev-scores') || '{}')); } catch {}
+
+    const trending = [];
+    for (const {market} of allMarketCards) {
+        const currentScore = calcPulseScore(market, 0);
+        const prevScore = prevScores[market.ticker];
+        if (prevScore !== undefined) {
+            const change = currentScore - prevScore;
+            trending.push({ market, currentScore, prevScore, change });
+        }
+    }
+
+    trending.sort((a, b) => b.change - a.change);
+
+    grid.innerHTML = '';
+
+    if (trending.length === 0 || trending[0].change <= 0) {
+        grid.innerHTML = '<div class="market-card"><h3 style="color:var(--text-dim);">No trending markets yet \u2014 scores update every refresh cycle</h3></div>';
+        return;
+    }
+
+    for (const t of trending.filter(t => t.change > 0).slice(0, 12)) {
+        const m = t.market;
+        const card = document.createElement('div');
+        card.className = 'market-card trending-card';
+        const scoreColor = t.currentScore >= 70 ? '#00d68f' : t.currentScore >= 40 ? '#f0b000' : '#ff3b5c';
+
+        card.innerHTML = `
+            <div class="card-top-row">
+                <span class="badge ${m.source === 'kalshi' ? 'kalshi-badge' : 'poly-badge'}">${m.source === 'kalshi' ? 'KALSHI' : 'POLY'}</span>
+                <div style="display:flex;align-items:center;gap:8px;">
+                    <span class="trending-change">+${t.change}</span>
+                    <svg class="pulse-ring" width="36" height="36" viewBox="0 0 36 36">
+                        <circle cx="18" cy="18" r="15" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="3"/>
+                        <circle cx="18" cy="18" r="15" fill="none" stroke="${scoreColor}" stroke-width="3"
+                            stroke-dasharray="${t.currentScore * 0.94} 100" stroke-dashoffset="0"
+                            stroke-linecap="round" transform="rotate(-90 18 18)"/>
+                        <text x="18" y="20" text-anchor="middle" fill="${scoreColor}" font-size="11" font-weight="700" font-family="var(--font)">${t.currentScore}</text>
+                    </svg>
+                </div>
+            </div>
+            <h3>${shortenTitle(m.question)}</h3>
+            <div class="prices">
+                <span style="color:${m.yes >= 50 ? '#00d68f' : '#ff3b5c'};font-weight:600;">YES ${m.yes}\u00A2</span>
+                <span style="color:#333;margin:0 4px;">\u00B7</span>
+                <span style="color:${m.no >= 50 ? '#00d68f' : '#ff3b5c'};font-weight:600;">NO ${m.no}\u00A2</span>
+            </div>
+        `;
+
+        card.addEventListener('click', () => openDetail(m, m.source || 'poly'));
+        grid.appendChild(card);
+    }
+}
 
 // ── AUTO REFRESH with countdown ──
 let refreshCountdown = 120;
@@ -2581,10 +2834,10 @@ document.addEventListener('keydown', (e) => {
     // Don't trigger shortcuts when typing in inputs
     if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || e.target.tagName === 'TEXTAREA') return;
 
-    const tabs = ['markets', 'bot', 'portfolio', 'arbitrage', 'correlations'];
+    const tabs = ['markets', 'trending', 'bot', 'portfolio', 'arbitrage', 'correlations'];
     const links = document.querySelectorAll('.nav-links a');
 
-    if (e.key >= '1' && e.key <= '5') {
+    if (e.key >= '1' && e.key <= '6') {
         const idx = parseInt(e.key) - 1;
         if (tabs[idx] && links[idx]) {
             switchTab(tabs[idx], links[idx]);

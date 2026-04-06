@@ -1841,6 +1841,70 @@ body.light .refresh-countdown { color: #5a6080; }
     }
 }
 
+/* ── PULSE RING ── */
+.pulse-ring { flex-shrink: 0; }
+
+/* ── GROUP CARDS ── */
+.group-card { border-color: rgba(139, 92, 246, 0.2); }
+.group-badge { background: rgba(139, 92, 246, 0.15); color: #8b5cf6; }
+.group-preview { padding: 8px 0; }
+.group-item { display: flex; justify-content: space-between; padding: 4px 0; font-size: 13px; color: var(--text-mid); }
+.group-toggle { background: none; border: 1px solid rgba(139,92,246,0.2); color: #8b5cf6; padding: 6px 12px; border-radius: 8px; font-size: 12px; font-family: var(--font); cursor: pointer; width: 100%; margin-top: 8px; transition: all 0.2s; }
+.group-toggle:hover { background: rgba(139,92,246,0.1); }
+
+/* ── TRENDING ── */
+.trending-change { color: #00d68f; font-size: 14px; font-weight: 700; background: rgba(0,214,143,0.1); padding: 2px 8px; border-radius: 8px; }
+.trending-card { border-color: rgba(0,214,143,0.15); }
+
+/* ── MOBILE BOTTOM NAV ── */
+.mobile-nav {
+    display: none;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: rgba(13, 13, 21, 0.95);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border-top: 1px solid var(--border);
+    padding: 6px 0;
+    padding-bottom: env(safe-area-inset-bottom, 6px);
+    z-index: 9000;
+    justify-content: space-around;
+}
+
+.mobile-nav-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    padding: 6px 12px;
+    color: var(--text-dim);
+    text-decoration: none;
+    font-size: 10px;
+    font-family: var(--font);
+    transition: color 0.2s;
+}
+
+.mobile-nav-item.active {
+    color: var(--accent);
+}
+
+.mobile-nav-item svg {
+    opacity: 0.6;
+}
+
+.mobile-nav-item.active svg {
+    opacity: 1;
+    stroke: var(--accent);
+}
+
+@media (max-width: 768px) {
+    .mobile-nav { display: flex; }
+    .nav-links { display: none !important; }
+    body { padding-bottom: 70px; }
+}
+
 /* Tablet */
 @media (min-width: 769px) and (max-width: 1024px) {
     nav {

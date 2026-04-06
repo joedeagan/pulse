@@ -1,3 +1,9 @@
+# CUSTOM DOMAIN: To set up a custom domain on Render:
+# 1. Go to render.com → your service → Settings → Custom Domains
+# 2. Add your domain (e.g., pulse.joedeagan.com)
+# 3. Add a CNAME record in your DNS pointing to your-service.onrender.com
+# 4. Render handles SSL automatically
+
 """
 PULSE Backend Server
 ====================
