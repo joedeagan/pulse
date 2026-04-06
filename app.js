@@ -456,8 +456,6 @@ function createMarketCard(market, platform, priceChange) {
     const starClass = starred ? 'star-btn starred' : 'star-btn';
     const marketUrl = market.url || '#';
 
-    const pulseRing = makePulseRing(pulseScore);
-
     card.innerHTML = `
         <div class="card-top-row">
             <div style="display:flex;align-items:center;gap:6px;">
@@ -465,7 +463,7 @@ function createMarketCard(market, platform, priceChange) {
                 ${catDot}
             </div>
             <div style="display:flex;align-items:center;gap:6px;">
-                ${pulseRing}
+                <span class="card-pulse" style="color:${pulseColor};" title="Pulse Score: ${pulseLabel}">${pulseScore}</span>
                 <button class="${starClass}" title="Add to watchlist">${starChar}</button>
             </div>
         </div>
@@ -1687,6 +1685,7 @@ function openDetail(market, platform) {
     overlay.style.alignItems = 'center';
     overlay.style.justifyContent = 'center';
     overlay.style.padding = '20px';
+    document.body.style.overflow = 'hidden'; // Lock body scroll on mobile
     console.log('DETAIL OPEN:', overlay.style.position, overlay.style.zIndex, overlay.style.display, getComputedStyle(overlay).position);
 
     // Badge
@@ -1898,6 +1897,7 @@ function drawDetailChart(canvas, data) {
 
 function closeDetail() {
     document.getElementById('market-detail').style.cssText = 'display:none;';
+    document.body.style.overflow = ''; // Unlock body scroll
     currentDetailMarket = null;
 }
 
@@ -2259,7 +2259,7 @@ function createGroupCard(group) {
     card.innerHTML = `
         <div class="card-top-row">
             <span class="badge group-badge">GROUP</span>
-            ${makePulseRing(avgScore)}
+            <span class="card-pulse" style="color:${scoreColor};">${avgScore}</span>
         </div>
         <h3>${group.groupTitle}</h3>
         <div class="group-preview">

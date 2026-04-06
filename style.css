@@ -1802,9 +1802,23 @@ body.light .refresh-countdown { color: #5a6080; }
         max-height: 85vh;
     }
     /* Detail overlay mobile */
+    #market-detail {
+        padding: 8px;
+    }
     #market-detail-content {
         padding: 20px;
         max-height: 95vh;
+        max-width: 100%;
+    }
+    #detail-title {
+        font-size: 18px;
+        word-break: break-word;
+    }
+    .detail-stat-value {
+        max-width: 180px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
     }
     .detail-price-value {
         font-size: 28px;
@@ -1843,6 +1857,16 @@ body.light .refresh-countdown { color: #5a6080; }
 
 /* ── PULSE RING ── */
 .pulse-ring { flex-shrink: 0; }
+
+/* ── CARD PULSE SCORE — always top-right, big and bold ── */
+.card-pulse {
+    font-size: 18px;
+    font-weight: 800;
+    font-family: var(--font);
+    letter-spacing: -0.5px;
+    line-height: 1;
+    flex-shrink: 0;
+}
 
 /* ── GROUP CARDS ── */
 .group-card { border-color: rgba(139, 92, 246, 0.2); }
