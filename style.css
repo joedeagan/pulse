@@ -576,7 +576,7 @@ section, .stats-bar {
 
 #ai-popup {
     position: fixed;
-    z-index: 500;
+    z-index: 10000;
 }
 
 /* market-detail styles are below in MARKET DETAIL OVERLAY section */
