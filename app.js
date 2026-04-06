@@ -90,8 +90,15 @@ function isStarred(ticker) {
 let firstLoad = true;
 async function loadMarkets() {
     const grid = document.querySelector('.market-grid');
-    // Show skeleton loading on first load
-    if (firstLoad) {
+
+    // Show cached data instantly while fetching fresh data
+    const cached = getCachedMarkets();
+    if (firstLoad && cached) {
+        renderMarkets(cached.kalshi, cached.polymarket);
+        // Show "updating..." indicator
+        const refreshEl = document.getElementById('refresh-time');
+        if (refreshEl) refreshEl.textContent = 'Updating...';
+    } else if (firstLoad) {
         grid.innerHTML = Array(6).fill(`
             <div class="market-card skeleton-card">
                 <div class="skel skel-badge"></div>
@@ -103,8 +110,7 @@ async function loadMarkets() {
         `).join('');
     }
 
-    // Try our backend server first (has no CORS issues)
-    // Falls back to direct API calls if server isn't running
+    // Fetch fresh data from server
     let kalshiMarkets = [];
     let polyMarkets = [];
 
@@ -123,7 +129,14 @@ async function loadMarkets() {
         try { polyMarkets = await fetchPolymarket(); } catch(e2) {}
     }
 
-    // If both APIs failed (CORS on GitHub Pages), show sample data
+    // If API failed, keep showing cached data (already rendered above)
+    if (kalshiMarkets.length === 0 && polyMarkets.length === 0 && cached) {
+        const refreshEl = document.getElementById('refresh-time');
+        if (refreshEl) refreshEl.textContent = 'Using cached data';
+        return;
+    }
+
+    // If no data at all, show sample data
     if (kalshiMarkets.length === 0 && polyMarkets.length === 0) {
         kalshiMarkets = [
             { question: "Bitcoin above $70,000 on April 10?", ticker: "KXBTCD", yes: 62, no: 38, volume: 45200, source: 'kalshi', edge: 0.06, side: 'yes' },
@@ -141,6 +154,33 @@ async function loadMarkets() {
             { question: "Next iPhone has AI chip?", ticker: "POLY-TECH", yes: 85, no: 15, volume: 340000, source: 'poly' },
         ];
     }
+
+    // Cache the fresh data for next visit
+    cacheMarkets(kalshiMarkets, polyMarkets);
+
+    // Render fresh data
+    renderMarkets(kalshiMarkets, polyMarkets);
+}
+
+function getCachedMarkets() {
+    try {
+        const raw = localStorage.getItem('pulse-market-cache');
+        if (!raw) return null;
+        const data = JSON.parse(raw);
+        // Cache is valid for 30 minutes
+        if (Date.now() - data.ts > 30 * 60 * 1000) return null;
+        return data;
+    } catch { return null; }
+}
+
+function cacheMarkets(kalshi, polymarket) {
+    try {
+        localStorage.setItem('pulse-market-cache', JSON.stringify({ kalshi, polymarket, ts: Date.now() }));
+    } catch {}
+}
+
+function renderMarkets(kalshiMarkets, polyMarkets) {
+    const grid = document.querySelector('.market-grid');
 
     // Save price snapshots for real sparklines
     const allMkts = [...kalshiMarkets, ...polyMarkets];
