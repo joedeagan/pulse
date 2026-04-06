@@ -8,7 +8,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="PULSE">
     <title>PULSE — Trading. Logically.</title>
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="style.css?v=3">
     <link rel="manifest" href="/manifest.json">
     <link rel="icon" type="image/png" href="/icon-192.png">
     <link rel="apple-touch-icon" href="/icon-192.png">
@@ -29,6 +29,7 @@
         <div class="nav-links">
             <a href="#" class="active" onclick="switchTab('markets', this); return false;">Markets</a>
             <a href="#" onclick="switchTab('bot', this); return false;">Bot</a>
+            <a href="#" onclick="switchTab('portfolio', this); return false;">Portfolio</a>
             <a href="#" onclick="switchTab('arbitrage', this); return false;">Arbitrage</a>
         </div>
         <div class="settings-dropdown">
@@ -102,6 +103,20 @@
         </div>
     </section>
 
+    <!-- Market Detail Overlay -->
+    <div id="market-detail" style="display:none;">
+        <div id="market-detail-content">
+            <button class="detail-close" onclick="closeDetail()">✕</button>
+            <div id="detail-badge"></div>
+            <h2 id="detail-title"></h2>
+            <div id="detail-prices"></div>
+            <canvas id="detail-chart" width="600" height="200"></canvas>
+            <div id="detail-stats"></div>
+            <div id="detail-actions"></div>
+            <div id="detail-paper-trade"></div>
+        </div>
+    </div>
+
     <!-- AI Analysis popup -->
     <div id="ai-popup" style="display:none;">
         <div id="ai-popup-content">
@@ -110,6 +125,35 @@
             <div id="ai-body">Thinking...</div>
         </div>
     </div>
+
+    <!-- Portfolio (Paper Trading) -->
+    <section id="portfolio-panel" class="view-hidden">
+        <h2>Paper Portfolio</h2>
+        <div class="bot-grid" id="portfolio-stats">
+            <div class="bot-stat">
+                <div class="bot-stat-label">Paper Balance</div>
+                <div class="bot-stat-value" id="paper-balance">$1,000.00</div>
+            </div>
+            <div class="bot-stat">
+                <div class="bot-stat-label">Invested</div>
+                <div class="bot-stat-value" id="paper-invested">$0.00</div>
+            </div>
+            <div class="bot-stat">
+                <div class="bot-stat-label">Total P&L</div>
+                <div class="bot-stat-value" id="paper-pnl">$0.00</div>
+            </div>
+            <div class="bot-stat">
+                <div class="bot-stat-label">Trades</div>
+                <div class="bot-stat-value" id="paper-trades">0</div>
+            </div>
+        </div>
+        <div id="paper-positions"></div>
+    </section>
+
+    <!-- AI Market Brief -->
+    <section id="ai-brief">
+        <div id="ai-brief-content"></div>
+    </section>
 
     <!-- Arbitrage -->
     <section id="arbitrage" class="view-hidden">
@@ -145,6 +189,6 @@
         <div id="bot-positions"></div>
     </section>
 
-    <script src="app.js"></script>
+    <script src="app.js?v=3"></script>
 </body>
 </html>

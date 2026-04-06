@@ -1,5 +1,5 @@
 // PULSE Service Worker — enables offline + install as app
-const CACHE_NAME = 'pulse-v1';
+const CACHE_NAME = 'pulse-v3';
 const ASSETS = [
     '/',
     '/style.css',

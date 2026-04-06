@@ -22,13 +22,16 @@ function switchTab(tab, btn) {
     const statsEl = document.querySelector('.stats-bar');
     const filtersEl = document.getElementById('filters');
     const marketsEl = document.getElementById('markets');
+    const briefEl = document.getElementById('ai-brief');
     const botEl = document.getElementById('bot-panel');
+    const portfolioEl = document.getElementById('portfolio-panel');
     const arbEl = document.getElementById('arbitrage');
 
-    const marketsView = [heroEl, statsEl, filtersEl, marketsEl];
+    const marketsView = [heroEl, statsEl, filtersEl, marketsEl, briefEl];
     const botView = [botEl];
+    const portfolioView = [portfolioEl];
     const arbView = [arbEl];
-    const allSections = [...marketsView, ...botView, ...arbView];
+    const allSections = [...marketsView, ...botView, ...portfolioView, ...arbView];
 
     // Hide everything
     allSections.forEach(el => { if (el) el.classList.add('view-hidden'); });
@@ -37,6 +40,7 @@ function switchTab(tab, btn) {
     let visible = [];
     if (tab === 'markets') visible = marketsView;
     else if (tab === 'bot') visible = botView;
+    else if (tab === 'portfolio') { visible = portfolioView; loadPortfolio(); }
     else if (tab === 'arbitrage') visible = arbView;
 
     visible.forEach(el => { if (el) el.classList.remove('view-hidden'); });
@@ -161,6 +165,9 @@ async function loadMarkets() {
     // Check for notification-worthy changes
     checkPriceAlerts(kalshiMarkets, polyMarkets);
     checkArbAlerts(arbitrage);
+
+    // Generate AI market brief
+    generateMarketBrief(kalshiMarkets, polyMarkets);
 
     const total = kalshiMarkets.length + polyMarkets.length;
     document.getElementById('market-count').textContent = total;
@@ -416,11 +423,10 @@ function createMarketCard(market, platform) {
     // Draw after card is in the DOM
     setTimeout(() => drawSparkline(sparkCanvas, fakeHistory), 100);
 
-    // Card click → open on platform
+    // Card click → open detail page
     card.addEventListener('click', (e) => {
-        // Don't navigate if they clicked a button or link
         if (e.target.closest('.ai-btn') || e.target.closest('.star-btn') || e.target.closest('.buy-btn')) return;
-        if (market.url) window.open(market.url, '_blank');
+        openDetail(market, platform);
     });
 
     // AI button → analysis popup
@@ -1285,8 +1291,8 @@ async function loadBot() {
         // Check for bot trade alerts
         checkBotAlerts(bot);
 
-        // Total P&L
-        const totalPnl = (bot.positions || []).reduce((sum, p) => sum + (p.upnl || p.pnl || 0), 0);
+        // Total P&L (excluding Fed rate bet)
+        const totalPnl = (bot.positions || []).filter(p => !p.ticker || !p.ticker.includes('KXFED')).reduce((sum, p) => sum + (p.upnl || p.pnl || 0), 0);
         const pnlEl = document.getElementById('bot-total-pnl');
         if (pnlEl) {
             const pnlText = totalPnl >= 0 ? '+$' + totalPnl.toFixed(2) : '-$' + Math.abs(totalPnl).toFixed(2);
@@ -1294,11 +1300,12 @@ async function loadBot() {
             pnlEl.className = 'bot-stat-value ' + (totalPnl >= 0 ? 'running' : 'stopped');
         }
 
-        // Render positions
+        // Render positions (hide Fed rate bet — distorts stats)
         const posDiv = document.getElementById('bot-positions');
-        if (bot.positions && bot.positions.length > 0) {
+        const filteredPositions = (bot.positions || []).filter(p => !p.ticker || !p.ticker.includes('KXFED'));
+        if (filteredPositions.length > 0) {
             posDiv.innerHTML = '<h3 style="font-size:13px;color:var(--text-dim);letter-spacing:2px;margin-bottom:8px;">OPEN POSITIONS</h3>' +
-                bot.positions.map(p => {
+                filteredPositions.map(p => {
                     const pnl = p.upnl || p.pnl || 0;
                     const pnlClass = pnl >= 0 ? 'positive' : 'negative';
                     const pnlStr = pnl >= 0 ? '+$' + pnl.toFixed(2) : '-$' + Math.abs(pnl).toFixed(2);
@@ -1322,6 +1329,349 @@ async function loadBot() {
         document.getElementById('bot-status').className = 'bot-stat-value stopped';
     }
 }
+
+// ── MARKET DETAIL PAGE ──
+let currentDetailMarket = null;
+
+function openDetail(market, platform) {
+    currentDetailMarket = market;
+    const overlay = document.getElementById('market-detail');
+    // Force all styles individually to avoid any cssText parsing issues
+    overlay.style.display = 'flex';
+    overlay.style.position = 'fixed';
+    overlay.style.top = '0';
+    overlay.style.left = '0';
+    overlay.style.right = '0';
+    overlay.style.bottom = '0';
+    overlay.style.zIndex = '9999';
+    overlay.style.background = 'rgba(0,0,0,0.7)';
+    overlay.style.alignItems = 'center';
+    overlay.style.justifyContent = 'center';
+    overlay.style.padding = '20px';
+    console.log('DETAIL OPEN:', overlay.style.position, overlay.style.zIndex, overlay.style.display, getComputedStyle(overlay).position);
+
+    // Badge
+    const badgeHtml = platform === 'kalshi'
+        ? '<span class="badge kalshi-badge">KALSHI</span>'
+        : '<span class="badge poly-badge">POLYMARKET</span>';
+    document.getElementById('detail-badge').innerHTML = badgeHtml;
+
+    // Title
+    document.getElementById('detail-title').textContent = market.question || 'Market';
+
+    // Prices — big display
+    const yesColor = market.yes >= 70 ? 'var(--green)' : market.yes <= 30 ? 'var(--red)' : 'var(--text)';
+    const noColor = market.no >= 70 ? 'var(--green)' : market.no <= 30 ? 'var(--red)' : 'var(--text)';
+    document.getElementById('detail-prices').innerHTML = `
+        <div class="detail-price-row">
+            <div class="detail-price yes" style="color:${yesColor}">
+                <span class="detail-price-label">YES</span>
+                <span class="detail-price-value">${market.yes}¢</span>
+            </div>
+            <div class="detail-price no" style="color:${noColor}">
+                <span class="detail-price-label">NO</span>
+                <span class="detail-price-value">${market.no}¢</span>
+            </div>
+        </div>
+    `;
+
+    // Stats
+    const vol = market.volume ? '$' + Math.round(market.volume).toLocaleString() : '—';
+    const cat = market.category || categorize(market.question);
+    document.getElementById('detail-stats').innerHTML = `
+        <div class="detail-stats-grid">
+            <div><span class="detail-stat-label">Volume</span><span class="detail-stat-value">${vol}</span></div>
+            <div><span class="detail-stat-label">Category</span><span class="detail-stat-value">${cat.charAt(0).toUpperCase() + cat.slice(1)}</span></div>
+            <div><span class="detail-stat-label">Platform</span><span class="detail-stat-value">${platform === 'kalshi' ? 'Kalshi' : 'Polymarket'}</span></div>
+            <div><span class="detail-stat-label">Ticker</span><span class="detail-stat-value">${market.ticker || '—'}</span></div>
+        </div>
+    `;
+
+    // Actions
+    const url = market.url || '#';
+    document.getElementById('detail-actions').innerHTML = `
+        <div class="detail-btn-row">
+            <a class="detail-btn detail-btn-yes" href="${url}" target="_blank">Buy YES on ${platform === 'kalshi' ? 'Kalshi' : 'Polymarket'}</a>
+            <a class="detail-btn detail-btn-no" href="${url}" target="_blank">Buy NO on ${platform === 'kalshi' ? 'Kalshi' : 'Polymarket'}</a>
+        </div>
+    `;
+
+    // Paper trade section
+    document.getElementById('detail-paper-trade').innerHTML = `
+        <div class="paper-trade-section">
+            <h4>Paper Trade</h4>
+            <div class="paper-trade-row">
+                <select id="paper-side">
+                    <option value="yes">YES</option>
+                    <option value="no">NO</option>
+                </select>
+                <input type="number" id="paper-amount" placeholder="Contracts" value="10" min="1" max="1000">
+                <button class="detail-btn detail-btn-paper" onclick="placePaperTrade()">Place Paper Trade</button>
+            </div>
+            <p class="paper-cost" id="paper-cost-preview">Cost: 10 × ${market.yes}¢ = $${(10 * market.yes / 100).toFixed(2)}</p>
+        </div>
+    `;
+
+    // Update cost preview on input change
+    setTimeout(() => {
+        const amtInput = document.getElementById('paper-amount');
+        const sideInput = document.getElementById('paper-side');
+        const updateCost = () => {
+            const amt = parseInt(amtInput.value) || 0;
+            const side = sideInput.value;
+            const price = side === 'yes' ? market.yes : market.no;
+            document.getElementById('paper-cost-preview').textContent =
+                `Cost: ${amt} × ${price}¢ = $${(amt * price / 100).toFixed(2)}`;
+        };
+        amtInput?.addEventListener('input', updateCost);
+        sideInput?.addEventListener('change', updateCost);
+    }, 50);
+
+    // Draw bigger chart
+    const canvas = document.getElementById('detail-chart');
+    const basePrice = market.yes;
+    const history = [];
+    let p = basePrice - 8 + Math.random() * 16;
+    for (let i = 0; i < 50; i++) {
+        p += (Math.random() - 0.48) * 2.5;
+        p = Math.max(2, Math.min(98, p));
+        history.push(p);
+    }
+    history.push(basePrice);
+    setTimeout(() => drawDetailChart(canvas, history), 50);
+}
+
+function drawDetailChart(canvas, data) {
+    const ctx = canvas.getContext('2d');
+    const w = canvas.width;
+    const h = canvas.height;
+    ctx.clearRect(0, 0, w, h);
+
+    const min = Math.min(...data) * 0.95;
+    const max = Math.max(...data) * 1.05;
+    const range = max - min || 1;
+    const trending = data[data.length - 1] >= data[0];
+    const color = trending ? '0, 214, 143' : '255, 59, 92';
+
+    // Grid lines
+    ctx.strokeStyle = 'rgba(255,255,255,0.04)';
+    ctx.lineWidth = 1;
+    for (let i = 0; i < 5; i++) {
+        const y = (h / 5) * i + 20;
+        ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke();
+    }
+
+    // Fill
+    ctx.beginPath();
+    ctx.moveTo(0, h);
+    for (let i = 0; i < data.length; i++) {
+        const x = (i / (data.length - 1)) * w;
+        const y = h - 20 - ((data[i] - min) / range) * (h - 40);
+        ctx.lineTo(x, y);
+    }
+    ctx.lineTo(w, h);
+    ctx.closePath();
+    const grad = ctx.createLinearGradient(0, 0, 0, h);
+    grad.addColorStop(0, `rgba(${color}, 0.2)`);
+    grad.addColorStop(1, `rgba(${color}, 0)`);
+    ctx.fillStyle = grad;
+    ctx.fill();
+
+    // Line
+    ctx.beginPath();
+    for (let i = 0; i < data.length; i++) {
+        const x = (i / (data.length - 1)) * w;
+        const y = h - 20 - ((data[i] - min) / range) * (h - 40);
+        i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+    }
+    ctx.strokeStyle = `rgba(${color}, 0.9)`;
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    // Dot at end
+    const lastX = w;
+    const lastY = h - 20 - ((data[data.length - 1] - min) / range) * (h - 40);
+    ctx.beginPath();
+    ctx.arc(lastX - 2, lastY, 4, 0, Math.PI * 2);
+    ctx.fillStyle = `rgb(${color})`;
+    ctx.fill();
+}
+
+function closeDetail() {
+    document.getElementById('market-detail').style.cssText = 'display:none;';
+    currentDetailMarket = null;
+}
+
+// Close on overlay click
+document.getElementById('market-detail')?.addEventListener('click', (e) => {
+    if (e.target.id === 'market-detail') closeDetail();
+});
+
+
+// ── PAPER PORTFOLIO ──
+function getPaperPortfolio() {
+    try { return JSON.parse(localStorage.getItem('pulse-portfolio') || '{"balance":1000,"trades":[]}'); }
+    catch { return { balance: 1000, trades: [] }; }
+}
+
+function savePaperPortfolio(portfolio) {
+    localStorage.setItem('pulse-portfolio', JSON.stringify(portfolio));
+}
+
+function placePaperTrade() {
+    if (!currentDetailMarket) return;
+    const side = document.getElementById('paper-side').value;
+    const amount = parseInt(document.getElementById('paper-amount').value) || 0;
+    if (amount <= 0) return;
+
+    const price = side === 'yes' ? currentDetailMarket.yes : currentDetailMarket.no;
+    const cost = (amount * price) / 100;
+
+    const portfolio = getPaperPortfolio();
+    if (cost > portfolio.balance) {
+        alert(`Not enough balance! Need $${cost.toFixed(2)}, have $${portfolio.balance.toFixed(2)}`);
+        return;
+    }
+
+    portfolio.balance -= cost;
+    portfolio.trades.push({
+        ticker: currentDetailMarket.ticker,
+        question: currentDetailMarket.question,
+        side: side,
+        contracts: amount,
+        entryPrice: price,
+        cost: cost,
+        timestamp: Date.now(),
+        platform: currentDetailMarket.source || 'unknown',
+        settled: false,
+    });
+
+    savePaperPortfolio(portfolio);
+    closeDetail();
+
+    // Show confirmation
+    const toast = document.createElement('div');
+    toast.className = 'toast';
+    toast.textContent = `Paper trade placed: ${amount} ${side.toUpperCase()} @ ${price}¢ ($${cost.toFixed(2)})`;
+    document.body.appendChild(toast);
+    setTimeout(() => toast.remove(), 3000);
+}
+
+function loadPortfolio() {
+    const portfolio = getPaperPortfolio();
+    const trades = portfolio.trades || [];
+
+    document.getElementById('paper-balance').textContent = '$' + portfolio.balance.toFixed(2);
+
+    const invested = trades.filter(t => !t.settled).reduce((s, t) => s + t.cost, 0);
+    document.getElementById('paper-invested').textContent = '$' + invested.toFixed(2);
+    document.getElementById('paper-trades').textContent = trades.length;
+
+    // Calculate P&L using current prices
+    let totalPnl = 0;
+    const posDiv = document.getElementById('paper-positions');
+
+    if (trades.length === 0) {
+        posDiv.innerHTML = '<p style="color:var(--text-dim);font-size:13px;">No paper trades yet. Click any market card to place one.</p>';
+        document.getElementById('paper-pnl').textContent = '$0.00';
+        return;
+    }
+
+    const activeTrades = trades.filter(t => !t.settled);
+    const settledTrades = trades.filter(t => t.settled);
+
+    let html = '<h3 style="font-size:13px;color:var(--text-dim);letter-spacing:2px;margin-bottom:8px;">ACTIVE POSITIONS</h3>';
+
+    if (activeTrades.length === 0) {
+        html += '<p style="color:var(--text-dim);font-size:13px;">No active positions</p>';
+    }
+
+    for (const t of activeTrades) {
+        // Try to find current price
+        const currentMarket = allMarketCards.find(c => c.market.ticker === t.ticker);
+        const currentPrice = currentMarket ? (t.side === 'yes' ? currentMarket.market.yes : currentMarket.market.no) : t.entryPrice;
+        const pnl = ((currentPrice - t.entryPrice) * t.contracts) / 100;
+        totalPnl += pnl;
+
+        const pnlStr = pnl >= 0 ? '+$' + pnl.toFixed(2) : '-$' + Math.abs(pnl).toFixed(2);
+        const pnlClass = pnl >= 0 ? 'positive' : 'negative';
+        const title = shortenTitle(t.question);
+
+        html += `<div class="bot-position">
+            <div>
+                <div class="bot-position-title">${title}</div>
+                <div class="bot-position-side">${t.side.toUpperCase()} · ${t.contracts} contracts @ ${t.entryPrice}¢</div>
+            </div>
+            <div class="bot-position-pnl ${pnlClass}">${pnlStr}</div>
+        </div>`;
+    }
+
+    posDiv.innerHTML = html;
+
+    const pnlEl = document.getElementById('paper-pnl');
+    pnlEl.textContent = totalPnl >= 0 ? '+$' + totalPnl.toFixed(2) : '-$' + Math.abs(totalPnl).toFixed(2);
+    pnlEl.className = 'bot-stat-value ' + (totalPnl >= 0 ? 'running' : 'stopped');
+}
+
+
+// ── AI MARKET BRIEF ──
+function generateMarketBrief(kalshiMarkets, polyMarkets) {
+    const briefEl = document.getElementById('ai-brief-content');
+    if (!briefEl) return;
+
+    const allMarkets = [...kalshiMarkets, ...polyMarkets];
+    if (allMarkets.length === 0) { briefEl.innerHTML = ''; return; }
+
+    // Find interesting markets
+    const highConf = allMarkets.filter(m => m.yes >= 80 || m.yes <= 20).slice(0, 3);
+    const coinFlips = allMarkets.filter(m => m.yes >= 45 && m.yes <= 55).slice(0, 3);
+    const highVol = [...allMarkets].sort((a, b) => (b.volume || 0) - (a.volume || 0)).slice(0, 3);
+
+    let html = `<div class="brief-card">
+        <h3 class="brief-title">Market Brief</h3>
+        <div class="brief-time">${new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}</div>`;
+
+    // Summary stats
+    const avgYes = Math.round(allMarkets.reduce((s, m) => s + m.yes, 0) / allMarkets.length);
+    html += `<div class="brief-stat-row">
+        <span>${allMarkets.length} markets tracked</span>
+        <span>Avg YES: ${avgYes}¢</span>
+    </div>`;
+
+    // High confidence
+    if (highConf.length > 0) {
+        html += '<div class="brief-section"><h4>Near Certain</h4>';
+        for (const m of highConf) {
+            const dir = m.yes >= 80 ? 'YES' : 'NO';
+            const conf = m.yes >= 80 ? m.yes : m.no;
+            html += `<div class="brief-item"><span class="brief-item-title">${shortenTitle(m.question)}</span><span class="brief-item-value" style="color:var(--green);">${dir} ${conf}¢</span></div>`;
+        }
+        html += '</div>';
+    }
+
+    // Coin flips
+    if (coinFlips.length > 0) {
+        html += '<div class="brief-section"><h4>Coin Flips</h4>';
+        for (const m of coinFlips) {
+            html += `<div class="brief-item"><span class="brief-item-title">${shortenTitle(m.question)}</span><span class="brief-item-value" style="color:var(--accent);">YES ${m.yes}¢</span></div>`;
+        }
+        html += '</div>';
+    }
+
+    // Highest volume
+    if (highVol.length > 0) {
+        html += '<div class="brief-section"><h4>Most Active</h4>';
+        for (const m of highVol) {
+            const vol = m.volume ? '$' + Math.round(m.volume).toLocaleString() : '—';
+            html += `<div class="brief-item"><span class="brief-item-title">${shortenTitle(m.question)}</span><span class="brief-item-value">${vol}</span></div>`;
+        }
+        html += '</div>';
+    }
+
+    html += '</div>';
+    briefEl.innerHTML = html;
+}
+
 
 // ── NOTIFICATIONS ──
 let notificationsEnabled = localStorage.getItem('pulse-notifications') === 'true';
