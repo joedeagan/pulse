@@ -132,6 +132,9 @@ async function loadMarkets() {
     const allMkts = [...kalshiMarkets, ...polyMarkets];
     savePriceSnapshot(allMkts);
 
+    // Compute Pulse Scores for ALL markets at once (percentile-based)
+    computeAllPulseScores(allMkts);
+
     grid.innerHTML = '';
     allMarketCards = [];  // Reset for filtering
     firstLoad = false;
@@ -476,47 +479,88 @@ function createMarketCard(market, platform, priceChange) {
 }
 
 // ── PULSE SCORE — confidence rating ──
+// ── PULSE SCORE ENGINE ──
+// Percentile-based scoring — every market is ranked against all others
+// so scores naturally spread from ~5 to ~95. No more clustering.
+let _pulseScoreCache = {};
+
+function computeAllPulseScores(allMarkets) {
+    _pulseScoreCache = {};
+    if (!allMarkets || allMarkets.length === 0) return;
+
+    // Build composite score for each market using continuous signals
+    const scored = allMarkets.map(m => {
+        const yes = m.yes || 50;
+        const change = Math.abs(getMarketChange(m.ticker) || 0);
+        const vol = m.volume || 0;
+
+        // SIGNAL 1: Trading Interest (continuous 0-1)
+        // Bell curve peaks at 25¢/75¢ — strong lean, room to profit
+        // Dead markets (0-2¢/98-100¢) get near zero
+        const dist = Math.abs(yes - 50);
+        let interest;
+        if (yes <= 2 || yes >= 98) {
+            interest = 0.02;
+        } else {
+            interest = Math.exp(-Math.pow(dist - 25, 2) / 450);
+        }
+
+        // SIGNAL 2: Volume (log-scaled, normalized to ~0-1)
+        const logVol = vol > 0 ? Math.log10(vol) : 0;
+        const volNorm = Math.min(logVol / 8, 1); // log10(100M) ≈ 8
+
+        // SIGNAL 3: Momentum
+        const momentum = Math.min(change / 10, 1); // 10¢ change = max
+
+        // SIGNAL 4: Price history richness
+        const history = getPriceHistory(m.ticker);
+        const historyBonus = Math.min(history.length / 10, 1);
+
+        // Composite raw score (0 to 1) — weighted blend
+        const hasAnyChange = change > 0;
+        const composite = hasAnyChange
+            ? interest * 0.35 + volNorm * 0.30 + momentum * 0.25 + historyBonus * 0.10
+            : interest * 0.45 + volNorm * 0.40 + historyBonus * 0.15;
+
+        return { ticker: m.ticker, composite };
+    });
+
+    // Now percentile-rank the COMPOSITE score for maximum spread
+    scored.sort((a, b) => a.composite - b.composite);
+    const n = scored.length;
+    scored.forEach((s, i) => {
+        // Percentile: 0 for lowest, 1 for highest
+        const pct = n > 1 ? i / (n - 1) : 0.5;
+
+        // Small tiebreaker from ticker hash
+        let hash = 0;
+        for (let j = 0; j < (s.ticker || '').length; j++) hash = ((hash << 5) - hash + s.ticker.charCodeAt(j)) | 0;
+        const jitter = (Math.abs(hash) % 100) / 5000; // ±0.02
+
+        // Scale to 5-95 range
+        const score = Math.round(5 + Math.min(pct + jitter, 1) * 90);
+        _pulseScoreCache[s.ticker] = Math.max(1, Math.min(score, 99));
+    });
+}
+
 function calcPulseScore(market, priceChange) {
-    let score = 0;
-    const yes = market.yes;
-
-    // Price confidence — rewards markets with clear direction but NOT settled/dead ones
-    // Best score: 70-90¢ or 10-30¢ range (strong lean, still tradeable)
-    // Worst score: 0-3¢ or 97-100¢ (basically settled, no action)
-    // Medium score: 40-60¢ range (uncertain, could go either way)
-    if (yes <= 3 || yes >= 97) {
-        score += 5; // Basically settled — low interest
-    } else if (yes <= 10 || yes >= 90) {
-        score += 30; // Very confident
-    } else if (yes <= 20 || yes >= 80) {
-        score += 35; // Strong lean, good trading range
-    } else if (yes <= 30 || yes >= 70) {
-        score += 25; // Moderate lean
-    } else {
-        score += 15; // Near 50/50 — uncertain
+    // Use cached percentile-based score if available
+    if (_pulseScoreCache[market.ticker] !== undefined) {
+        return _pulseScoreCache[market.ticker];
     }
-
-    // Volume strength — logarithmic scale for better spread
+    // Fallback for markets scored outside of bulk computation
+    const yes = market.yes || 50;
+    const dist = Math.abs(yes - 50);
     const vol = market.volume || 0;
-    if (vol > 1000000) score += 25;
-    else if (vol > 500000) score += 22;
-    else if (vol > 100000) score += 18;
-    else if (vol > 50000) score += 14;
-    else if (vol > 10000) score += 10;
-    else if (vol > 1000) score += 6;
-    else if (vol > 100) score += 3;
-
-    // Momentum (price change) — biggest differentiator
     const change = Math.abs(priceChange || 0);
-    if (change > 10) score += 30;
-    else if (change > 5) score += 22;
-    else if (change > 3) score += 15;
-    else if (change > 1) score += 8;
-    else if (change > 0) score += 3;
-
-    // Edge bonus
-    if (market.edge && market.edge > 0.05) score += 8;
-
+    let score = 20;
+    if (yes <= 2 || yes >= 98) score = 8;
+    else if (dist >= 20) score += 25;
+    else if (dist >= 10) score += 15;
+    if (vol > 100000) score += 20;
+    else if (vol > 10000) score += 12;
+    if (change > 3) score += 20;
+    else if (change > 0) score += 8;
     return Math.min(Math.round(score), 99);
 }
 
