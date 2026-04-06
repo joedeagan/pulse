@@ -38,6 +38,8 @@ body {
     font-family: var(--font);
     line-height: 1.5;
     -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
+    min-height: 100vh;
 }
 
 /* ── NAVIGATION ── */
@@ -119,12 +121,12 @@ nav {
 .nav-search {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 12px;
     background: rgba(255, 255, 255, 0.05);
     border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 10px;
-    padding: 10px 18px;
-    width: 340px;
+    border-radius: 12px;
+    padding: 12px 22px;
+    width: 460px;
     transition: all 0.25s;
 }
 
@@ -165,6 +167,17 @@ nav {
     height: 400px;
     background: radial-gradient(ellipse, rgba(0, 136, 255, 0.08) 0%, transparent 70%);
     pointer-events: none;
+}
+
+.hero-logo {
+    margin-bottom: 20px;
+    filter: drop-shadow(0 0 20px rgba(0, 136, 255, 0.4));
+    animation: pulse-glow 3s ease-in-out infinite;
+}
+
+@keyframes pulse-glow {
+    0%, 100% { filter: drop-shadow(0 0 15px rgba(0, 136, 255, 0.3)); }
+    50% { filter: drop-shadow(0 0 30px rgba(0, 136, 255, 0.6)); }
 }
 
 .hero h1 {
