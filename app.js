@@ -11,12 +11,25 @@ async function loadMarkets() {
     const grid = document.querySelector('.market-grid');
     grid.innerHTML = '<div class="market-card"><h3>Loading...</h3></div>';
 
-    // Fetch from both platforms
+    // Try our backend server first (has no CORS issues)
+    // Falls back to direct API calls if server isn't running
     let kalshiMarkets = [];
     let polyMarkets = [];
 
-    try { kalshiMarkets = await fetchKalshi(); } catch(e) {}
-    try { polyMarkets = await fetchPolymarket(); } catch(e) {}
+    try {
+        const resp = await fetch('/api/markets');
+        if (resp.ok) {
+            const data = await resp.json();
+            kalshiMarkets = data.kalshi || [];
+            polyMarkets = data.polymarket || [];
+        } else {
+            throw new Error('Server not available');
+        }
+    } catch(e) {
+        // Fallback to direct API calls
+        try { kalshiMarkets = await fetchKalshi(); } catch(e2) {}
+        try { polyMarkets = await fetchPolymarket(); } catch(e2) {}
+    }
 
     // If both APIs failed (CORS on GitHub Pages), show sample data
     if (kalshiMarkets.length === 0 && polyMarkets.length === 0) {
@@ -508,6 +521,156 @@ if (localStorage.getItem('pulse-theme') === 'light') {
     document.getElementById('theme-toggle').textContent = '🌙';
 }
 
+
+// ── NAV MINI ORB ──
+(function() {
+    const c = document.getElementById('nav-orb');
+    if (!c) return;
+    const ctx = c.getContext('2d');
+    let t = 0;
+    function draw() {
+        t += 0.02;
+        ctx.clearRect(0, 0, 32, 32);
+        const cx = 16, cy = 16;
+        // Ring
+        ctx.save();
+        ctx.translate(cx, cy);
+        ctx.rotate(t);
+        for (let i = 0; i < 6; i++) {
+            const a = (i / 6) * Math.PI * 2;
+            ctx.beginPath();
+            ctx.arc(0, 0, 12, a + 0.1, a + 0.8);
+            ctx.strokeStyle = `rgba(0, 180, 255, ${i % 2 === 0 ? 0.5 : 0.2})`;
+            ctx.lineWidth = 1.5;
+            ctx.stroke();
+        }
+        ctx.restore();
+        // Core
+        const p = Math.sin(t * 2) * 0.2 + 0.8;
+        const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, 6);
+        g.addColorStop(0, `rgba(200, 240, 255, ${p})`);
+        g.addColorStop(1, 'rgba(0, 136, 255, 0)');
+        ctx.fillStyle = g;
+        ctx.beginPath();
+        ctx.arc(cx, cy, 6, 0, Math.PI * 2);
+        ctx.fill();
+        requestAnimationFrame(draw);
+    }
+    draw();
+})();
+
+// ── ANIMATED LOGO ORB ──
+(function() {
+    const canvas = document.getElementById('logo-canvas');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = 200 * dpr;
+    canvas.height = 200 * dpr;
+    ctx.scale(dpr, dpr);
+    let t = 0;
+
+    function drawLogo() {
+        t += 0.015;
+        ctx.clearRect(0, 0, 200, 200);
+        const cx = 100, cy = 100;
+
+        // Outer glow
+        const glow = ctx.createRadialGradient(cx, cy, 30, cx, cy, 95);
+        glow.addColorStop(0, 'rgba(0, 136, 255, 0.06)');
+        glow.addColorStop(1, 'rgba(0, 0, 0, 0)');
+        ctx.fillStyle = glow;
+        ctx.beginPath();
+        ctx.arc(cx, cy, 95, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Outer ring
+        ctx.beginPath();
+        ctx.arc(cx, cy, 80, 0, Math.PI * 2);
+        ctx.strokeStyle = 'rgba(0, 136, 255, 0.15)';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+
+        // Segmented ring (rotating)
+        ctx.save();
+        ctx.translate(cx, cy);
+        ctx.rotate(t * 0.5);
+        for (let i = 0; i < 12; i++) {
+            const a = (i / 12) * Math.PI * 2;
+            ctx.beginPath();
+            ctx.arc(0, 0, 70, a + 0.08, a + (Math.PI / 6) - 0.08);
+            ctx.strokeStyle = `rgba(0, 136, 255, ${i % 3 === 0 ? 0.3 : 0.1})`;
+            ctx.lineWidth = 1.5;
+            ctx.stroke();
+        }
+        ctx.restore();
+
+        // Inner dashed ring (counter-rotating)
+        ctx.save();
+        ctx.translate(cx, cy);
+        ctx.rotate(-t * 0.8);
+        ctx.setLineDash([4, 8]);
+        ctx.beginPath();
+        ctx.arc(0, 0, 55, 0, Math.PI * 2);
+        ctx.strokeStyle = 'rgba(0, 214, 143, 0.15)';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.restore();
+
+        // Tick marks
+        for (let i = 0; i < 36; i++) {
+            const a = (i / 36) * Math.PI * 2 + t * 0.3;
+            const len = i % 3 === 0 ? 8 : 4;
+            const r1 = 60 - len;
+            const r2 = 60;
+            ctx.beginPath();
+            ctx.moveTo(cx + Math.cos(a) * r1, cy + Math.sin(a) * r1);
+            ctx.lineTo(cx + Math.cos(a) * r2, cy + Math.sin(a) * r2);
+            ctx.strokeStyle = `rgba(0, 136, 255, ${i % 3 === 0 ? 0.25 : 0.08})`;
+            ctx.lineWidth = 1;
+            ctx.stroke();
+        }
+
+        // Orbiting dots
+        for (let i = 0; i < 3; i++) {
+            const a = t * (1.2 + i * 0.4) + (i * Math.PI * 2 / 3);
+            const r = 45 + i * 15;
+            const x = cx + Math.cos(a) * r;
+            const y = cy + Math.sin(a) * r;
+            const size = 2 + (i === 0 ? 1 : 0);
+            const colors = ['0, 136, 255', '0, 214, 143', '139, 92, 246'];
+            ctx.beginPath();
+            ctx.arc(x, y, size, 0, Math.PI * 2);
+            ctx.fillStyle = `rgba(${colors[i]}, 0.8)`;
+            ctx.fill();
+            ctx.shadowColor = `rgba(${colors[i]}, 0.5)`;
+            ctx.shadowBlur = 8;
+            ctx.fill();
+            ctx.shadowBlur = 0;
+        }
+
+        // Core glow
+        const pulse = Math.sin(t * 2) * 0.15 + 0.85;
+        const core = ctx.createRadialGradient(cx, cy, 0, cx, cy, 18 * pulse);
+        core.addColorStop(0, `rgba(200, 240, 255, ${0.9 * pulse})`);
+        core.addColorStop(0.4, `rgba(0, 180, 255, ${0.4 * pulse})`);
+        core.addColorStop(1, 'rgba(0, 100, 200, 0)');
+        ctx.fillStyle = core;
+        ctx.beginPath();
+        ctx.arc(cx, cy, 18 * pulse, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Bright center dot
+        ctx.beginPath();
+        ctx.arc(cx, cy, 4, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(255, 255, 255, ${0.7 + Math.sin(t * 3) * 0.3})`;
+        ctx.fill();
+
+        requestAnimationFrame(drawLogo);
+    }
+    drawLogo();
+})();
 
 // ── PARTICLE BACKGROUND ──
 (function() {
