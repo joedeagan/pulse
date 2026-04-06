@@ -11,13 +11,18 @@
     <!-- Navigation -->
     <nav>
         <div class="logo">
-            <div class="logo-icon">P</div>
+            <div class="logo-icon">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                    <path d="M3 12h4l3-9 4 18 3-9h4" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+            </div>
             <span class="logo-text">PULSE</span>
             <span class="logo-tag">Trading Logically</span>
         </div>
         <div class="nav-links">
             <a href="#markets" class="active">Markets</a>
             <a href="#arbitrage">Arbitrage</a>
+            <button id="theme-toggle" onclick="toggleTheme()">☀</button>
         </div>
     </nav>
 
@@ -43,6 +48,21 @@
             <div class="stat-label">Opportunities</div>
         </div>
     </div>
+
+    <!-- Search & Filters -->
+    <section id="filters">
+        <div class="search-bar">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#555" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <input type="text" id="search-input" placeholder="Search markets..." oninput="filterMarkets()">
+        </div>
+        <div class="filter-chips">
+            <button class="chip active" onclick="setFilter('all', this)">All</button>
+            <button class="chip" onclick="setFilter('crypto', this)">Crypto</button>
+            <button class="chip" onclick="setFilter('sports', this)">Sports</button>
+            <button class="chip" onclick="setFilter('politics', this)">Politics</button>
+            <button class="chip" onclick="setFilter('weather', this)">Weather</button>
+        </div>
+    </section>
 
     <!-- Live Markets -->
     <section id="markets">

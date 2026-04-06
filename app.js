@@ -22,6 +22,7 @@ async function loadMarkets() {
     const polyMarkets = polyResult.status === 'fulfilled' ? polyResult.value : [];
 
     grid.innerHTML = '';
+    allMarketCards = [];  // Reset for filtering
 
     // Show Kalshi markets
     if (kalshiMarkets.length > 0) {
@@ -200,8 +201,33 @@ function createMarketCard(market, platform) {
         ${extraInfo}
     `;
 
+    // Add sparkline chart with fake price history
+    // (Real price history requires a paid API — we simulate it for now)
+    const sparkDiv = document.createElement('div');
+    sparkDiv.className = 'sparkline';
+    const sparkCanvas = document.createElement('canvas');
+    sparkDiv.appendChild(sparkCanvas);
+    card.appendChild(sparkDiv);
+
+    // Generate simulated price data based on current price
+    const basePrice = market.yes;
+    const fakeHistory = [];
+    let price = basePrice - 5 + Math.random() * 10;
+    for (let i = 0; i < 20; i++) {
+        price += (Math.random() - 0.48) * 3;
+        price = Math.max(5, Math.min(95, price));
+        fakeHistory.push(price);
+    }
+    fakeHistory.push(basePrice);  // End at current price
+
+    // Draw after card is in the DOM
+    setTimeout(() => drawSparkline(sparkCanvas, fakeHistory), 100);
+
     // Make the card clickable — opens AI analysis
     card.addEventListener('click', () => analyzeMarket(market));
+
+    // Store for filtering
+    allMarketCards.push({ card, market });
 
     return card;
 }
@@ -374,6 +400,97 @@ function closeAI() {
 document.getElementById('ai-popup')?.addEventListener('click', (e) => {
     if (e.target.id === 'ai-popup') closeAI();
 });
+
+
+// ── SEARCH & FILTER ──
+let allMarketCards = [];  // Store all cards for filtering
+let currentFilter = 'all';
+
+function filterMarkets() {
+    const query = document.getElementById('search-input').value.toLowerCase();
+    for (const {card, market} of allMarketCards) {
+        const text = (market.question || '').toLowerCase();
+        const matchesSearch = !query || text.includes(query);
+        const matchesFilter = currentFilter === 'all' || categorize(market.question) === currentFilter;
+        card.style.display = (matchesSearch && matchesFilter) ? '' : 'none';
+    }
+}
+
+function setFilter(filter, btn) {
+    currentFilter = filter;
+    document.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+    btn.classList.add('active');
+    filterMarkets();
+}
+
+// Categorize a market by its title
+function categorize(title) {
+    const t = (title || '').toLowerCase();
+    if (t.includes('bitcoin') || t.includes('btc') || t.includes('ethereum') || t.includes('eth') || t.includes('crypto') || t.includes('sol')) return 'crypto';
+    if (t.includes('nba') || t.includes('mlb') || t.includes('nfl') || t.includes('nhl') || t.includes('lakers') || t.includes('yankees') || t.includes('game') || t.includes('win')) return 'sports';
+    if (t.includes('trump') || t.includes('election') || t.includes('president') || t.includes('senate') || t.includes('congress')) return 'politics';
+    if (t.includes('rain') || t.includes('snow') || t.includes('weather') || t.includes('temperature')) return 'weather';
+    return 'other';
+}
+
+
+// ── SPARKLINE CHART ──
+// Draws a tiny price history chart inside each card
+function drawSparkline(canvas, data) {
+    if (!canvas || !data || data.length < 2) return;
+    const ctx = canvas.getContext('2d');
+    const w = canvas.width = canvas.offsetWidth * 2;
+    const h = canvas.height = 60;
+    ctx.scale(2, 2);  // Retina
+
+    const min = Math.min(...data) * 0.95;
+    const max = Math.max(...data) * 1.05;
+    const range = max - min || 1;
+    const trending = data[data.length - 1] >= data[0];
+    const color = trending ? '0, 214, 143' : '255, 59, 92';
+
+    // Fill
+    ctx.beginPath();
+    ctx.moveTo(0, 30);
+    for (let i = 0; i < data.length; i++) {
+        const x = (i / (data.length - 1)) * (w / 2);
+        const y = 30 - ((data[i] - min) / range) * 28;
+        ctx.lineTo(x, y);
+    }
+    ctx.lineTo(w / 2, 30);
+    ctx.closePath();
+    const grad = ctx.createLinearGradient(0, 0, 0, 30);
+    grad.addColorStop(0, `rgba(${color}, 0.15)`);
+    grad.addColorStop(1, `rgba(${color}, 0)`);
+    ctx.fillStyle = grad;
+    ctx.fill();
+
+    // Line
+    ctx.beginPath();
+    for (let i = 0; i < data.length; i++) {
+        const x = (i / (data.length - 1)) * (w / 2);
+        const y = 30 - ((data[i] - min) / range) * 28;
+        i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+    }
+    ctx.strokeStyle = `rgba(${color}, 0.8)`;
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+}
+
+
+// ── THEME TOGGLE ──
+function toggleTheme() {
+    document.body.classList.toggle('light');
+    const btn = document.getElementById('theme-toggle');
+    btn.textContent = document.body.classList.contains('light') ? '🌙' : '☀';
+    localStorage.setItem('pulse-theme', document.body.classList.contains('light') ? 'light' : 'dark');
+}
+
+// Load saved theme
+if (localStorage.getItem('pulse-theme') === 'light') {
+    document.body.classList.add('light');
+    document.getElementById('theme-toggle').textContent = '🌙';
+}
 
 
 // ── AUTO REFRESH ──
