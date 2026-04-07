@@ -27,7 +27,7 @@
     <meta name="twitter:description" content="Real-time prediction market analytics. AI-powered Pulse Scores, cross-platform arbitrage, and live odds from Kalshi & Polymarket.">
     <meta name="twitter:image" content="https://pulse-api-joed.onrender.com/og-image.png">
 
-    <link rel="stylesheet" href="style.css?v=10">
+    <link rel="stylesheet" href="style.css?v=12">
     <link rel="manifest" href="/manifest.json">
     <link rel="icon" type="image/png" href="/icon-192.png">
     <link rel="apple-touch-icon" href="/icon-192.png">
@@ -70,6 +70,10 @@
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 3v3a2 2 0 01-2 2H3"/><path d="M21 8h-3a2 2 0 01-2-2V3"/><path d="M3 16h3a2 2 0 012 2v3"/><path d="M16 21v-3a2 2 0 012-2h3"/></svg>
                 Arbitrage
             </a>
+            <a href="#" onclick="switchTab('leagues', this); return false;">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9H4.5a2.5 2.5 0 010-5C7 4 7 7 7 7"/><path d="M18 9h1.5a2.5 2.5 0 000-5C17 4 17 7 17 7"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0012 0V2Z"/></svg>
+                Leagues
+            </a>
             <a href="#" onclick="switchTab('correlations', this); return false;">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><circle cx="5" cy="5" r="2"/><circle cx="19" cy="5" r="2"/><circle cx="5" cy="19" r="2"/><circle cx="19" cy="19" r="2"/><line x1="9.5" y1="9.5" x2="6.5" y2="6.5"/><line x1="14.5" y1="9.5" x2="17.5" y2="6.5"/><line x1="9.5" y1="14.5" x2="6.5" y2="17.5"/><line x1="14.5" y1="14.5" x2="17.5" y2="17.5"/></svg>
                 Correlations
@@ -105,7 +109,6 @@
 
     <!-- Hero -->
     <section class="hero">
-        <canvas id="logo-canvas" width="200" height="200"></canvas>
         <h1>PULSE</h1>
         <p class="tagline">TRADING. LOGICALLY.</p>
         <p>Cross-platform prediction market analytics. Real-time odds from Kalshi &amp; Polymarket. AI-powered Pulse Scores, arbitrage detection, and price tracking.</p>
@@ -117,36 +120,50 @@
             <div class="explainer-top">
                 <div class="explainer-intro">
                     <h3>What is the Pulse Score?</h3>
-                    <p>Every market gets a <strong>0–99 score</strong> that tells you how tradeable it is right now. Higher score = better opportunity. It does NOT tell you which side to bet — use the YES/NO prices and AI Analysis for that.</p>
+                    <p>Every market gets a <strong>0–99 score</strong> powered by 5 factors — including cross-platform intelligence only PULSE can see. Plus a <strong>BUY YES / BUY NO</strong> signal on every card.</p>
                 </div>
                 <div class="explainer-demo">
                     <div class="demo-score" style="border-color:#00d68f;">
                         <span class="demo-score-num" style="color:#00d68f;">87</span>
                         <span class="demo-score-label">PULSE</span>
                     </div>
-                    <span class="demo-score-tag" style="color:#00d68f;">HIGH ACTIVITY</span>
+                    <span class="demo-score-tag" style="color:#00d68f;">BUY YES</span>
                 </div>
             </div>
             <div class="pulse-factors">
                 <div class="pulse-factor">
                     <span class="pulse-factor-icon">📊</span>
                     <div>
-                        <strong>Price (0–33 pts)</strong>
-                        <span>Is the price interesting? Markets around 25¢ or 75¢ score highest — there's a clear lean with room to profit. Dead markets near 0¢ or 100¢ score zero.</span>
+                        <strong>Price Position (0–20 pts)</strong>
+                        <span>Markets at 25¢ or 75¢ score highest — clear lean with room to profit. Dead markets near 0¢ or 100¢ score zero.</span>
                     </div>
                 </div>
                 <div class="pulse-factor">
                     <span class="pulse-factor-icon">💰</span>
                     <div>
-                        <strong>Volume (0–33 pts)</strong>
-                        <span>Are people trading it? More money flowing = more reliable price. Low volume markets can have misleading prices.</span>
+                        <strong>Volume (0–20 pts)</strong>
+                        <span>More money flowing = more reliable price. Low volume markets can have misleading prices.</span>
                     </div>
                 </div>
                 <div class="pulse-factor">
                     <span class="pulse-factor-icon">📈</span>
                     <div>
-                        <strong>Movement (0–33 pts)</strong>
-                        <span>Is the price changing? Moving prices mean something is happening. Stale markets with no movement score zero.</span>
+                        <strong>Momentum (0–20 pts)</strong>
+                        <span>How fast is the price moving? Big swings mean something is happening right now.</span>
+                    </div>
+                </div>
+                <div class="pulse-factor">
+                    <span class="pulse-factor-icon">🔀</span>
+                    <div>
+                        <strong>Cross-Platform Edge (0–20 pts)</strong>
+                        <span>Only PULSE sees both Kalshi &amp; Polymarket. When platforms disagree on price, that's your edge.</span>
+                    </div>
+                </div>
+                <div class="pulse-factor">
+                    <span class="pulse-factor-icon">💧</span>
+                    <div>
+                        <strong>Liquidity (0–19 pts)</strong>
+                        <span>Can you actually buy and sell at this price? High liquidity = easy trades, no slippage.</span>
                     </div>
                 </div>
             </div>
@@ -155,27 +172,31 @@
                     <div class="pulse-scale-block">
                         <div class="scale-bar" style="background:#ff3b5c;"></div>
                         <span class="pulse-scale-item" style="color:#ff3b5c;">0–33</span>
-                        <span class="scale-desc">SKIP IT — Dead, no volume, or not moving</span>
+                        <span class="scale-desc">SKIP — Low activity, not worth trading</span>
                     </div>
                     <div class="pulse-scale-block">
                         <div class="scale-bar" style="background:#f0b000;"></div>
                         <span class="pulse-scale-item" style="color:#f0b000;">34–66</span>
-                        <span class="scale-desc">WATCH — Some activity, worth keeping an eye on</span>
+                        <span class="scale-desc">WATCH — Some activity, keep an eye on it</span>
                     </div>
                     <div class="pulse-scale-block">
                         <div class="scale-bar" style="background:#00d68f;"></div>
                         <span class="pulse-scale-item" style="color:#00d68f;">67–99</span>
-                        <span class="scale-desc">TRADE — Active market, good price, things are moving</span>
+                        <span class="scale-desc">TRADE — Active, good price, things are moving</span>
                     </div>
                 </div>
                 <div class="explainer-features">
                     <div class="explainer-feat">
-                        <span>⚡</span>
-                        <span>Scores update every 2 minutes with live data</span>
+                        <span>🎯</span>
+                        <span>Every card shows a BUY YES / BUY NO signal based on price, momentum &amp; cross-platform data</span>
                     </div>
                     <div class="explainer-feat">
-                        <span>💡</span>
-                        <span>High Pulse = good time to trade. Click any card and hit AI Analysis to see which side.</span>
+                        <span>🔀</span>
+                        <span>Cross-platform edge — only PULSE compares both Kalshi &amp; Polymarket simultaneously</span>
+                    </div>
+                    <div class="explainer-feat">
+                        <span>⚡</span>
+                        <span>Scores update every 2 minutes with live data from both platforms</span>
                     </div>
                 </div>
             </div>
@@ -256,6 +277,7 @@
             <canvas id="detail-chart" width="600" height="200"></canvas>
             <div id="detail-stats"></div>
             <div id="detail-actions"></div>
+            <div id="detail-pulse-history"></div>
             <div id="detail-paper-trade"></div>
             <div id="detail-alert-section"></div>
         </div>
@@ -306,13 +328,23 @@
     <!-- Email Signup -->
     <section id="email-signup" class="reveal" style="display:none;">
         <div class="signup-card">
+            <div class="signup-icon">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><polyline points="22,4 12,13 2,4"/></svg>
+            </div>
             <h3>Daily Market Digest</h3>
-            <p>Get the top 5 movers and Pulse Score alerts delivered to your inbox every morning.</p>
+            <p>Wake up to the markets that matter. One email, every morning at 8 AM.</p>
+            <div class="signup-features">
+                <div class="signup-feature"><span class="sf-icon">📊</span> Top 5 highest Pulse Score markets</div>
+                <div class="signup-feature"><span class="sf-icon">🔀</span> New arbitrage opportunities across platforms</div>
+                <div class="signup-feature"><span class="sf-icon">📈</span> Biggest movers &amp; price swings overnight</div>
+                <div class="signup-feature"><span class="sf-icon">🎯</span> AI-powered BUY YES / BUY NO picks</div>
+            </div>
             <div class="signup-form">
                 <input type="email" id="signup-email" placeholder="your@email.com">
-                <button onclick="submitSignup()">Subscribe</button>
+                <button onclick="submitSignup()">Subscribe Free</button>
             </div>
             <p class="signup-note" id="signup-status"></p>
+            <p class="signup-disclaimer">Free forever. No spam. Unsubscribe anytime.</p>
         </div>
     </section>
 
@@ -323,6 +355,27 @@
     </section>
 
     <!-- Correlations -->
+    <section id="leagues-panel" class="view-hidden">
+        <div class="league-header-row">
+            <h2>PULSE Leagues</h2>
+            <span class="league-week-badge" id="league-week-label"></span>
+        </div>
+        <p style="color:var(--text-dim);font-size:13px;margin-bottom:20px;">Compete weekly with paper trades. Best return wins. Resets every Monday.</p>
+        <div class="league-stats-row" id="league-stats-row"></div>
+        <div class="league-section">
+            <h3 style="font-size:14px;letter-spacing:1.5px;color:var(--text-dim);margin-bottom:12px;">LEADERBOARD</h3>
+            <div class="league-leaderboard" id="league-leaderboard"></div>
+        </div>
+        <div class="league-section">
+            <h3 style="font-size:14px;letter-spacing:1.5px;color:var(--text-dim);margin-bottom:12px;">YOUR PICKS THIS WEEK</h3>
+            <div id="league-picks"></div>
+        </div>
+        <div class="league-section">
+            <h3 style="font-size:14px;letter-spacing:1.5px;color:var(--text-dim);margin-bottom:12px;">PAST WEEKS</h3>
+            <div id="league-history"></div>
+        </div>
+    </section>
+
     <section id="correlations-panel" class="view-hidden">
         <h2>Market Correlations</h2>
         <p style="color: var(--text-dim); font-size: 14px; margin-bottom: 16px;">Which markets move together? Categories that share price patterns.</p>
@@ -363,6 +416,39 @@
         <div id="bot-positions"></div>
     </section>
 
+    <!-- PULSE AI Chat Widget -->
+    <div id="pulse-chat-btn" onclick="togglePulseChat()">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+    </div>
+    <div id="pulse-chat" style="display:none;">
+        <div class="chat-header">
+            <div class="chat-header-left">
+                <span class="chat-dot"></span>
+                <span class="chat-title">PULSE AI</span>
+            </div>
+            <button class="chat-close" onclick="togglePulseChat()">&times;</button>
+        </div>
+        <div class="chat-messages" id="chat-messages">
+            <div class="chat-msg bot">Hey! I'm PULSE AI. Ask me about any market, trade signals, or the Kalshi bot. Try: "best trades right now" or "how is the bot doing?"</div>
+        </div>
+        <div class="chat-input-row">
+            <input type="text" id="chat-input" placeholder="Ask about markets..." onkeydown="if(event.key==='Enter')sendChatMsg()">
+            <button onclick="sendChatMsg()">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+            </button>
+        </div>
+    </div>
+
+    <!-- Live Bot Feed -->
+    <div id="bot-feed" style="display:none;">
+        <div class="feed-header">
+            <span class="feed-dot"></span>
+            <span>LIVE BOT TRADES</span>
+            <button class="feed-close" onclick="document.getElementById('bot-feed').style.display='none'">&times;</button>
+        </div>
+        <div id="feed-trades"></div>
+    </div>
+
     <!-- Mobile bottom nav -->
     <nav class="mobile-nav" id="mobile-nav">
         <a href="#" class="mobile-nav-item active" onclick="switchTab('markets', this); return false;">
@@ -381,12 +467,16 @@
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 3v3a2 2 0 01-2 2H3"/><path d="M21 8h-3a2 2 0 01-2-2V3"/><path d="M3 16h3a2 2 0 012 2v3"/><path d="M16 21v-3a2 2 0 012-2h3"/></svg>
             <span>Arb</span>
         </a>
+        <a href="#" class="mobile-nav-item" onclick="switchTab('leagues', this); return false;">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9H4.5a2.5 2.5 0 010-5C7 4 7 7 7 7"/><path d="M18 9h1.5a2.5 2.5 0 000-5C17 4 17 7 17 7"/><path d="M4 22h16"/><path d="M18 2H6v7a6 6 0 0012 0V2Z"/></svg>
+            <span>Leagues</span>
+        </a>
         <a href="#" class="mobile-nav-item" onclick="switchTab('bot', this); return false;">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="10" rx="2"/><circle cx="12" cy="5" r="2"/><path d="M12 7v4"/><line x1="8" y1="16" x2="8" y2="16"/><line x1="16" y1="16" x2="16" y2="16"/></svg>
             <span>Bot</span>
         </a>
     </nav>
 
-    <script src="app.js?v=10"></script>
+    <script src="app.js?v=12"></script>
 </body>
 </html>

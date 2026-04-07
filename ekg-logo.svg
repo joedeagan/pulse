@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 48" width="120" height="48">
+  <rect width="120" height="48" rx="24" fill="#0088ff"/>
+  <polyline points="12,24 28,24 34,24 38,10 42,38 46,14 50,30 54,24 62,24"
+    fill="none" stroke="#ffffff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="72" y="29" font-family="system-ui,-apple-system,sans-serif" font-size="16" font-weight="800" fill="#ffffff" letter-spacing="1">P</text>
+</svg>

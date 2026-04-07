@@ -11,6 +11,18 @@
 const API_BASE = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
     ? '' : (window.location.origin.includes('github.io') ? 'https://pulse-api-joed.onrender.com' : '');
 
+// ── AFFILIATE LINKS ──
+const AFFILIATE = {
+    kalshi: { base: 'https://kalshi.com/markets/', param: '' },
+    poly:   { base: 'https://polymarket.com/event/', param: '' },
+};
+function getAffiliateUrl(market) {
+    // Use existing URL if available (backend provides correct slugs)
+    if (market.url && market.url !== '#') return market.url;
+    if (market.source === 'kalshi') return AFFILIATE.kalshi.base + (market.ticker || '') + AFFILIATE.kalshi.param;
+    return AFFILIATE.poly.base + (market.ticker || '') + AFFILIATE.poly.param;
+}
+
 // ── TAB NAVIGATION ──
 function switchTab(tab, btn) {
     // Update active nav link
@@ -38,6 +50,7 @@ function switchTab(tab, btn) {
     const arbEl = document.getElementById('arbitrage');
     const corrEl = document.getElementById('correlations-panel');
     const trendingEl = document.getElementById('trending-panel');
+    const leaguesEl = document.getElementById('leagues-panel');
 
     const marketsView = [heroEl, statsEl, filtersEl, marketsEl, briefEl, explainerEl, signupEl];
     const botView = [botEl];
@@ -45,7 +58,8 @@ function switchTab(tab, btn) {
     const arbView = [arbEl];
     const corrView = [corrEl];
     const trendingView = [trendingEl];
-    const allSections = [...marketsView, ...botView, ...portfolioView, ...arbView, ...corrView, ...trendingView];
+    const leaguesView = [leaguesEl];
+    const allSections = [...marketsView, ...botView, ...portfolioView, ...arbView, ...corrView, ...trendingView, ...leaguesView];
 
     // Hide everything
     allSections.forEach(el => { if (el) el.classList.add('view-hidden'); });
@@ -58,6 +72,7 @@ function switchTab(tab, btn) {
     else if (tab === 'arbitrage') visible = arbView;
     else if (tab === 'trending') { visible = trendingView; buildTrendingPanel(); }
     else if (tab === 'correlations') { visible = corrView; }
+    else if (tab === 'leagues') { visible = leaguesView; buildLeaguePanel(); }
 
     visible.forEach(el => { if (el) el.classList.remove('view-hidden'); });
 }
@@ -368,6 +383,7 @@ async function fetchPolymarket() {
                 no: 100 - yesPrice,
                 volume: parseFloat(m.volume || 0),
                 source: 'poly',
+                url: (m.events && m.events[0]?.slug) ? `https://polymarket.com/event/${m.events[0].slug}` : (m.slug ? `https://polymarket.com/event/${m.slug}` : ''),
             });
         }
 
@@ -521,11 +537,27 @@ function createMarketCard(market, platform, priceChange) {
     sparkDiv.appendChild(sparkCanvas);
     card.appendChild(sparkDiv);
 
-    // Pulse Score footer — always at bottom of card
+    // Pulse Score footer + signal badge
     const pulseFooter = document.createElement('div');
     pulseFooter.className = 'card-pulse-footer';
-    pulseFooter.innerHTML = `<span class="card-pulse-label">PULSE</span><span class="card-pulse-score" style="color:${pulseColor};">${pulseScore}</span>`;
+    const sig = getPulseSignal(market.ticker);
+    let sigColor, sigBg;
+    if (sig.signal.includes('YES')) { sigColor = '#00d68f'; sigBg = 'rgba(0,214,143,0.12)'; }
+    else if (sig.signal.includes('NO')) { sigColor = '#ff3b5c'; sigBg = 'rgba(255,59,92,0.12)'; }
+    else { sigColor = '#f0b000'; sigBg = 'rgba(240,176,0,0.10)'; }
+    const signalHtml = `<span class="card-signal" style="color:${sigColor};background:${sigBg};">${sig.signal}</span>`;
+    pulseFooter.innerHTML = `${signalHtml}<span class="card-pulse-label">PULSE</span><span class="card-pulse-score" style="color:${pulseColor};">${pulseScore}</span>`;
     card.appendChild(pulseFooter);
+
+    // Affiliate trade button
+    const tradeBtn = document.createElement('a');
+    tradeBtn.className = 'card-trade-btn';
+    tradeBtn.href = getAffiliateUrl(market);
+    tradeBtn.target = '_blank';
+    tradeBtn.rel = 'noopener';
+    tradeBtn.textContent = `Trade on ${platform === 'kalshi' ? 'Kalshi' : 'Polymarket'} →`;
+    tradeBtn.addEventListener('click', (e) => e.stopPropagation());
+    card.appendChild(tradeBtn);
 
     const realHistory = getPriceHistory(market.ticker);
     let chartData;
@@ -562,90 +594,128 @@ function createMarketCard(market, platform, priceChange) {
 
 // ── PULSE SCORE — confidence rating ──
 // ── PULSE SCORE ENGINE ──
-// Percentile-based scoring — every market is ranked against all others
-// so scores naturally spread from ~5 to ~95. No more clustering.
+// ── PULSE SCORE — 5-Factor Cross-Platform Intelligence ──
+// Only PULSE can do this: we see BOTH platforms simultaneously
 let _pulseScoreCache = {};
+let _pulseSignalCache = {};
+let _crossPlatformMap = {};
 
-// ── PULSE SCORE ──
-// Simple 0-99 score: "How tradeable is this market?"
-// 3 factors, each scored 0-33, added together:
-//   PRICE (0-33): Is the price in a tradeable range? Best at 25¢/75¢.
-//   VOLUME (0-33): Are people actually trading? More volume = higher score.
-//   MOVEMENT (0-33): Is the price changing? Bigger moves = higher score.
+function buildCrossPlatformMap(allMarkets) {
+    _crossPlatformMap = {};
+    const stop = new Set(['the','a','an','in','on','at','to','for','of','is','will','be','by','and','or','this','that','it','as','with','from']);
+    const kw = t => (t||'').toLowerCase().replace(/[^a-z0-9\s]/g,'').split(/\s+/).filter(w => w.length > 2 && !stop.has(w));
+    const sim = (a, b) => {
+        const aw = new Set(kw(a)), bw = new Set(kw(b));
+        if (!aw.size || !bw.size) return 0;
+        let m = 0; for (const w of aw) if (bw.has(w)) m++;
+        return m / Math.min(aw.size, bw.size);
+    };
+    const kalshi = allMarkets.filter(m => m.source === 'kalshi');
+    const poly = allMarkets.filter(m => m.source === 'poly');
+    for (const k of kalshi) {
+        let best = null, bestS = 0;
+        for (const p of poly) {
+            const s = sim(k.question, p.question);
+            if (s > bestS && s >= 0.4) { bestS = s; best = p; }
+        }
+        if (best) {
+            const d = Math.abs(k.yes - best.yes);
+            _crossPlatformMap[k.ticker] = { match: best, priceDiff: d };
+            _crossPlatformMap[best.ticker] = { match: k, priceDiff: d };
+        }
+    }
+}
 
 function computeAllPulseScores(allMarkets) {
     _pulseScoreCache = {};
+    _pulseSignalCache = {};
     if (!allMarkets || allMarkets.length === 0) return;
 
-    // Find max volume across all markets for relative scaling
+    buildCrossPlatformMap(allMarkets);
     const maxVol = Math.max(...allMarkets.map(m => m.volume || 0), 1);
 
     for (const m of allMarkets) {
         const yes = m.yes || 50;
         const vol = m.volume || 0;
-        const change = Math.abs(getMarketChange(m.ticker) || 0);
+        const change = getMarketChange(m.ticker) || 0;
+        const absChange = Math.abs(change);
 
-        // PRICE (0-33): Bell curve peaking at 25¢/75¢
-        // Dead markets (0-3¢ or 97-100¢) score 0
-        let priceScore;
-        if (yes <= 3 || yes >= 97) {
-            priceScore = 0;
-        } else {
+        // 1. PRICE POSITION (0-20): Bell curve at 25¢/75¢
+        let priceScore = 0;
+        if (yes > 3 && yes < 97) {
             const dist = Math.abs(yes - 50);
-            priceScore = Math.round(33 * Math.exp(-Math.pow(dist - 25, 2) / 400));
+            priceScore = Math.round(20 * Math.exp(-Math.pow(dist - 25, 2) / 450));
         }
 
-        // VOLUME (0-33): Log-scaled relative to all markets
-        // $0 = 0, $1K = ~11, $100K = ~22, $10M+ = 33
+        // 2. VOLUME (0-20): Log-scaled relative to all markets
         let volScore = 0;
-        if (vol > 0) {
-            volScore = Math.round(33 * Math.min(Math.log10(vol) / Math.log10(maxVol), 1));
-        }
+        if (vol > 0) volScore = Math.round(20 * Math.min(Math.log10(vol) / Math.log10(maxVol), 1));
 
-        // MOVEMENT (0-33): How much has the price moved?
-        // 0¢ = 0, 3¢ = ~17, 5¢ = ~25, 8¢+ = 33
-        const moveScore = Math.round(33 * Math.min(change / 8, 1));
+        // 3. MOMENTUM (0-20): Price velocity
+        const momentumScore = Math.round(20 * Math.min(absChange / 8, 1));
 
-        const total = Math.max(1, Math.min(priceScore + volScore + moveScore, 99));
+        // 4. CROSS-PLATFORM EDGE (0-20): Price gap between platforms — PULSE exclusive
+        let crossScore = 0;
+        const xp = _crossPlatformMap[m.ticker];
+        if (xp) crossScore = Math.round(20 * Math.min(xp.priceDiff / 10, 1));
+
+        // 5. LIQUIDITY (0-19): Can you trade at this price?
+        let liqScore = 0;
+        if (vol >= 1000000) liqScore = 19;
+        else if (vol >= 500000) liqScore = 16;
+        else if (vol >= 100000) liqScore = 13;
+        else if (vol >= 50000) liqScore = 10;
+        else if (vol >= 10000) liqScore = 7;
+        else if (vol >= 1000) liqScore = 4;
+        else if (vol > 0) liqScore = 1;
+
+        const total = Math.max(1, Math.min(priceScore + volScore + momentumScore + crossScore + liqScore, 99));
         _pulseScoreCache[m.ticker] = total;
+
+        // ── DIRECTIONAL SIGNAL ──
+        let signal = 'HOLD';
+        const priceLean = yes >= 52 ? 'YES' : yes <= 48 ? 'NO' : 'NEUTRAL';
+        const momLean = change >= 2 ? 'YES' : change <= -2 ? 'NO' : 'NEUTRAL';
+        let crossLean = 'NEUTRAL';
+        if (xp) {
+            const other = xp.match.yes || 50;
+            if (yes < other - 2) crossLean = 'YES';
+            else if (yes > other + 2) crossLean = 'NO';
+        }
+        const leans = [priceLean, momLean, crossLean];
+        const yC = leans.filter(l => l === 'YES').length;
+        const nC = leans.filter(l => l === 'NO').length;
+
+        if (yC >= 2) signal = 'BUY YES';
+        else if (nC >= 2) signal = 'BUY NO';
+        else if (yC === 1 && nC === 0) signal = 'LEAN YES';
+        else if (nC === 1 && yC === 0) signal = 'LEAN NO';
+        if (yes <= 5 || yes >= 95) signal = 'HOLD';
+
+        _pulseSignalCache[m.ticker] = { signal, confidence: Math.max(yC, nC), crossEdge: xp ? xp.priceDiff : 0 };
     }
 }
 
 function calcPulseScore(market, priceChange) {
-    // Return cached score if available
-    if (_pulseScoreCache[market.ticker] !== undefined) {
-        return _pulseScoreCache[market.ticker];
-    }
-    // Quick fallback using same logic
-    const yes = market.yes || 50;
-    const vol = market.volume || 0;
-    const change = Math.abs(priceChange || 0);
+    if (_pulseScoreCache[market.ticker] !== undefined) return _pulseScoreCache[market.ticker];
+    const yes = market.yes || 50, vol = market.volume || 0, change = Math.abs(priceChange || 0);
+    let ps = 0;
+    if (yes > 3 && yes < 97) { const d = Math.abs(yes-50); ps = Math.round(20*Math.exp(-Math.pow(d-25,2)/450)); }
+    const vs = vol > 0 ? Math.round(20*Math.min(Math.log10(vol)/7,1)) : 0;
+    const ms = Math.round(20*Math.min(change/8,1));
+    let ls = 0;
+    if (vol >= 1e6) ls = 19; else if (vol >= 5e5) ls = 16; else if (vol >= 1e5) ls = 13;
+    else if (vol >= 5e4) ls = 10; else if (vol >= 1e4) ls = 7; else if (vol >= 1e3) ls = 4; else if (vol > 0) ls = 1;
+    return Math.max(1, Math.min(ps+vs+ms+ls, 99));
+}
 
-    let priceScore = 0;
-    if (yes > 3 && yes < 97) {
-        const dist = Math.abs(yes - 50);
-        priceScore = Math.round(33 * Math.exp(-Math.pow(dist - 25, 2) / 400));
-    }
-    const volScore = vol > 0 ? Math.round(33 * Math.min(Math.log10(vol) / 7, 1)) : 0;
-    const moveScore = Math.round(33 * Math.min(change / 8, 1));
-
-    return Math.max(1, Math.min(priceScore + volScore + moveScore, 99));
+function getPulseSignal(ticker) {
+    return _pulseSignalCache[ticker] || { signal: 'HOLD', confidence: 0, crossEdge: 0 };
 }
 
 // ── SHARE MARKET ──
 function shareMarket(market) {
-    const pulse = calcPulseScore(market, getMarketChange(market.ticker));
-    const label = pulse >= 67 ? 'TRADE' : pulse >= 34 ? 'WATCH' : 'SKIP';
-    const text = `${market.question}\n\nYES ${market.yes}¢  NO ${market.no}¢\nPulse Score: ${pulse}/99 (${label})\n\n${market.url || 'https://pulse-dashboard.onrender.com'}`;
-
-    // Use native share on mobile, clipboard on desktop
-    if (navigator.share) {
-        navigator.share({ title: market.question, text }).catch(() => {});
-    } else if (navigator.clipboard) {
-        navigator.clipboard.writeText(text).then(() => {
-            showToast('Copied to clipboard!');
-        });
-    }
+    showSharePopup(market);
 }
 
 function showToast(msg) {
@@ -669,15 +739,83 @@ function savePriceSnapshot(allMarkets) {
         if (!m.ticker) continue;
         if (!snapshots[m.ticker]) snapshots[m.ticker] = [];
         const arr = snapshots[m.ticker];
-        // Only save if price changed or every 5 min
+        const score = _pulseScoreCache[m.ticker] || 0;
+        const sig = _pulseSignalCache[m.ticker]?.signal || 'HOLD';
         const last = arr[arr.length - 1];
         if (!last || last.p !== m.yes || (now - last.t) > 300000) {
-            arr.push({ t: now, p: m.yes });
+            arr.push({ t: now, p: m.yes, s: score, sig });
         }
-        // Keep last 50 snapshots per market
         if (arr.length > 50) arr.splice(0, arr.length - 50);
     }
     localStorage.setItem('pulse-snapshots', JSON.stringify(snapshots));
+
+    // Track signal accuracy
+    trackSignalAccuracy(allMarkets);
+}
+
+// ── SIGNAL ACCURACY TRACKING ──
+function trackSignalAccuracy(allMarkets) {
+    let record = getTrackRecord();
+    const now = Date.now();
+    // Check old signals — did they pan out?
+    for (let i = record.pending.length - 1; i >= 0; i--) {
+        const entry = record.pending[i];
+        const market = allMarkets.find(m => m.ticker === entry.ticker);
+        if (!market) continue;
+        const elapsed = now - entry.time;
+        // Check after 1 hour minimum
+        if (elapsed < 3600000) continue;
+        const priceNow = market.yes;
+        const priceThen = entry.price;
+        const change = priceNow - priceThen;
+        let correct = false;
+        if (entry.signal === 'BUY YES' || entry.signal === 'LEAN YES') {
+            correct = change > 0; // Price went up = YES was right
+        } else if (entry.signal === 'BUY NO' || entry.signal === 'LEAN NO') {
+            correct = change < 0; // Price went down = NO was right
+        } else {
+            // HOLD — remove without counting
+            record.pending.splice(i, 1);
+            continue;
+        }
+        record.results.push({ ...entry, priceAfter: priceNow, correct, resolvedAt: now });
+        record.pending.splice(i, 1);
+        // Keep last 200 results
+        if (record.results.length > 200) record.results.shift();
+    }
+    // Add new pending signals (only BUY/LEAN, once per ticker per day)
+    for (const m of allMarkets) {
+        if (!m.ticker) continue;
+        const sig = _pulseSignalCache[m.ticker];
+        if (!sig || sig.signal === 'HOLD') continue;
+        const alreadyPending = record.pending.some(p => p.ticker === m.ticker && (now - p.time) < 86400000);
+        if (alreadyPending) continue;
+        record.pending.push({ ticker: m.ticker, signal: sig.signal, price: m.yes, time: now, question: (m.question || '').substring(0, 60) });
+        // Cap pending at 50
+        if (record.pending.length > 50) record.pending.shift();
+    }
+    localStorage.setItem('pulse-track-record', JSON.stringify(record));
+}
+
+function getTrackRecord() {
+    try {
+        const raw = localStorage.getItem('pulse-track-record');
+        if (raw) return JSON.parse(raw);
+    } catch {}
+    return { pending: [], results: [] };
+}
+
+function getAccuracyStats() {
+    const record = getTrackRecord();
+    const results = record.results;
+    if (results.length === 0) return { total: 0, correct: 0, pct: 0, pending: record.pending.length };
+    const correct = results.filter(r => r.correct).length;
+    return { total: results.length, correct, pct: Math.round((correct / results.length) * 100), pending: record.pending.length };
+}
+
+function getPulseScoreHistory(ticker) {
+    const snapshots = getPriceSnapshots();
+    return (snapshots[ticker] || []).map(s => ({ t: s.t, score: s.s || 0, price: s.p, signal: s.sig || '' }));
 }
 
 function getPriceHistory(ticker) {
@@ -1175,8 +1313,7 @@ if (localStorage.getItem('pulse-theme') === 'light') {
 }
 
 
-// ── NAV MINI ORB — matches badass hero orb ──
-// Runs immediately (tiny, always visible in nav)
+// ── NAV PULSE LOGO — mini heartbeat animation ──
 (function() {
     const c = document.getElementById('nav-orb');
     if (!c) return;
@@ -1188,93 +1325,94 @@ if (localStorage.getItem('pulse-theme') === 'light') {
     let t = 0;
     let _navOrbRAF;
 
+    function ekgY(x) {
+        if (x < 0.1) return 0;
+        if (x < 0.15) return (x - 0.1) * 6;
+        if (x < 0.2) return 0.3 - (x - 0.15) * 10;
+        if (x < 0.25) return -0.2;
+        if (x < 0.32) return -0.2 + (x - 0.25) * 18;
+        if (x < 0.38) return 1.06 - (x - 0.32) * 22;
+        if (x < 0.42) return -0.26 + (x - 0.38) * 6;
+        if (x < 0.5) return -0.02;
+        if (x < 0.55) return (x - 0.5) * 4;
+        if (x < 0.65) return 0.2 - (x - 0.55) * 2;
+        return 0;
+    }
+
     function draw() {
         t += 0.02;
         ctx.clearRect(0, 0, 32, 32);
         const cx = 16, cy = 16;
+        const light = document.body.classList.contains('light');
+        const green = light ? '0, 160, 110' : '0, 214, 143';
+        const blue = light ? '0, 90, 180' : '0, 136, 255';
+        const alpha = light ? 0.7 : 0.5;
 
+        // Outer circle
         ctx.beginPath();
-        for (let i = 0; i < 6; i++) {
-            const a = (i / 6) * Math.PI * 2 + t * 0.3;
-            ctx[i === 0 ? 'moveTo' : 'lineTo'](cx + Math.cos(a) * 14, cy + Math.sin(a) * 14);
-        }
-        ctx.closePath();
-        ctx.strokeStyle = 'rgba(0, 136, 255, 0.2)';
-        ctx.lineWidth = 0.5;
+        ctx.arc(cx, cy, 14, 0, Math.PI * 2);
+        ctx.strokeStyle = `rgba(${blue}, ${light ? 0.15 : 0.1})`;
+        ctx.lineWidth = 1;
         ctx.stroke();
 
+        // Pulse ring
+        const phase = (t * 0.4) % 1;
+        const ringR = 3 + phase * 12;
+        const ringA = (1 - phase) * (light ? 0.2 : 0.12);
+        ctx.beginPath();
+        ctx.arc(cx, cy, ringR, 0, Math.PI * 2);
+        ctx.strokeStyle = `rgba(${green}, ${ringA})`;
+        ctx.lineWidth = 1;
+        ctx.stroke();
+
+        // EKG line
+        const offset = (t * 0.4) % 1;
         ctx.save();
-        ctx.translate(cx, cy);
-        ctx.rotate(t * 0.5);
-        for (let i = 0; i < 8; i++) {
-            const a = (i / 8) * Math.PI * 2;
-            const bright = Math.sin(t * 2 + i) * 0.3 + 0.5;
-            ctx.beginPath();
-            ctx.arc(0, 0, 12, a + 0.1, a + 0.6);
-            ctx.strokeStyle = `rgba(0, 180, 255, ${bright})`;
-            ctx.lineWidth = 1.5;
-            ctx.stroke();
+        ctx.beginPath();
+        ctx.arc(cx, cy, 13, 0, Math.PI * 2);
+        ctx.clip();
+        ctx.beginPath();
+        for (let px = 0; px <= 28; px++) {
+            const x = 2 + px;
+            const normX = ((px / 28) + offset) % 1;
+            const y = cy - ekgY(normX) * 9;
+            if (px === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
         }
+        ctx.strokeStyle = `rgba(${green}, ${alpha * 0.3})`;
+        ctx.lineWidth = 3;
+        ctx.stroke();
+        ctx.strokeStyle = `rgba(${green}, ${alpha})`;
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
         ctx.restore();
 
-        ctx.save();
-        ctx.translate(cx, cy);
-        ctx.rotate(-t * 0.8);
-        for (let i = 0; i < 6; i++) {
-            const a = (i / 6) * Math.PI * 2;
-            ctx.beginPath();
-            ctx.arc(0, 0, 8, a + 0.15, a + 0.7);
-            ctx.strokeStyle = i % 2 === 0 ? 'rgba(0, 214, 143, 0.3)' : 'rgba(0, 136, 255, 0.15)';
-            ctx.lineWidth = 1;
-            ctx.stroke();
-        }
-        ctx.restore();
-
-        const dotA = t * 1.5;
+        // Center dot
+        const p = Math.sin(t * 2) * 0.15 + 0.85;
         ctx.beginPath();
-        ctx.arc(cx + Math.cos(dotA) * 10, cy + Math.sin(dotA) * 10, 1.2, 0, Math.PI * 2);
-        ctx.fillStyle = 'rgba(0, 214, 143, 0.8)';
-        ctx.fill();
-
-        const p = Math.sin(t * 2) * 0.2 + 0.8;
-        const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, 5 * p);
-        g.addColorStop(0, `rgba(255, 255, 255, ${0.9 * p})`);
-        g.addColorStop(0.4, `rgba(0, 180, 255, ${0.5 * p})`);
-        g.addColorStop(1, 'rgba(0, 100, 200, 0)');
-        ctx.fillStyle = g;
-        ctx.beginPath();
-        ctx.arc(cx, cy, 5 * p, 0, Math.PI * 2);
-        ctx.fill();
-
-        ctx.beginPath();
-        ctx.arc(cx, cy, 1.5, 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(255, 255, 255, ${0.8 + Math.sin(t * 3) * 0.2})`;
+        ctx.arc(cx, cy, 2.5 * p, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(${green}, ${0.6 * p})`;
         ctx.fill();
 
         _navOrbRAF = requestAnimationFrame(draw);
     }
     draw();
 
-    // Pause when tab is hidden
     document.addEventListener('visibilitychange', () => {
         if (document.hidden) { cancelAnimationFrame(_navOrbRAF); }
         else { draw(); }
     });
 })();
 
-// ── ANIMATED LOGO ORB — v5 BADASS EDITION ──
-// Lazy-loaded: only starts when hero is visible, pauses when off-screen or tab hidden
+// Hero orb removed — pulse animation lives in nav now
 let _heroOrbRAF = null;
 let _heroOrbRunning = false;
 
 function initHeroOrb() {
-    if (_heroOrbRunning) return;
-    _heroOrbRunning = true;
+    return; // No longer used
 
 (function() {
     const canvas = document.getElementById('logo-canvas');
     if (!canvas) return;
-    // Skip on mobile for performance
     if (window.innerWidth < 768) {
         canvas.style.display = 'none';
         _heroOrbRunning = false;
@@ -1288,269 +1426,161 @@ function initHeroOrb() {
     ctx.scale(dpr, dpr);
     let t = 0;
 
-    function hexPath(cx, cy, r, rot) {
-        ctx.beginPath();
-        for (let i = 0; i < 6; i++) {
-            const a = (i / 6) * Math.PI * 2 + rot;
-            const method = i === 0 ? 'moveTo' : 'lineTo';
-            ctx[method](cx + Math.cos(a) * r, cy + Math.sin(a) * r);
-        }
-        ctx.closePath();
+    // Theme-aware colors
+    function isLight() { return document.body.classList.contains('light'); }
+
+    // Pulse wave rings expanding from center
+    const rings = [0, 0.33, 0.66].map(offset => ({ phase: offset }));
+
+    // EKG heartbeat shape
+    function ekgY(x) {
+        // x from 0 to 1, returns y offset (-1 to 1)
+        if (x < 0.1) return 0;
+        if (x < 0.15) return (x - 0.1) * 6;         // small rise
+        if (x < 0.2) return 0.3 - (x - 0.15) * 10;  // dip down
+        if (x < 0.25) return -0.2;                     // baseline dip
+        if (x < 0.32) return -0.2 + (x - 0.25) * 18; // sharp spike up
+        if (x < 0.38) return 1.06 - (x - 0.32) * 22; // sharp spike down
+        if (x < 0.42) return -0.26 + (x - 0.38) * 6; // recovery
+        if (x < 0.5) return -0.02;                     // flat
+        if (x < 0.55) return (x - 0.5) * 4;           // T-wave up
+        if (x < 0.65) return 0.2 - (x - 0.55) * 2;   // T-wave down
+        return 0;
     }
 
-    // Data stream particles
-    const streams = [];
-    for (let i = 0; i < 20; i++) {
-        streams.push({
-            angle: Math.random() * Math.PI * 2,
-            r: 30 + Math.random() * 60,
-            speed: 0.3 + Math.random() * 0.7,
-            size: 0.5 + Math.random() * 1.5,
-            brightness: 0.3 + Math.random() * 0.7,
+    // Market data dots orbiting
+    const dots = [];
+    for (let i = 0; i < 12; i++) {
+        dots.push({
+            angle: (i / 12) * Math.PI * 2,
+            radius: 68 + (i % 3) * 8,
+            speed: 0.15 + Math.random() * 0.1,
+            size: 1.5 + Math.random() * 1.5,
+            hue: i % 3, // 0=blue, 1=green, 2=purple
         });
     }
 
     function drawLogo() {
-        t += 0.012;
+        t += 0.015;
         ctx.clearRect(0, 0, S, S);
         const cx = S / 2, cy = S / 2;
+        const light = isLight();
 
-        // === DEEP BACKGROUND GLOW ===
-        const bgGlow = ctx.createRadialGradient(cx, cy, 0, cx, cy, 98);
-        bgGlow.addColorStop(0, 'rgba(0, 136, 255, 0.08)');
-        bgGlow.addColorStop(0.5, 'rgba(0, 80, 180, 0.03)');
-        bgGlow.addColorStop(1, 'rgba(0, 0, 0, 0)');
-        ctx.fillStyle = bgGlow;
+        // Color palette based on theme
+        const blue = light ? '0, 90, 180' : '0, 136, 255';
+        const green = light ? '0, 160, 110' : '0, 214, 143';
+        const purple = light ? '100, 60, 200' : '139, 92, 246';
+        const lineAlpha = light ? 0.6 : 0.4;
+        const subtleAlpha = light ? 0.15 : 0.08;
+
+        // === OUTER CIRCLE (thin) ===
         ctx.beginPath();
-        ctx.arc(cx, cy, 98, 0, Math.PI * 2);
-        ctx.fill();
-
-        // === OUTER HEXAGON (slow rotate) ===
-        ctx.save();
-        hexPath(cx, cy, 90, t * 0.2);
-        ctx.strokeStyle = `rgba(0, 136, 255, ${0.08 + Math.sin(t) * 0.04})`;
-        ctx.lineWidth = 0.5;
+        ctx.arc(cx, cy, 92, 0, Math.PI * 2);
+        ctx.strokeStyle = `rgba(${blue}, ${subtleAlpha})`;
+        ctx.lineWidth = 1;
         ctx.stroke();
-        ctx.restore();
 
-        // === SECOND HEXAGON (counter-rotate, slightly smaller) ===
-        ctx.save();
-        hexPath(cx, cy, 82, -t * 0.15 + Math.PI / 6);
-        ctx.strokeStyle = 'rgba(0, 214, 143, 0.06)';
-        ctx.lineWidth = 0.5;
-        ctx.stroke();
-        ctx.restore();
-
-        // === SCANNING SWEEP (radar-style) ===
-        ctx.save();
-        ctx.translate(cx, cy);
-        const sweepAngle = t * 1.5;
-        const sweep = ctx.createConicGradient(sweepAngle, 0, 0);
-        sweep.addColorStop(0, 'rgba(0, 136, 255, 0.12)');
-        sweep.addColorStop(0.15, 'rgba(0, 136, 255, 0)');
-        sweep.addColorStop(1, 'rgba(0, 136, 255, 0)');
-        ctx.fillStyle = sweep;
-        ctx.beginPath();
-        ctx.arc(0, 0, 75, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.restore();
-
-        // === SEGMENTED OUTER RING (24 segments, rotating) ===
-        ctx.save();
-        ctx.translate(cx, cy);
-        ctx.rotate(t * 0.3);
-        for (let i = 0; i < 24; i++) {
-            const a = (i / 24) * Math.PI * 2;
-            const gap = 0.04;
-            const arcLen = (Math.PI * 2 / 24) - gap * 2;
-            const bright = (Math.sin(t * 2 + i * 0.5) * 0.5 + 0.5);
-            ctx.beginPath();
-            ctx.arc(0, 0, 75, a + gap, a + arcLen + gap);
-            ctx.strokeStyle = `rgba(0, 136, 255, ${0.08 + bright * 0.25})`;
-            ctx.lineWidth = 2;
-            ctx.stroke();
+        // === PULSE RINGS expanding outward ===
+        for (const ring of rings) {
+            const phase = (t * 0.5 + ring.phase) % 1;
+            const r = 10 + phase * 85;
+            const alpha = (1 - phase) * (light ? 0.2 : 0.12);
+            if (alpha > 0.01) {
+                ctx.beginPath();
+                ctx.arc(cx, cy, r, 0, Math.PI * 2);
+                ctx.strokeStyle = `rgba(${blue}, ${alpha})`;
+                ctx.lineWidth = 1.5 * (1 - phase);
+                ctx.stroke();
+            }
         }
-        ctx.restore();
 
-        // === MIDDLE RING — thick, pulsing ===
-        const midPulse = Math.sin(t * 1.5) * 0.1 + 0.9;
+        // === SEGMENTED RING (slow rotate, 16 segments) ===
         ctx.save();
         ctx.translate(cx, cy);
-        ctx.rotate(-t * 0.5);
+        ctx.rotate(t * 0.2);
         for (let i = 0; i < 16; i++) {
             const a = (i / 16) * Math.PI * 2;
             const gap = 0.06;
             const arcLen = (Math.PI * 2 / 16) - gap * 2;
+            const pulse = Math.sin(t * 2 + i * 0.8) * 0.5 + 0.5;
+            const color = i % 4 === 0 ? green : blue;
             ctx.beginPath();
-            ctx.arc(0, 0, 58 * midPulse, a + gap, a + arcLen + gap);
-            ctx.strokeStyle = i % 4 === 0
-                ? `rgba(0, 214, 143, 0.35)`
-                : `rgba(0, 136, 255, 0.12)`;
-            ctx.lineWidth = i % 4 === 0 ? 2.5 : 1;
+            ctx.arc(0, 0, 82, a + gap, a + arcLen + gap);
+            ctx.strokeStyle = `rgba(${color}, ${(subtleAlpha + pulse * 0.15)})`;
+            ctx.lineWidth = i % 4 === 0 ? 2.5 : 1.5;
             ctx.stroke();
         }
         ctx.restore();
 
-        // === INNER HEXAGON (fast rotate) ===
+        // === EKG HEARTBEAT LINE ===
+        const ekgWidth = 140;
+        const ekgLeft = cx - ekgWidth / 2;
+        const ekgAmplitude = 28;
+        const scrollSpeed = 0.4;
+        const offset = (t * scrollSpeed) % 1;
+
         ctx.save();
-        hexPath(cx, cy, 42, t * 0.8);
-        ctx.strokeStyle = 'rgba(0, 136, 255, 0.2)';
-        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.arc(cx, cy, 70, 0, Math.PI * 2);
+        ctx.clip();
+
+        ctx.beginPath();
+        for (let px = 0; px <= ekgWidth; px++) {
+            const x = ekgLeft + px;
+            const normX = ((px / ekgWidth) + offset) % 1;
+            const yVal = ekgY(normX);
+            const y = cy - yVal * ekgAmplitude;
+            if (px === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+        }
+        // Glow
+        ctx.strokeStyle = `rgba(${green}, ${lineAlpha * 0.3})`;
+        ctx.lineWidth = 6;
+        ctx.stroke();
+        // Main line
+        ctx.strokeStyle = `rgba(${green}, ${lineAlpha})`;
+        ctx.lineWidth = 2;
         ctx.stroke();
         ctx.restore();
 
-        // === TICK MARKS (48 of them, subtle) ===
-        ctx.save();
-        ctx.translate(cx, cy);
-        ctx.rotate(t * 0.2);
-        for (let i = 0; i < 48; i++) {
-            const a = (i / 48) * Math.PI * 2;
-            const isMajor = i % 6 === 0;
-            const len = isMajor ? 10 : 4;
-            const r1 = 65;
-            const r2 = r1 + len;
+        // === DATA DOTS orbiting ===
+        const dotColors = [blue, green, purple];
+        for (const d of dots) {
+            d.angle += 0.003 * d.speed;
+            const wobble = Math.sin(t * 2 + d.angle * 3) * 2;
+            const x = cx + Math.cos(d.angle) * (d.radius + wobble);
+            const y = cy + Math.sin(d.angle) * (d.radius + wobble);
+            const flicker = Math.sin(t * 3 + d.angle * 7) * 0.3 + 0.7;
             ctx.beginPath();
-            ctx.moveTo(Math.cos(a) * r1, Math.sin(a) * r1);
-            ctx.lineTo(Math.cos(a) * r2, Math.sin(a) * r2);
-            ctx.strokeStyle = isMajor
-                ? 'rgba(0, 214, 143, 0.3)'
-                : 'rgba(0, 136, 255, 0.08)';
-            ctx.lineWidth = isMajor ? 1.5 : 0.5;
-            ctx.stroke();
-        }
-        ctx.restore();
-
-        // === DATA STREAM PARTICLES ===
-        for (const s of streams) {
-            s.angle += 0.005 * s.speed;
-            const wobble = Math.sin(t * 3 + s.angle * 5) * 3;
-            const x = cx + Math.cos(s.angle) * (s.r + wobble);
-            const y = cy + Math.sin(s.angle) * (s.r + wobble);
-            const flicker = Math.sin(t * 5 + s.angle * 10) * 0.3 + 0.7;
-            ctx.beginPath();
-            ctx.arc(x, y, s.size, 0, Math.PI * 2);
-            ctx.fillStyle = `rgba(0, 180, 255, ${s.brightness * flicker * 0.6})`;
+            ctx.arc(x, y, d.size, 0, Math.PI * 2);
+            ctx.fillStyle = `rgba(${dotColors[d.hue]}, ${flicker * (light ? 0.5 : 0.4)})`;
             ctx.fill();
         }
 
-        // === ORBITING SATELLITES (3 big ones with trails) ===
-        const satColors = [
-            { r: '0, 180, 255', glow: 'rgba(0, 180, 255, 0.3)' },
-            { r: '0, 214, 143', glow: 'rgba(0, 214, 143, 0.3)' },
-            { r: '139, 92, 246', glow: 'rgba(139, 92, 246, 0.3)' },
-        ];
-        for (let i = 0; i < 3; i++) {
-            const speed = 0.8 + i * 0.3;
-            const radius = 48 + i * 18;
-            const a = t * speed + (i * Math.PI * 2 / 3);
-            const x = cx + Math.cos(a) * radius;
-            const y = cy + Math.sin(a) * radius;
-
-            // Trail
-            for (let tr = 1; tr <= 6; tr++) {
-                const ta = a - tr * 0.08;
-                const tx = cx + Math.cos(ta) * radius;
-                const ty = cy + Math.sin(ta) * radius;
-                ctx.beginPath();
-                ctx.arc(tx, ty, 2 - tr * 0.25, 0, Math.PI * 2);
-                ctx.fillStyle = `rgba(${satColors[i].r}, ${0.3 - tr * 0.04})`;
-                ctx.fill();
-            }
-
-            // Satellite dot
-            ctx.beginPath();
-            ctx.arc(x, y, 3, 0, Math.PI * 2);
-            ctx.fillStyle = `rgba(${satColors[i].r}, 0.9)`;
-            ctx.shadowColor = satColors[i].glow;
-            ctx.shadowBlur = 12;
-            ctx.fill();
-            ctx.shadowBlur = 0;
-        }
-
-        // === ENERGY PULSE RINGS (expanding outward) ===
-        const pulsePhase = (t * 0.8) % (Math.PI * 2);
-        const pulseR = 20 + (pulsePhase / (Math.PI * 2)) * 70;
-        const pulseAlpha = 1 - (pulsePhase / (Math.PI * 2));
-        if (pulseAlpha > 0.05) {
-            ctx.beginPath();
-            ctx.arc(cx, cy, pulseR, 0, Math.PI * 2);
-            ctx.strokeStyle = `rgba(0, 136, 255, ${pulseAlpha * 0.15})`;
-            ctx.lineWidth = 1;
-            ctx.stroke();
-        }
-        // Second pulse offset
-        const pulse2Phase = ((t * 0.8) + Math.PI) % (Math.PI * 2);
-        const pulse2R = 20 + (pulse2Phase / (Math.PI * 2)) * 70;
-        const pulse2Alpha = 1 - (pulse2Phase / (Math.PI * 2));
-        if (pulse2Alpha > 0.05) {
-            ctx.beginPath();
-            ctx.arc(cx, cy, pulse2R, 0, Math.PI * 2);
-            ctx.strokeStyle = `rgba(0, 214, 143, ${pulse2Alpha * 0.1})`;
-            ctx.lineWidth = 0.5;
-            ctx.stroke();
-        }
-
-        // === CORE — intense glowing center ===
-        const corePulse = Math.sin(t * 2) * 0.2 + 0.8;
-
-        // Core outer halo
-        const halo = ctx.createRadialGradient(cx, cy, 0, cx, cy, 30 * corePulse);
-        halo.addColorStop(0, `rgba(0, 200, 255, ${0.3 * corePulse})`);
-        halo.addColorStop(0.5, `rgba(0, 100, 255, ${0.1 * corePulse})`);
-        halo.addColorStop(1, 'rgba(0, 50, 150, 0)');
+        // === CENTER GLOW ===
+        const corePulse = Math.sin(t * 2) * 0.15 + 0.85;
+        const halo = ctx.createRadialGradient(cx, cy, 0, cx, cy, 25 * corePulse);
+        halo.addColorStop(0, `rgba(${green}, ${(light ? 0.25 : 0.2) * corePulse})`);
+        halo.addColorStop(0.5, `rgba(${blue}, ${0.08 * corePulse})`);
+        halo.addColorStop(1, `rgba(${blue}, 0)`);
         ctx.fillStyle = halo;
         ctx.beginPath();
-        ctx.arc(cx, cy, 30 * corePulse, 0, Math.PI * 2);
+        ctx.arc(cx, cy, 25 * corePulse, 0, Math.PI * 2);
         ctx.fill();
 
-        // Core bright sphere
-        const coreGrad = ctx.createRadialGradient(cx, cy, 0, cx, cy, 14 * corePulse);
-        coreGrad.addColorStop(0, `rgba(255, 255, 255, ${0.95 * corePulse})`);
-        coreGrad.addColorStop(0.3, `rgba(100, 220, 255, ${0.7 * corePulse})`);
-        coreGrad.addColorStop(0.7, `rgba(0, 136, 255, ${0.4 * corePulse})`);
-        coreGrad.addColorStop(1, 'rgba(0, 80, 200, 0)');
+        // Center bright dot
+        const coreGrad = ctx.createRadialGradient(cx, cy, 0, cx, cy, 8);
+        coreGrad.addColorStop(0, `rgba(255, 255, 255, ${(light ? 0.9 : 0.85) * corePulse})`);
+        coreGrad.addColorStop(0.4, `rgba(${green}, ${0.5 * corePulse})`);
+        coreGrad.addColorStop(1, `rgba(${green}, 0)`);
         ctx.fillStyle = coreGrad;
         ctx.beginPath();
-        ctx.arc(cx, cy, 14 * corePulse, 0, Math.PI * 2);
+        ctx.arc(cx, cy, 8, 0, Math.PI * 2);
         ctx.fill();
-
-        // Core white-hot center
-        ctx.beginPath();
-        ctx.arc(cx, cy, 5, 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(255, 255, 255, ${0.8 + Math.sin(t * 4) * 0.2})`;
-        ctx.shadowColor = 'rgba(0, 200, 255, 0.8)';
-        ctx.shadowBlur = 20;
-        ctx.fill();
-        ctx.shadowBlur = 0;
-
-        // === CROSSHAIR LINES (subtle targeting) ===
-        const crossAlpha = 0.06 + Math.sin(t * 1.5) * 0.03;
-        ctx.strokeStyle = `rgba(0, 136, 255, ${crossAlpha})`;
-        ctx.lineWidth = 0.5;
-        // Horizontal
-        ctx.beginPath();
-        ctx.moveTo(cx - 95, cy);
-        ctx.lineTo(cx - 25, cy);
-        ctx.stroke();
-        ctx.beginPath();
-        ctx.moveTo(cx + 25, cy);
-        ctx.lineTo(cx + 95, cy);
-        ctx.stroke();
-        // Vertical
-        ctx.beginPath();
-        ctx.moveTo(cx, cy - 95);
-        ctx.lineTo(cx, cy - 25);
-        ctx.stroke();
-        ctx.beginPath();
-        ctx.moveTo(cx, cy + 25);
-        ctx.lineTo(cx, cy + 95);
-        ctx.stroke();
 
         _heroOrbRAF = requestAnimationFrame(drawLogo);
     }
     drawLogo();
 
-    // Pause/resume on visibility
     document.addEventListener('visibilitychange', () => {
         if (document.hidden) { cancelAnimationFrame(_heroOrbRAF); }
         else if (_heroOrbRunning) { drawLogo(); }
@@ -1858,10 +1888,39 @@ function openDetail(market, platform) {
     `;
 
     // Actions
-    const url = market.url || '#';
+    const url = getAffiliateUrl(market);
     const pulseScore = calcPulseScore(market, getMarketChange(market.ticker));
     const pulseColor = pulseScore >= 67 ? 'var(--green)' : pulseScore >= 34 ? 'var(--gold)' : 'var(--red)';
     const pulseLabel = pulseScore >= 67 ? 'TRADE' : pulseScore >= 34 ? 'WATCH' : 'SKIP';
+    const sig = getPulseSignal(market.ticker);
+    const sigColor = sig.signal.includes('YES') ? 'var(--green)' : sig.signal.includes('NO') ? 'var(--red)' : 'var(--gold)';
+    const sigBg = sig.signal.includes('YES') ? 'rgba(0,214,143,0.12)' : sig.signal.includes('NO') ? 'rgba(255,59,92,0.12)' : 'rgba(240,176,0,0.10)';
+
+    // Cross-platform edge info
+    const xp = _crossPlatformMap[market.ticker];
+    let crossHtml = '';
+    if (xp) {
+        const otherPlatform = xp.match.source === 'kalshi' ? 'Kalshi' : 'Polymarket';
+        crossHtml = `<div class="detail-cross-edge">
+            <span class="detail-edge-label">Cross-Platform Edge</span>
+            <span class="detail-edge-value">${xp.priceDiff}¢ gap vs ${otherPlatform} (YES ${xp.match.yes}¢)</span>
+        </div>`;
+    }
+
+    // Score breakdown
+    const yes = market.yes || 50;
+    let ps = 0;
+    if (yes > 3 && yes < 97) { const d = Math.abs(yes-50); ps = Math.round(20*Math.exp(-Math.pow(d-25,2)/450)); }
+    const volRaw = market.volume || 0;
+    const maxVol = 10000000;
+    const vs = volRaw > 0 ? Math.round(20*Math.min(Math.log10(volRaw)/7,1)) : 0;
+    const absChange = Math.abs(getMarketChange(market.ticker) || 0);
+    const ms = Math.round(20*Math.min(absChange/8,1));
+    const cs = xp ? Math.round(20*Math.min(xp.priceDiff/10,1)) : 0;
+    let ls = 0;
+    if (volRaw >= 1e6) ls = 19; else if (volRaw >= 5e5) ls = 16; else if (volRaw >= 1e5) ls = 13;
+    else if (volRaw >= 5e4) ls = 10; else if (volRaw >= 1e4) ls = 7; else if (volRaw >= 1e3) ls = 4; else if (volRaw > 0) ls = 1;
+
     document.getElementById('detail-actions').innerHTML = `
         <div class="detail-pulse-row">
             <div class="detail-pulse-score" style="border-color:${pulseColor};">
@@ -1869,10 +1928,14 @@ function openDetail(market, platform) {
                 <span class="detail-pulse-label">PULSE</span>
             </div>
             <div class="detail-pulse-info">
-                <span style="color:${pulseColor};font-weight:700;">${pulseLabel}</span> signal
-                <span style="color:var(--text-dim);font-size:12px;display:block;">Based on price confidence, volume, and momentum</span>
+                <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
+                    <span style="color:${pulseColor};font-weight:700;">${pulseLabel}</span>
+                    <span style="color:${sigColor};background:${sigBg};padding:2px 8px;border-radius:4px;font-size:11px;font-weight:700;">${sig.signal}</span>
+                </div>
+                <span style="color:var(--text-dim);font-size:12px;display:block;">5-factor score: Price ${ps} + Vol ${vs} + Momentum ${ms} + Edge ${cs} + Liq ${ls}</span>
             </div>
         </div>
+        ${crossHtml}
         <div class="detail-btn-row">
             <a class="detail-btn detail-btn-yes" href="${url}" target="_blank">Buy YES on ${platform === 'kalshi' ? 'Kalshi' : 'Polymarket'}</a>
             <a class="detail-btn detail-btn-no" href="${url}" target="_blank">Buy NO on ${platform === 'kalshi' ? 'Kalshi' : 'Polymarket'}</a>
@@ -1953,6 +2016,37 @@ function openDetail(market, platform) {
         detailChartData.push(basePrice);
     }
     setTimeout(() => drawDetailChart(canvas, detailChartData), 50);
+
+    // Pulse Score history
+    const scoreHistory = getPulseScoreHistory(market.ticker);
+    const histEl = document.getElementById('detail-pulse-history');
+    if (scoreHistory.length >= 3) {
+        const scores = scoreHistory.map(h => h.score).filter(s => s > 0);
+        if (scores.length >= 3) {
+            const minS = Math.min(...scores);
+            const maxS = Math.max(...scores);
+            const trend = scores[scores.length - 1] - scores[0];
+            const trendIcon = trend > 3 ? '📈' : trend < -3 ? '📉' : '➡️';
+            const trendColor = trend > 3 ? 'var(--green)' : trend < -3 ? 'var(--red)' : 'var(--text-dim)';
+            histEl.innerHTML = `
+                <div class="pulse-history-section">
+                    <h4>Pulse Score History</h4>
+                    <canvas id="pulse-history-chart" width="600" height="100"></canvas>
+                    <div class="pulse-history-stats">
+                        <span>Low: <b style="color:var(--red)">${minS}</b></span>
+                        <span>High: <b style="color:var(--green)">${maxS}</b></span>
+                        <span>Trend: <b style="color:${trendColor}">${trendIcon} ${trend > 0 ? '+' : ''}${trend}</b></span>
+                        <span>Snapshots: ${scores.length}</span>
+                    </div>
+                </div>
+            `;
+            setTimeout(() => drawPulseHistoryChart(document.getElementById('pulse-history-chart'), scores), 100);
+        } else {
+            histEl.innerHTML = '';
+        }
+    } else {
+        histEl.innerHTML = '';
+    }
 }
 
 function _drawDetailChartBase(canvas, data) {
@@ -2027,6 +2121,84 @@ function _drawDetailChartBase(canvas, data) {
     ctx.fillText(Math.round(data[data.length-1]) + '\u00A2', lastX + 6, lastY + 4);
 
     return { min, max, range, color };
+}
+
+function drawPulseHistoryChart(canvas, scores) {
+    if (!canvas || scores.length < 2) return;
+    const ctx = canvas.getContext('2d');
+    const dpr = window.devicePixelRatio || 1;
+    const w = canvas.width = canvas.offsetWidth * dpr;
+    const h = canvas.height = canvas.offsetHeight * dpr;
+    ctx.scale(dpr, dpr);
+    const cw = canvas.offsetWidth, ch = canvas.offsetHeight;
+    ctx.clearRect(0, 0, cw, ch);
+
+    const min = Math.max(0, Math.min(...scores) - 5);
+    const max = Math.min(99, Math.max(...scores) + 5);
+    const range = max - min || 1;
+    const pad = 4;
+
+    // Zone backgrounds (SKIP / WATCH / TRADE)
+    const zones = [
+        { from: 0, to: 33, color: 'rgba(255,59,92,0.04)' },
+        { from: 34, to: 66, color: 'rgba(240,176,0,0.04)' },
+        { from: 67, to: 99, color: 'rgba(0,214,143,0.04)' },
+    ];
+    for (const z of zones) {
+        const y1 = ch - pad - ((Math.min(z.to, max) - min) / range) * (ch - pad * 2);
+        const y2 = ch - pad - ((Math.max(z.from, min) - min) / range) * (ch - pad * 2);
+        if (y2 > y1) {
+            ctx.fillStyle = z.color;
+            ctx.fillRect(0, y1, cw, y2 - y1);
+        }
+    }
+
+    // Zone threshold lines at 33 and 67
+    for (const thresh of [33, 67]) {
+        if (thresh >= min && thresh <= max) {
+            const y = ch - pad - ((thresh - min) / range) * (ch - pad * 2);
+            ctx.beginPath();
+            ctx.moveTo(0, y);
+            ctx.lineTo(cw, y);
+            ctx.strokeStyle = 'rgba(255,255,255,0.06)';
+            ctx.lineWidth = 1;
+            ctx.setLineDash([4, 4]);
+            ctx.stroke();
+            ctx.setLineDash([]);
+        }
+    }
+
+    // Score line
+    ctx.beginPath();
+    for (let i = 0; i < scores.length; i++) {
+        const x = (i / (scores.length - 1)) * cw;
+        const y = ch - pad - ((scores[i] - min) / range) * (ch - pad * 2);
+        if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    }
+    // Color based on current zone
+    const current = scores[scores.length - 1];
+    const lineColor = current >= 67 ? '0,214,143' : current >= 34 ? '240,176,0' : '255,59,92';
+    ctx.strokeStyle = `rgba(${lineColor}, 0.8)`;
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    // Fill under
+    ctx.lineTo(cw, ch);
+    ctx.lineTo(0, ch);
+    ctx.closePath();
+    const grad = ctx.createLinearGradient(0, 0, 0, ch);
+    grad.addColorStop(0, `rgba(${lineColor}, 0.15)`);
+    grad.addColorStop(1, `rgba(${lineColor}, 0)`);
+    ctx.fillStyle = grad;
+    ctx.fill();
+
+    // Current score dot
+    const lastX = cw;
+    const lastY = ch - pad - ((current - min) / range) * (ch - pad * 2);
+    ctx.beginPath();
+    ctx.arc(lastX - 3, lastY, 4, 0, Math.PI * 2);
+    ctx.fillStyle = `rgba(${lineColor}, 0.9)`;
+    ctx.fill();
 }
 
 function drawDetailChart(canvas, data) {
@@ -3123,26 +3295,135 @@ loadPortfolio = function() {
 
 
 // ── SHARE POPUP (Feature 2) ──
+function generatePickCard(market) {
+    const canvas = document.createElement('canvas');
+    canvas.width = 600; canvas.height = 340;
+    const ctx = canvas.getContext('2d');
+
+    // Background gradient
+    const grad = ctx.createLinearGradient(0, 0, 600, 340);
+    grad.addColorStop(0, '#07070e'); grad.addColorStop(1, '#141428');
+    ctx.fillStyle = grad; roundRect(ctx, 0, 0, 600, 340, 16, true);
+
+    // Border
+    ctx.strokeStyle = 'rgba(255,255,255,0.08)'; ctx.lineWidth = 1;
+    roundRect(ctx, 0.5, 0.5, 599, 339, 16, false, true);
+
+    // "PULSE" header
+    ctx.fillStyle = '#5a5a6e'; ctx.font = '700 10px system-ui'; ctx.letterSpacing = '3px';
+    ctx.fillText('PULSE', 24, 32);
+
+    // Platform badge
+    const plat = market.source === 'kalshi' ? 'KALSHI' : 'POLYMARKET';
+    const platColor = market.source === 'kalshi' ? '#0088ff' : '#8b5cf6';
+    ctx.fillStyle = platColor + '20'; roundRect(ctx, 530 - plat.length * 4, 18, plat.length * 8 + 16, 20, 4, true);
+    ctx.fillStyle = platColor; ctx.font = '700 9px system-ui';
+    ctx.fillText(plat, 538 - plat.length * 4, 32);
+
+    // Market question (word wrap)
+    ctx.fillStyle = '#e8e8ed'; ctx.font = '600 17px system-ui';
+    const words = (market.question || '').split(' ');
+    let line = '', y = 68;
+    for (const w of words) {
+        const test = line ? line + ' ' + w : w;
+        if (ctx.measureText(test).width > 552) { ctx.fillText(line, 24, y); y += 24; line = w; }
+        else line = test;
+    }
+    if (line) ctx.fillText(line, 24, y);
+
+    // Prices
+    const priceY = y + 40;
+    ctx.font = '700 28px system-ui';
+    ctx.fillStyle = market.yes >= 50 ? '#00d68f' : '#8b8b99';
+    ctx.fillText(`YES ${market.yes}¢`, 24, priceY);
+    ctx.fillStyle = market.no >= 50 ? '#ff3b5c' : '#8b8b99';
+    ctx.fillText(`NO ${market.no}¢`, 200, priceY);
+
+    // Pulse Score circle
+    const ps = calcPulseScore(market, getMarketChange(market.ticker));
+    const psColor = ps >= 67 ? '#00d68f' : ps >= 34 ? '#f0b000' : '#ff3b5c';
+    const cx = 520, cy = priceY + 20;
+    ctx.beginPath(); ctx.arc(cx, cy, 32, 0, Math.PI * 2);
+    ctx.strokeStyle = psColor; ctx.lineWidth = 3; ctx.stroke();
+    ctx.fillStyle = psColor; ctx.font = '800 24px system-ui'; ctx.textAlign = 'center';
+    ctx.fillText(ps, cx, cy + 8);
+    ctx.fillStyle = '#5a5a6e'; ctx.font = '700 8px system-ui';
+    ctx.fillText('PULSE', cx, cy + 22);
+    ctx.textAlign = 'left';
+
+    // Signal badge
+    const sig = getPulseSignal(market.ticker);
+    const sigY = priceY + 30;
+    let sigCol = '#f0b000', sigBg = 'rgba(240,176,0,0.15)';
+    if (sig.signal.includes('YES')) { sigCol = '#00d68f'; sigBg = 'rgba(0,214,143,0.15)'; }
+    else if (sig.signal.includes('NO')) { sigCol = '#ff3b5c'; sigBg = 'rgba(255,59,92,0.15)'; }
+    ctx.fillStyle = sigBg; roundRect(ctx, 24, sigY, ctx.measureText(sig.signal).width + 24, 26, 6, true);
+    ctx.fillStyle = sigCol; ctx.font = '700 12px system-ui';
+    ctx.fillText(sig.signal, 36, sigY + 17);
+
+    // Footer
+    ctx.fillStyle = '#3a3a4e'; ctx.font = '400 11px system-ui';
+    ctx.fillText('pulse-api-joed.onrender.com', 24, 322);
+    ctx.fillText(new Date().toLocaleDateString(), 480, 322);
+
+    // Divider line
+    ctx.strokeStyle = 'rgba(255,255,255,0.06)'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(24, 300); ctx.lineTo(576, 300); ctx.stroke();
+
+    return canvas;
+}
+
+function roundRect(ctx, x, y, w, h, r, fill, stroke) {
+    ctx.beginPath();
+    ctx.moveTo(x + r, y); ctx.lineTo(x + w - r, y); ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+    ctx.lineTo(x + w, y + h - r); ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+    ctx.lineTo(x + r, y + h); ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+    ctx.lineTo(x, y + r); ctx.quadraticCurveTo(x, y, x + r, y);
+    ctx.closePath();
+    if (fill) ctx.fill();
+    if (stroke) ctx.stroke();
+}
+
 function showSharePopup(market) {
+    const canvas = generatePickCard(market);
     const ps = calcPulseScore(market, 0);
-    const text = `${market.question}\n\nYES ${market.yes}\u00A2 \u00B7 NO ${market.no}\u00A2\nPulse Score: ${ps}/99\n\n${market.url || 'via PULSE \u2014 pulse-api-joed.onrender.com'}`;
-    const encodedText = encodeURIComponent(text);
-    const twitterUrl = `https://twitter.com/intent/tweet?text=${encodedText}`;
-    const redditUrl = `https://reddit.com/submit?title=${encodeURIComponent(market.question)}&url=${encodeURIComponent(market.url || 'https://pulse-api-joed.onrender.com')}`;
+    const sig = getPulseSignal(market.ticker);
+    const text = `${market.question}\n\nYES ${market.yes}¢ · NO ${market.no}¢\nPulse Score: ${ps}/99 — ${sig.signal}\n\npulse-api-joed.onrender.com`;
+    const twitterUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}`;
 
     const popup = document.createElement('div');
     popup.className = 'share-popup';
-    const safeText = text.replace(/\\/g, '\\\\').replace(/`/g, '\\`');
     popup.innerHTML = `
-        <div class="share-popup-content">
-            <h4>Share Market</h4>
-            <button onclick="navigator.clipboard.writeText(\`${safeText}\`).then(()=>{this.textContent='Copied!';setTimeout(()=>this.closest('.share-popup').remove(),1000)})">Copy to Clipboard</button>
-            <a href="${twitterUrl}" target="_blank" onclick="this.closest('.share-popup').remove()">Share on X</a>
-            <a href="${redditUrl}" target="_blank" onclick="this.closest('.share-popup').remove()">Share on Reddit</a>
+        <div class="share-popup-content share-card-popup">
+            <h4>Share Your Pick</h4>
+            <div class="share-card-preview"></div>
+            <div class="share-btn-row">
+                <button class="share-action-btn" id="share-download">⬇ Download</button>
+                <button class="share-action-btn" id="share-copy">📋 Copy Image</button>
+                <a class="share-action-btn" href="${twitterUrl}" target="_blank">𝕏 Share on X</a>
+            </div>
             <button onclick="this.closest('.share-popup').remove()" class="share-cancel">Cancel</button>
         </div>
     `;
     document.body.appendChild(popup);
+    popup.querySelector('.share-card-preview').appendChild(canvas);
+
+    popup.querySelector('#share-download').addEventListener('click', () => {
+        canvas.toBlob(blob => {
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = 'pulse-pick.png';
+            a.click(); URL.revokeObjectURL(a.href);
+            showToast('Image downloaded!');
+        });
+    });
+    popup.querySelector('#share-copy').addEventListener('click', () => {
+        canvas.toBlob(blob => {
+            navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]).then(() => {
+                showToast('Image copied to clipboard!');
+            }).catch(() => showToast('Copy failed — try download instead'));
+        });
+    });
 }
 
 // ── EMBED WIDGET (Feature 9) ──
@@ -3206,22 +3487,48 @@ function getMarketInsights(market) {
 }
 
 // ── EMAIL SIGNUP (Feature 8) ──
-function submitSignup() {
+async function submitSignup() {
     const email = document.getElementById('signup-email').value.trim();
+    const statusEl = document.getElementById('signup-status');
     if (!email || !email.includes('@')) {
-        document.getElementById('signup-status').textContent = 'Please enter a valid email';
+        statusEl.textContent = 'Please enter a valid email';
         return;
     }
-    let emails = [];
-    try { emails = JSON.parse(localStorage.getItem('pulse-signups') || '[]'); } catch {}
-    if (!emails.includes(email)) emails.push(email);
-    localStorage.setItem('pulse-signups', JSON.stringify(emails));
-    document.getElementById('signup-status').textContent = '\u2713 Subscribed! (Feature coming soon)';
-    document.getElementById('signup-email').value = '';
+    statusEl.textContent = 'Subscribing...';
+    try {
+        const resp = await fetch((API_BASE || '') + '/api/subscribe', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email }),
+        });
+        const data = await resp.json();
+        if (data.status === 'subscribed') {
+            statusEl.textContent = '✓ Subscribed! You\'ll get the weekly PULSE digest.';
+            statusEl.style.color = '#00d68f';
+        } else if (data.status === 'already_subscribed') {
+            statusEl.textContent = '✓ You\'re already subscribed!';
+            statusEl.style.color = '#f0b000';
+        } else {
+            statusEl.textContent = data.error || 'Something went wrong';
+        }
+        document.getElementById('signup-email').value = '';
+    } catch {
+        // Fallback to localStorage if API is down
+        let emails = [];
+        try { emails = JSON.parse(localStorage.getItem('pulse-signups') || '[]'); } catch {}
+        if (!emails.includes(email)) emails.push(email);
+        localStorage.setItem('pulse-signups', JSON.stringify(emails));
+        statusEl.textContent = '✓ Subscribed! Weekly digest coming soon.';
+        statusEl.style.color = '#00d68f';
+        document.getElementById('signup-email').value = '';
+    }
 }
 
 // ── ACCURACY TRACKER (Feature 10) ──
 function calculateAccuracy() {
+    const stats = getAccuracyStats();
+    if (stats.total >= 5) return stats.pct;
+    // Fallback to snapshot-based accuracy
     const history = getPriceSnapshots();
     let correct = 0, total = 0;
     for (const {market} of allMarketCards) {
@@ -3229,7 +3536,6 @@ function calculateAccuracy() {
         const h = history[market.ticker] || [];
         if (h.length < 3) continue;
         const priceDir = h[h.length-1].p > h[0].p ? 'up' : 'down';
-        // If high pulse score and price trending in YES direction, or low score and trending NO
         if ((ps >= 60 && priceDir === 'up') || (ps < 40 && priceDir === 'down')) correct++;
         total++;
     }
@@ -3308,7 +3614,13 @@ loadMarkets = async function() {
     // Update accuracy stat
     const acc = calculateAccuracy();
     const accEl = document.getElementById('accuracy-stat');
-    if (accEl && acc !== null) accEl.textContent = acc + '%';
+    if (accEl && acc !== null) {
+        accEl.textContent = acc + '%';
+        const stats = getAccuracyStats();
+        if (stats.total > 0) {
+            accEl.title = `${stats.correct}/${stats.total} signals correct (${stats.pending} pending)`;
+        }
+    }
 };
 
 // ── PULSE SCORE EXPLAINER ──
@@ -3341,6 +3653,429 @@ document.addEventListener('keydown', (e) => {
     }
 });
 
+
+// ── PULSE AI CHAT WIDGET ──
+function togglePulseChat() {
+    const chat = document.getElementById('pulse-chat');
+    const btn = document.getElementById('pulse-chat-btn');
+    if (chat.style.display === 'none') {
+        chat.style.display = 'flex';
+        btn.style.display = 'none';
+        document.getElementById('chat-input').focus();
+    } else {
+        chat.style.display = 'none';
+        btn.style.display = 'flex';
+    }
+}
+
+function sendChatMsg() {
+    const input = document.getElementById('chat-input');
+    const msg = input.value.trim();
+    if (!msg) return;
+    input.value = '';
+
+    const msgs = document.getElementById('chat-messages');
+    msgs.innerHTML += `<div class="chat-msg user">${escapeHtml(msg)}</div>`;
+    msgs.innerHTML += `<div class="chat-msg bot" id="chat-thinking">Thinking...</div>`;
+    msgs.scrollTop = msgs.scrollHeight;
+
+    setTimeout(() => {
+        const response = processChatQuery(msg);
+        const thinking = document.getElementById('chat-thinking');
+        if (thinking) thinking.outerHTML = `<div class="chat-msg bot">${response}</div>`;
+        msgs.scrollTop = msgs.scrollHeight;
+    }, 300);
+}
+
+function escapeHtml(s) {
+    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function processChatQuery(query) {
+    const q = query.toLowerCase();
+
+    // Best trades / what to trade
+    if (q.includes('best trade') || q.includes('what should i') || q.includes('top market') || q.includes('what to trade')) {
+        const topCards = allMarketCards
+            .map(c => ({ m: c.market, score: calcPulseScore(c.market, 0), sig: getPulseSignal(c.market.ticker) }))
+            .filter(c => c.sig.signal !== 'HOLD')
+            .sort((a, b) => b.score - a.score)
+            .slice(0, 3);
+        if (topCards.length === 0) return "No strong signals right now. All markets are showing HOLD. Check back after the next refresh.";
+        let html = "Here are the top opportunities right now:<br><br>";
+        for (const c of topCards) {
+            const sigColor = c.sig.signal.includes('YES') ? '#00d68f' : '#ff3b5c';
+            const sigBg = c.sig.signal.includes('YES') ? 'rgba(0,214,143,0.15)' : 'rgba(255,59,92,0.15)';
+            html += `<b>${c.m.question}</b><br>`;
+            html += `YES ${c.m.yes}¢ · Pulse ${c.score} · <span class="chat-signal" style="color:${sigColor};background:${sigBg};">${c.sig.signal}</span><br><br>`;
+        }
+        return html;
+    }
+
+    // Bot status
+    if (q.includes('bot') || q.includes('kalshi') || q.includes('trading bot')) {
+        return fetchBotStatusForChat();
+    }
+
+    // Arbitrage
+    if (q.includes('arbitrage') || q.includes('arb') || q.includes('price difference')) {
+        const xpCount = Object.keys(_crossPlatformMap).length / 2;
+        if (xpCount === 0) return "No cross-platform price differences detected right now. The arbitrage scanner checks every refresh.";
+        return `Found <b>${Math.round(xpCount)}</b> cross-platform matches. Switch to the <b>Arbitrage</b> tab to see price differences between Kalshi and Polymarket.`;
+    }
+
+    // Pulse score explanation
+    if (q.includes('pulse score') || q.includes('how does scoring') || q.includes('what is pulse')) {
+        return "The Pulse Score (0-99) rates how tradeable a market is using 5 factors:<br><br>" +
+            "<b>Price Position (0-20)</b> — best at 25¢/75¢<br>" +
+            "<b>Volume (0-20)</b> — more trading = reliable<br>" +
+            "<b>Momentum (0-20)</b> — price moving fast<br>" +
+            "<b>Cross-Platform Edge (0-20)</b> — Kalshi vs Polymarket gap<br>" +
+            "<b>Liquidity (0-19)</b> — can you trade easily<br><br>" +
+            "Each card also shows a <b>BUY YES / BUY NO / LEAN / HOLD</b> signal.";
+    }
+
+    // Search for specific market
+    if (q.includes('bitcoin') || q.includes('btc') || q.includes('crypto') || q.includes('ethereum') || q.includes('eth')) {
+        return searchMarketChat(q, 'crypto');
+    }
+    if (q.includes('trump') || q.includes('election') || q.includes('president') || q.includes('politics')) {
+        return searchMarketChat(q, 'politics');
+    }
+    if (q.includes('weather') || q.includes('rain') || q.includes('temperature')) {
+        return searchMarketChat(q, 'weather');
+    }
+
+    // Accuracy / track record
+    if (q.includes('accuracy') || q.includes('track record') || q.includes('win rate') || q.includes('how good')) {
+        const stats = getAccuracyStats();
+        if (stats.total === 0) return "Still building the track record. Signals are being tracked — accuracy will show after enough trades resolve (usually 1+ hours).";
+        return `Signal track record: <b>${stats.pct}%</b> accuracy (${stats.correct}/${stats.total} correct). Currently <b>${stats.pending}</b> signals pending resolution.`;
+    }
+
+    // Market count / overview
+    if (q.includes('how many') || q.includes('market count') || q.includes('overview')) {
+        const total = allMarketCards.length;
+        const signals = allMarketCards.filter(c => getPulseSignal(c.market.ticker).signal !== 'HOLD').length;
+        return `Tracking <b>${total}</b> live markets across Kalshi & Polymarket. <b>${signals}</b> have active BUY/LEAN signals right now.`;
+    }
+
+    // Generic search
+    const found = allMarketCards.find(c => c.market.question.toLowerCase().includes(q.split(' ').slice(0, 3).join(' ')));
+    if (found) {
+        const m = found.market;
+        const score = calcPulseScore(m, 0);
+        const sig = getPulseSignal(m.ticker);
+        const sigColor = sig.signal.includes('YES') ? '#00d68f' : sig.signal.includes('NO') ? '#ff3b5c' : '#f0b000';
+        const sigBg = sig.signal.includes('YES') ? 'rgba(0,214,143,0.15)' : sig.signal.includes('NO') ? 'rgba(255,59,92,0.15)' : 'rgba(240,176,0,0.12)';
+        return `<b>${m.question}</b><br>YES ${m.yes}¢ · NO ${m.no}¢<br>` +
+            `Pulse Score: <b>${score}</b> · <span class="chat-signal" style="color:${sigColor};background:${sigBg};">${sig.signal}</span><br>` +
+            `Volume: $${(m.volume || 0).toLocaleString()}`;
+    }
+
+    return "I can help with:<br>• <b>\"best trades\"</b> — top signals right now<br>• <b>\"how is the bot doing\"</b> — Kalshi bot status<br>• <b>\"Bitcoin\"</b> or any topic — find markets<br>• <b>\"pulse score\"</b> — how scoring works<br>• <b>\"accuracy\"</b> — signal track record";
+}
+
+function searchMarketChat(query, category) {
+    const matches = allMarketCards
+        .filter(c => {
+            const cat = (c.market.category || categorize(c.market.question)).toLowerCase();
+            return cat.includes(category);
+        })
+        .map(c => ({ m: c.market, score: calcPulseScore(c.market, 0), sig: getPulseSignal(c.market.ticker) }))
+        .sort((a, b) => b.score - a.score)
+        .slice(0, 3);
+
+    if (matches.length === 0) return `No ${category} markets found right now.`;
+    let html = `Found ${matches.length} ${category} market${matches.length > 1 ? 's' : ''}:<br><br>`;
+    for (const c of matches) {
+        const sigColor = c.sig.signal.includes('YES') ? '#00d68f' : c.sig.signal.includes('NO') ? '#ff3b5c' : '#f0b000';
+        const sigBg = c.sig.signal.includes('YES') ? 'rgba(0,214,143,0.15)' : c.sig.signal.includes('NO') ? 'rgba(255,59,92,0.15)' : 'rgba(240,176,0,0.12)';
+        html += `<b>${c.m.question}</b><br>YES ${c.m.yes}¢ · Pulse ${c.score} · <span class="chat-signal" style="color:${sigColor};background:${sigBg};">${c.sig.signal}</span><br><br>`;
+    }
+    return html;
+}
+
+let _botStatusCache = null;
+let _botStatusTime = 0;
+function fetchBotStatusForChat() {
+    // Use cached if recent
+    if (_botStatusCache && Date.now() - _botStatusTime < 60000) {
+        return formatBotStatus(_botStatusCache);
+    }
+    // Fetch async and update
+    const controller = new AbortController();
+    setTimeout(() => controller.abort(), 5000);
+    fetch('https://web-production-c8a5b.up.railway.app/api/bot/status', { signal: controller.signal })
+        .then(r => r.json())
+        .then(data => {
+            _botStatusCache = data;
+            _botStatusTime = Date.now();
+            const thinking = document.querySelector('#chat-messages .chat-msg.bot:last-child');
+            if (thinking && thinking.textContent === 'Checking bot status...') {
+                thinking.innerHTML = formatBotStatus(data);
+            }
+        })
+        .catch(() => {
+            const thinking = document.querySelector('#chat-messages .chat-msg.bot:last-child');
+            if (thinking && thinking.textContent === 'Checking bot status...') {
+                thinking.innerHTML = "Bot is currently offline. Try again in a minute.";
+            }
+        });
+    return 'Checking bot status...';
+}
+
+function formatBotStatus(data) {
+    if (data.error) return "Bot is currently offline. Try again in a minute.";
+    const balance = data.balance_cents != null ? (data.balance_cents / 100).toFixed(2) : '—';
+    const equity = data.equity_cents != null ? (data.equity_cents / 100).toFixed(2) : '—';
+    const status = data.running ? '<span style="color:#00d68f;">Running</span>' : '<span style="color:#ff3b5c;">Stopped</span>';
+    const scans = data.scan_count || 0;
+    const trades = data.trades_today || 0;
+    const signals = data.signals_today || 0;
+    return `<b>Kalshi Bot Status</b><br>` +
+        `Status: ${status} · ${scans} scans today<br>` +
+        `Balance: <b>$${balance}</b> · Equity: <b>$${equity}</b><br>` +
+        `Trades today: <b>${trades}</b> · Signals evaluated: <b>${signals}</b><br>` +
+        `Next scan: ${data.next_scan_at ? new Date(data.next_scan_at).toLocaleTimeString() : '—'}`;
+}
+
+// ── LIVE BOT FEED ──
+let _lastFeedTradeId = null;
+async function loadBotFeed() {
+    try {
+        const ac = new AbortController();
+        setTimeout(() => ac.abort(), 5000);
+        const resp = await fetch('https://web-production-c8a5b.up.railway.app/api/bot/trades?limit=8', { signal: ac.signal });
+        if (!resp.ok) return;
+        const data = await resp.json();
+        if (!data.trades || data.trades.length === 0) return;
+
+        // Show the feed panel
+        document.getElementById('bot-feed').style.display = '';
+
+        const container = document.getElementById('feed-trades');
+        container.innerHTML = data.trades.map(t => {
+            const title = t.ticker ? decodeTicker(t.ticker) : 'Unknown';
+            const side = (t.side || 'yes').toLowerCase();
+            const price = t.price_cents || 0;
+            const time = t.ts ? new Date(t.ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
+            const pnl = t.realized_pnl !== null ? (t.realized_pnl >= 0 ? `+$${t.realized_pnl.toFixed(2)}` : `-$${Math.abs(t.realized_pnl).toFixed(2)}`) : '';
+            const pnlColor = t.realized_pnl > 0 ? '#00d68f' : t.realized_pnl < 0 ? '#ff3b5c' : '';
+            return `<div class="feed-trade">
+                <span class="feed-trade-side ${side}">${side.toUpperCase()}</span>
+                <span class="feed-trade-title">${escapeHtml(title)}</span>
+                <span class="feed-trade-price">${price}¢${pnl ? ` <span style="color:${pnlColor}">${pnl}</span>` : ''}</span>
+                <span class="feed-trade-time">${time}</span>
+            </div>`;
+        }).join('');
+
+        // Check for new trade and show notification
+        if (_lastFeedTradeId && data.trades[0].order_id !== _lastFeedTradeId) {
+            const t = data.trades[0];
+            showToast(`Bot traded: ${(t.side || '').toUpperCase()} at ${t.price_cents}¢`);
+        }
+        _lastFeedTradeId = data.trades[0].order_id;
+    } catch {}
+}
+
+// Load bot feed on page load and refresh every 2 minutes
+loadBotFeed();
+setInterval(loadBotFeed, 120000);
+
+// ── PULSE LEAGUES ──
+function getISOWeek(d) {
+    const date = new Date(d.getTime());
+    date.setHours(0, 0, 0, 0);
+    date.setDate(date.getDate() + 3 - (date.getDay() + 6) % 7);
+    const week1 = new Date(date.getFullYear(), 0, 4);
+    const weekNum = 1 + Math.round(((date.getTime() - week1.getTime()) / 86400000 - 3 + (week1.getDay() + 6) % 7) / 7);
+    return `${date.getFullYear()}-W${String(weekNum).padStart(2, '0')}`;
+}
+
+function getLeagueData() {
+    try { return JSON.parse(localStorage.getItem('pulse-leagues') || '{}'); }
+    catch { return {}; }
+}
+function saveLeagueData(data) {
+    localStorage.setItem('pulse-leagues', JSON.stringify(data));
+}
+
+function initLeagueWeek() {
+    const league = getLeagueData();
+    const thisWeek = getISOWeek(new Date());
+    if (!league.weeks) league.weeks = {};
+    if (!league.username) league.username = 'You';
+
+    if (league.currentWeek !== thisWeek) {
+        // Close out old week
+        if (league.currentWeek && league.weeks[league.currentWeek]) {
+            const old = league.weeks[league.currentWeek];
+            const portfolio = getPaperPortfolio();
+            const currentVal = portfolio.balance + (portfolio.trades || []).filter(t => !t.settled).reduce((s, t) => s + t.cost, 0);
+            old.finalReturn = old.startBalance > 0 ? ((currentVal - old.startBalance) / old.startBalance * 100) : 0;
+            old.endBalance = currentVal;
+        }
+        // Start new week
+        const portfolio = getPaperPortfolio();
+        const startBal = portfolio.balance + (portfolio.trades || []).filter(t => !t.settled).reduce((s, t) => s + t.cost, 0);
+        league.weeks[thisWeek] = {
+            startBalance: startBal,
+            startTimestamp: Date.now(),
+            picks: [],
+            snapshots: [],
+            finalReturn: null
+        };
+        league.currentWeek = thisWeek;
+    }
+    saveLeagueData(league);
+}
+
+function recordLeagueSnapshot() {
+    const league = getLeagueData();
+    if (!league.currentWeek || !league.weeks[league.currentWeek]) return;
+    const week = league.weeks[league.currentWeek];
+    const portfolio = getPaperPortfolio();
+    const currentVal = portfolio.balance + (portfolio.trades || []).filter(t => !t.settled).reduce((s, t) => s + t.cost, 0);
+    week.snapshots.push({ t: Date.now(), v: currentVal });
+    if (week.snapshots.length > 200) week.snapshots = week.snapshots.slice(-200);
+    saveLeagueData(league);
+}
+
+function getLeagueReturn(weekData) {
+    if (!weekData || !weekData.startBalance) return 0;
+    if (weekData.finalReturn != null) return weekData.finalReturn;
+    const portfolio = getPaperPortfolio();
+    const currentVal = portfolio.balance + (portfolio.trades || []).filter(t => !t.settled).reduce((s, t) => s + t.cost, 0);
+    return ((currentVal - weekData.startBalance) / weekData.startBalance * 100);
+}
+
+function generateBotCompetitors(weekKey) {
+    // Deterministic pseudo-random from week key
+    let seed = 0;
+    for (let i = 0; i < weekKey.length; i++) seed = ((seed << 5) - seed) + weekKey.charCodeAt(i);
+    const rand = (min, max) => { seed = (seed * 16807 + 0) % 2147483647; return min + (seed % 1000) / 1000 * (max - min); };
+
+    return [
+        { name: 'SignalTrader_42', ret: rand(-8, 18), badge: '#0088ff' },
+        { name: 'PulseWhale', ret: rand(-5, 25), badge: '#8b5cf6' },
+        { name: 'MarketBot_AI', ret: rand(-12, 15), badge: '#00d68f' },
+        { name: 'NightOwlBets', ret: rand(-10, 12), badge: '#f0b000' },
+        { name: 'ArbHunter', ret: rand(-6, 20), badge: '#ff3b5c' },
+    ];
+}
+
+function buildLeaguePanel() {
+    const thisWeek = getISOWeek(new Date());
+    initLeagueWeek();
+    const league = getLeagueData();
+
+    const weekData = league.weeks[thisWeek];
+    const myReturn = getLeagueReturn(weekData);
+    const portfolio = getPaperPortfolio();
+    const currentVal = portfolio.balance + (portfolio.trades || []).filter(t => !t.settled).reduce((s, t) => s + t.cost, 0);
+    const picks = weekData ? weekData.picks || [] : [];
+
+    // Week label
+    document.getElementById('league-week-label').textContent = thisWeek;
+
+    // Stats row
+    document.getElementById('league-stats-row').innerHTML = `
+        <div class="league-stat">
+            <div class="league-stat-value">$${currentVal.toFixed(0)}</div>
+            <div class="league-stat-label">PORTFOLIO</div>
+        </div>
+        <div class="league-stat">
+            <div class="league-stat-value ${myReturn >= 0 ? 'positive' : 'negative'}">${myReturn >= 0 ? '+' : ''}${myReturn.toFixed(1)}%</div>
+            <div class="league-stat-label">WEEKLY RETURN</div>
+        </div>
+        <div class="league-stat">
+            <div class="league-stat-value">${picks.length}</div>
+            <div class="league-stat-label">PICKS</div>
+        </div>
+        <div class="league-stat">
+            <div class="league-stat-value" id="league-rank">—</div>
+            <div class="league-stat-label">RANK</div>
+        </div>
+    `;
+
+    // Build leaderboard
+    const bots = generateBotCompetitors(thisWeek);
+    const entries = [
+        { name: league.username || 'You', ret: myReturn, badge: '#0088ff', isYou: true },
+        ...bots.map(b => ({ ...b, isYou: false }))
+    ].sort((a, b) => b.ret - a.ret);
+
+    const myRank = entries.findIndex(e => e.isYou) + 1;
+    const rankEl = document.getElementById('league-rank');
+    if (rankEl) rankEl.textContent = `#${myRank}`;
+
+    const medals = ['🥇', '🥈', '🥉'];
+    document.getElementById('league-leaderboard').innerHTML = entries.map((e, i) => `
+        <div class="league-row ${e.isYou ? 'you' : ''}">
+            <span class="league-rank-num">${medals[i] || (i + 1)}</span>
+            <span class="league-avatar" style="background:${e.badge};">${e.name.charAt(0).toUpperCase()}</span>
+            <span class="league-name">${escapeHtml(e.name)}${e.isYou ? ' <span style="font-size:10px;color:var(--accent);">(you)</span>' : ''}</span>
+            <span class="league-return ${e.ret >= 0 ? 'positive' : 'negative'}">${e.ret >= 0 ? '+' : ''}${e.ret.toFixed(1)}%</span>
+        </div>
+    `).join('');
+
+    // Picks this week
+    if (picks.length === 0) {
+        document.getElementById('league-picks').innerHTML = '<p style="color:var(--text-dim);font-size:13px;">No picks yet this week. Open any market and place a paper trade to compete!</p>';
+    } else {
+        document.getElementById('league-picks').innerHTML = picks.map(p => `
+            <div class="league-pick">
+                <span class="feed-trade-side ${(p.side || 'yes').toLowerCase()}">${(p.side || 'YES').toUpperCase()}</span>
+                <span style="flex:1;font-size:13px;">${escapeHtml(shortenTitle(p.question))}</span>
+                <span style="font-size:11px;color:var(--text-dim);">${new Date(p.timestamp).toLocaleDateString()}</span>
+            </div>
+        `).join('');
+    }
+
+    // Past weeks
+    const pastWeeks = Object.keys(league.weeks || {}).filter(w => w !== thisWeek).sort().reverse().slice(0, 8);
+    if (pastWeeks.length === 0) {
+        document.getElementById('league-history').innerHTML = '<p style="color:var(--text-dim);font-size:13px;">No past weeks yet. Your history will appear after the first week ends.</p>';
+    } else {
+        document.getElementById('league-history').innerHTML = pastWeeks.map(w => {
+            const wd = league.weeks[w];
+            const ret = wd.finalReturn != null ? wd.finalReturn : 0;
+            const picks = (wd.picks || []).length;
+            return `<div class="league-history-row">
+                <span class="league-history-week">${w}</span>
+                <span style="font-size:12px;color:var(--text-dim);">${picks} picks</span>
+                <span class="league-return ${ret >= 0 ? 'positive' : 'negative'}">${ret >= 0 ? '+' : ''}${ret.toFixed(1)}%</span>
+            </div>`;
+        }).join('');
+    }
+}
+
+// Hook leagues into paper trading
+const _origPlacePaperTradeLeague = placePaperTrade;
+placePaperTrade = function() {
+    _origPlacePaperTradeLeague();
+    const league = getLeagueData();
+    if (!league.currentWeek || !league.weeks[league.currentWeek]) return;
+    const week = league.weeks[league.currentWeek];
+    if (typeof currentDetailMarket !== 'undefined' && currentDetailMarket) {
+        week.picks.push({
+            ticker: currentDetailMarket.ticker,
+            question: currentDetailMarket.question,
+            side: document.getElementById('paper-side')?.value || 'yes',
+            timestamp: Date.now(),
+        });
+        saveLeagueData(league);
+    }
+};
+
+// Hook league tracking into market refresh cycle
+const _origRecordPortfolioSnapshot = recordPortfolioSnapshot;
+recordPortfolioSnapshot = function() {
+    _origRecordPortfolioSnapshot();
+    initLeagueWeek();
+    recordLeagueSnapshot();
+};
 
 // ── SERVICE WORKER (PWA) ──
 if ('serviceWorker' in navigator) {
