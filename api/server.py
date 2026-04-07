@@ -510,45 +510,121 @@ async def unsubscribe(request: Request):
 
 @app.get("/api/newsletter/generate")
 async def generate_newsletter():
-    """Generate newsletter HTML from current market data."""
+    """Generate clean HTML newsletter — Morning Brew style, Gmail compatible."""
     markets_data = await get_all_markets()
     kalshi = markets_data.get("kalshi", [])
     poly = markets_data.get("polymarket", [])
     arbitrage = markets_data.get("arbitrage", [])
     all_markets = kalshi + poly
 
-    # Sort by volume for top markets
     all_markets.sort(key=lambda x: x.get("volume", 0), reverse=True)
     top_markets = all_markets[:5]
-
-    # Find biggest movers (most extreme prices = most conviction)
     movers = sorted(all_markets, key=lambda x: abs(x.get("yes", 50) - 50), reverse=True)[:5]
 
-    # Generate newsletter PNG image first
-    _generate_newsletter_png(kalshi, poly, all_markets, arbitrage, top_markets, movers)
-
     SITE = "https://pulse-api-joed.onrender.com"
-    # Use Render URL for production, localhost for dev
-    is_prod = os.environ.get("PORT")
-    IMG_URL = f"{SITE}/newsletter.png" if is_prod else "http://localhost:8095/newsletter.png"
+    date_str = datetime.now().strftime("%B %d, %Y")
+
+    # Market rows
+    market_rows = ""
+    for m in top_markets:
+        yes = m["yes"]
+        no = 100 - yes
+        yc = "#00875a" if yes >= 50 else "#cc2244"
+        nc = "#cc2244" if yes >= 50 else "#00875a"
+        vol = f"${m.get('volume', 0):,.0f}" if m.get("volume") else ""
+        plat = "KALSHI" if m.get("source") == "kalshi" else "POLY"
+        pc = "#0066cc" if plat == "KALSHI" else "#6b3fa0"
+        sig = "BUY YES" if yes >= 70 else ("BUY NO" if yes <= 30 else "HOLD")
+        sc = "#00875a" if yes >= 70 else ("#cc2244" if yes <= 30 else "#997a00")
+        url = m.get("url", SITE)
+        market_rows += f"""<tr>
+<td style="padding:16px 0;border-bottom:1px solid #f0f0f0;">
+<table width="100%" cellpadding="0" cellspacing="0"><tr>
+<td><span style="color:{pc};font-size:10px;font-weight:700;">{plat}</span> <span style="color:{sc};font-size:10px;font-weight:700;">{sig}</span>
+<br><a href="{url}" style="color:#1a1a1a;text-decoration:none;font-size:15px;font-weight:600;line-height:22px;">{m['question']}</a>
+<br><span style="color:{yc};font-size:18px;font-weight:700;">YES {yes}&#162;</span> &nbsp;<span style="color:{nc};font-size:18px;font-weight:700;">NO {no}&#162;</span> &nbsp;<span style="color:#999;font-size:12px;">{vol}</span></td>
+</tr></table>
+</td></tr>"""
+
+    # Arbitrage rows
+    arb_rows = ""
+    if arbitrage:
+        for a in arbitrage[:3]:
+            arb_rows += f"""<tr><td style="padding:12px 0;border-bottom:1px solid #f0f0f0;">
+<span style="font-size:14px;font-weight:600;color:#1a1a1a;">{a['topic']}</span><br>
+<span style="color:#0066cc;">Kalshi {a['kalshi']['yes']}&#162;</span> vs <span style="color:#6b3fa0;">Poly {a['poly']['yes']}&#162;</span>
+&nbsp;<span style="color:#997a00;font-weight:700;font-size:15px;">{a['diff']}&#162; spread</span>
+</td></tr>"""
+    else:
+        arb_rows = '<tr><td style="padding:12px 0;color:#999;">No arbitrage this week.</td></tr>'
+
+    # Movers rows
+    mover_rows = ""
+    for m in movers:
+        yes = m["yes"]
+        yc = "#00875a" if yes >= 70 else ("#cc2244" if yes <= 30 else "#999")
+        sig = "BUY YES" if yes >= 70 else ("BUY NO" if yes <= 30 else "HOLD")
+        sc = "#00875a" if yes >= 70 else ("#cc2244" if yes <= 30 else "#997a00")
+        q = m["question"][:50] + ("..." if len(m["question"]) > 50 else "")
+        mover_rows += f"""<tr><td style="padding:10px 0;border-bottom:1px solid #f0f0f0;">
+<span style="color:#333;font-size:14px;">{q}</span>
+<span style="float:right;color:{yc};font-size:16px;font-weight:700;">{yes}&#162; <span style="color:{sc};font-size:10px;">{sig}</span></span>
+</td></tr>"""
 
     html = f"""<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"></head>
-<body style="margin:0;padding:0;background-color:#0a0a14;">
-<table width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding:16px 0;">
-<table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;">
+<body style="margin:0;padding:0;background:#f5f5f5;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;">
+<table width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding:24px 16px;">
+<table width="560" cellpadding="0" cellspacing="0" style="max-width:560px;">
 
-<tr><td align="center"><a href="{SITE}"><img src="{IMG_URL}" alt="PULSE Weekly Market Digest" width="600" style="display:block;max-width:100%;height:auto;"></a></td></tr>
-
-<tr><td bgcolor="#0a0a14" align="center" style="padding:20px 24px;">
-<table cellpadding="0" cellspacing="0"><tr><td bgcolor="#0088ff" align="center" style="padding:14px 40px;">
-<a href="{SITE}" style="color:#ffffff;text-decoration:none;font-size:14px;font-weight:700;font-family:system-ui,sans-serif;">Open PULSE Dashboard &#8594;</a>
-</td></tr></table>
+<!-- Logo + Title -->
+<tr><td style="padding:0 0 20px;text-align:center;">
+<span style="font-size:28px;font-weight:800;color:#0066cc;letter-spacing:2px;">PULSE</span>
+<br><span style="font-size:13px;color:#888;">{date_str} &middot; {len(all_markets)} markets tracked</span>
 </td></tr>
 
-<tr><td bgcolor="#003366" align="center" style="padding:20px 24px;">
-<p style="font-family:system-ui,sans-serif;font-size:10px;letter-spacing:4px;color:#ffffff;font-weight:700;margin:0 0 4px;text-align:center;">PULSE</p>
-<p style="font-family:system-ui,sans-serif;font-size:11px;color:#88bbdd;margin:0;text-align:center;">Trading. Logically.</p>
-<p style="font-family:system-ui,sans-serif;font-size:10px;color:#6699bb;margin:10px 0 0;text-align:center;">You subscribed to PULSE Market Digest.<br><a href="{SITE}" style="color:#ffffff;">Unsubscribe</a></p>
+<!-- Blue divider -->
+<tr><td style="padding:0;"><table width="100%" cellpadding="0" cellspacing="0"><tr><td style="height:3px;background:#0066cc;font-size:0;">&nbsp;</td></tr></table></td></tr>
+
+<!-- Main card -->
+<tr><td bgcolor="#ffffff" style="padding:24px;">
+
+<!-- Top Markets -->
+<table width="100%" cellpadding="0" cellspacing="0">
+<tr><td style="padding:0 0 12px;"><span style="font-size:12px;font-weight:700;color:#0066cc;letter-spacing:2px;">TOP MARKETS</span></td></tr>
+{market_rows}
+</table>
+
+<!-- Spacer -->
+<table width="100%" cellpadding="0" cellspacing="0"><tr><td style="padding:20px 0 0;"></td></tr></table>
+
+<!-- Arbitrage -->
+<table width="100%" cellpadding="0" cellspacing="0">
+<tr><td style="padding:0 0 12px;"><span style="font-size:12px;font-weight:700;color:#997a00;letter-spacing:2px;">ARBITRAGE</span></td></tr>
+{arb_rows}
+</table>
+
+<!-- Spacer -->
+<table width="100%" cellpadding="0" cellspacing="0"><tr><td style="padding:20px 0 0;"></td></tr></table>
+
+<!-- Highest Conviction -->
+<table width="100%" cellpadding="0" cellspacing="0">
+<tr><td style="padding:0 0 12px;"><span style="font-size:12px;font-weight:700;color:#00875a;letter-spacing:2px;">HIGHEST CONVICTION</span></td></tr>
+{mover_rows}
+</table>
+
+<!-- CTA -->
+<table width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding:28px 0 8px;">
+<table cellpadding="0" cellspacing="0"><tr><td bgcolor="#0066cc" style="padding:12px 32px;">
+<a href="{SITE}" style="color:#fff;text-decoration:none;font-size:14px;font-weight:700;">Open PULSE &#8594;</a>
+</td></tr></table>
+</td></tr></table>
+
+</td></tr>
+
+<!-- Footer -->
+<tr><td style="padding:20px 0;text-align:center;">
+<span style="font-size:11px;color:#888;">You subscribed to PULSE Market Digest.</span><br>
+<a href="{SITE}" style="font-size:11px;color:#0066cc;">Unsubscribe</a>
 </td></tr>
 
 </table>
@@ -556,149 +632,6 @@ async def generate_newsletter():
 </body></html>"""
 
     return HTMLResponse(content=html)
-
-
-def _generate_newsletter_png(kalshi, poly, all_markets, arbitrage, top_markets, movers):
-    """Generate the newsletter body as a pixel-perfect PNG."""
-    from PIL import Image, ImageDraw, ImageFont
-    import math
-
-    W = 600
-    BG = (10, 10, 20)
-    CARD_BG = (18, 18, 30)
-    BLUE = (0, 136, 255)
-    DARK_BLUE = (0, 51, 102)
-    GREEN = (0, 180, 100)
-    RED = (200, 40, 60)
-    AMBER = (200, 150, 0)
-    WHITE = (255, 255, 255)
-    DIM = (120, 120, 140)
-    TEXT_COLOR = (220, 220, 230)
-
-    import platform
-    def _load_font(names, size):
-        """Try multiple font paths for cross-platform support."""
-        dirs = ["C:/Windows/Fonts/", "/usr/share/fonts/truetype/dejavu/", "/usr/share/fonts/", ""]
-        for d in dirs:
-            for n in names:
-                try:
-                    return ImageFont.truetype(d + n, size)
-                except (OSError, IOError):
-                    continue
-        return ImageFont.load_default()
-
-    title_font = _load_font(["Montserrat-Regular.ttf", "DejaVuSans.ttf", "arial.ttf"], 22)
-    heading_font = _load_font(["segoeuib.ttf", "DejaVuSans-Bold.ttf", "arialbd.ttf"], 11)
-    body_font = _load_font(["segoeui.ttf", "DejaVuSans.ttf", "arial.ttf"], 14)
-    body_bold = _load_font(["segoeuib.ttf", "DejaVuSans-Bold.ttf", "arialbd.ttf"], 14)
-    small_font = _load_font(["segoeui.ttf", "DejaVuSans.ttf", "arial.ttf"], 11)
-    big_num = _load_font(["segoeuib.ttf", "DejaVuSans-Bold.ttf", "arialbd.ttf"], 26)
-    price_font = _load_font(["segoeuib.ttf", "DejaVuSans-Bold.ttf", "arialbd.ttf"], 20)
-    badge_font = _load_font(["segoeuib.ttf", "DejaVuSans-Bold.ttf", "arialbd.ttf"], 10)
-
-    # Calculate height
-    H = 100 + 60 + 30 + len(top_markets) * 80 + 30 + max(len(arbitrage[:3]), 1) * 50 + 30 + len(movers) * 45 + 20
-
-    img = Image.new("RGB", (W, H), BG)
-    draw = ImageDraw.Draw(img)
-    y = 0
-
-    # Header
-    draw.rectangle([0, y, W, y + 100], fill=DARK_BLUE)
-    ekg_pts = []
-    for x in range(40, 75): ekg_pts.append((x, y + 50))
-    for x in range(75, 90):
-        t = (x - 75) / 15
-        if t < 0.3: ey = y + 50 - t / 0.3 * 25
-        elif t < 0.6: ey = y + 25 + (t - 0.3) / 0.3 * 45
-        else: ey = y + 70 - (t - 0.6) / 0.4 * 30
-        ekg_pts.append((x, int(ey)))
-    for x in range(90, 110):
-        ey = y + 50 - 8 * math.sin((x - 90) / 20 * math.pi)
-        ekg_pts.append((x, int(ey)))
-    for x in range(110, 140): ekg_pts.append((x, y + 50))
-    for i in range(len(ekg_pts) - 1):
-        draw.line([ekg_pts[i], ekg_pts[i + 1]], fill=(0, 200, 255), width=2)
-
-    draw.text((150, y + 30), "PULSE", fill=WHITE, font=title_font)
-    draw.text((150, y + 58), "Weekly Market Digest", fill=(136, 187, 221), font=body_font)
-    date_str = datetime.now().strftime("%B %d, %Y")
-    draw.text((150, y + 78), f"{date_str} \u00b7 {len(all_markets)} markets", fill=DIM, font=small_font)
-    y += 100
-
-    # Stats bar
-    draw.rectangle([0, y, W, y + 60], fill=(0, 34, 68))
-    thirds = W // 3
-    for i, (num, label) in enumerate([(len(kalshi), "KALSHI"), (len(poly), "POLYMARKET"), (len(arbitrage), "ARBITRAGE")]):
-        cx = i * thirds + thirds // 2
-        tw = draw.textlength(str(num), font=big_num)
-        draw.text((cx - tw / 2, y + 8), str(num), fill=WHITE, font=big_num)
-        tw2 = draw.textlength(label, font=badge_font)
-        draw.text((cx - tw2 / 2, y + 40), label, fill=(136, 187, 221), font=badge_font)
-        if i < 2:
-            draw.line([(i + 1) * thirds, y + 10, (i + 1) * thirds, y + 50], fill=(51, 85, 119), width=1)
-    y += 60
-
-    # Top Markets
-    draw.text((24, y + 10), "TOP MARKETS BY VOLUME", fill=BLUE, font=heading_font)
-    y += 30
-    for m in top_markets:
-        draw.rectangle([16, y + 4, W - 16, y + 76], fill=CARD_BG)
-        plat = "KALSHI" if m.get("source") == "kalshi" else "POLY"
-        pc = BLUE if plat == "KALSHI" else (119, 68, 204)
-        draw.text((28, y + 10), plat, fill=pc, font=badge_font)
-        yes = m["yes"]
-        sig = "BUY YES" if yes >= 70 else ("BUY NO" if yes <= 30 else "HOLD")
-        sc = GREEN if yes >= 70 else (RED if yes <= 30 else AMBER)
-        draw.text((28 + draw.textlength(plat, font=badge_font) + 12, y + 10), sig, fill=sc, font=badge_font)
-        q = m["question"][:60] + ("..." if len(m["question"]) > 60 else "")
-        draw.text((28, y + 26), q, fill=TEXT_COLOR, font=body_font)
-        no = 100 - yes
-        draw.text((28, y + 48), f"YES {yes}\u00a2", fill=GREEN if yes >= 50 else RED, font=price_font)
-        draw.text((160, y + 48), f"NO {no}\u00a2", fill=RED if yes >= 50 else GREEN, font=price_font)
-        vol = f"Vol ${m.get('volume', 0):,.0f}" if m.get("volume") else ""
-        if vol:
-            vw = draw.textlength(vol, font=small_font)
-            draw.text((W - 28 - vw, y + 54), vol, fill=DIM, font=small_font)
-        y += 80
-
-    # Arbitrage
-    draw.text((24, y + 10), "CROSS-PLATFORM ARBITRAGE", fill=AMBER, font=heading_font)
-    y += 30
-    if arbitrage:
-        for a in arbitrage[:3]:
-            draw.rectangle([16, y + 4, W - 16, y + 46], fill=CARD_BG)
-            draw.text((28, y + 10), a["topic"], fill=TEXT_COLOR, font=body_bold)
-            draw.text((28, y + 28), f"Kalshi {a['kalshi']['yes']}\u00a2  vs  Poly {a['poly']['yes']}\u00a2", fill=DIM, font=small_font)
-            spread = f"{a['diff']}\u00a2 spread"
-            sw = draw.textlength(spread, font=body_bold)
-            draw.text((W - 28 - sw, y + 16), spread, fill=AMBER, font=body_bold)
-            y += 50
-    else:
-        draw.rectangle([16, y + 4, W - 16, y + 46], fill=CARD_BG)
-        draw.text((28, y + 16), "No arbitrage this week.", fill=DIM, font=small_font)
-        y += 50
-
-    # Highest conviction
-    draw.text((24, y + 10), "HIGHEST CONVICTION", fill=GREEN, font=heading_font)
-    y += 30
-    for m in movers:
-        draw.line([(24, y + 44), (W - 24, y + 44)], fill=(30, 30, 50), width=1)
-        q = m["question"][:45] + ("..." if len(m["question"]) > 45 else "")
-        draw.text((28, y + 8), q, fill=TEXT_COLOR, font=body_font)
-        yes = m["yes"]
-        yc = GREEN if yes >= 70 else (RED if yes <= 30 else DIM)
-        pt = f"{yes}\u00a2"
-        pw = draw.textlength(pt, font=price_font)
-        draw.text((W - 28 - pw, y + 6), pt, fill=yc, font=price_font)
-        sig = "BUY YES" if yes >= 70 else ("BUY NO" if yes <= 30 else "HOLD")
-        sc = GREEN if yes >= 70 else (RED if yes <= 30 else AMBER)
-        sw = draw.textlength(sig, font=badge_font)
-        draw.text((W - 28 - sw, y + 30), sig, fill=sc, font=badge_font)
-        y += 45
-
-    img = img.crop((0, 0, W, y + 10))
-    img.save(os.path.join(static_dir, "newsletter.png"), quality=95)
 
 
 @app.get("/api/newsletter/preview")
