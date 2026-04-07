@@ -246,33 +246,47 @@ async def get_kalshi():
 # ─── POLYMARKET MARKETS ───
 @app.get("/api/polymarket")
 async def get_polymarket():
-    """Fetch live markets from Polymarket."""
+    """Fetch live markets from Polymarket — diverse, no dead markets."""
     try:
         async with httpx.AsyncClient() as client:
-            resp = await client.get(
+            # Fetch by volume (popular) and by recency (fresh)
+            resp1 = await client.get(
                 "https://gamma-api.polymarket.com/markets",
-                params={"closed": "false", "limit": 100},
+                params={"closed": "false", "limit": 60, "order": "volume", "ascending": "false"},
                 timeout=15,
             )
-            data = resp.json()
+            resp2 = await client.get(
+                "https://gamma-api.polymarket.com/markets",
+                params={"closed": "false", "limit": 40, "order": "startDate", "ascending": "false"},
+                timeout=15,
+            )
+            data = resp1.json() + resp2.json()
 
+            seen_tickers = set()
             result = []
             for m in data:
+                ticker = m.get("conditionId", "")
+                if ticker in seen_tickers:
+                    continue
+                seen_tickers.add(ticker)
+
                 yes_price = 50
                 try:
-                    import json
                     outcomes = json.loads(m.get("outcomePrices", "[]"))
                     if outcomes:
                         yes_price = round(float(outcomes[0]) * 100)
                 except Exception:
                     pass
 
-                # Use event slug for URL (market slug doesn't work on polymarket.com)
+                # Skip dead markets (0¢ or 100¢)
+                if yes_price <= 2 or yes_price >= 98:
+                    continue
+
                 events = m.get("events", [])
                 event_slug = events[0].get("slug", "") if events else m.get("slug", m.get("conditionId", ""))
                 result.append({
                     "question": m.get("question", "?"),
-                    "ticker": m.get("conditionId", ""),
+                    "ticker": ticker,
                     "yes": yes_price,
                     "no": 100 - yes_price,
                     "volume": float(m.get("volume", 0)),
@@ -282,7 +296,7 @@ async def get_polymarket():
                 })
 
             result.sort(key=lambda x: x["volume"], reverse=True)
-            return {"markets": result, "count": len(result)}
+            return {"markets": result[:80], "count": min(len(result), 80)}
     except Exception as e:
         return {"markets": [], "error": str(e)}
 
