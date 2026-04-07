@@ -528,9 +528,9 @@ async def generate_newsletter():
     _generate_newsletter_png(kalshi, poly, all_markets, arbitrage, top_markets, movers)
 
     SITE = "https://pulse-api-joed.onrender.com"
-    # For local dev, use localhost
-    IMG_HOST = "" if os.environ.get("PORT") else "http://localhost:8095"
-    IMG_URL = f"{IMG_HOST}/newsletter.png"
+    # Use Render URL for production, localhost for dev
+    is_prod = os.environ.get("PORT")
+    IMG_URL = f"{SITE}/newsletter.png" if is_prod else "http://localhost:8095/newsletter.png"
 
     html = f"""<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"></head>
 <body style="margin:0;padding:0;background-color:#0a0a14;">
@@ -575,15 +575,26 @@ def _generate_newsletter_png(kalshi, poly, all_markets, arbitrage, top_markets, 
     DIM = (120, 120, 140)
     TEXT_COLOR = (220, 220, 230)
 
-    font_dir = "C:/Windows/Fonts/"
-    title_font = ImageFont.truetype(font_dir + "Montserrat-Regular.ttf", 22)
-    heading_font = ImageFont.truetype(font_dir + "segoeuib.ttf", 11)
-    body_font = ImageFont.truetype(font_dir + "segoeui.ttf", 14)
-    body_bold = ImageFont.truetype(font_dir + "segoeuib.ttf", 14)
-    small_font = ImageFont.truetype(font_dir + "segoeui.ttf", 11)
-    big_num = ImageFont.truetype(font_dir + "segoeuib.ttf", 26)
-    price_font = ImageFont.truetype(font_dir + "segoeuib.ttf", 20)
-    badge_font = ImageFont.truetype(font_dir + "segoeuib.ttf", 10)
+    import platform
+    def _load_font(names, size):
+        """Try multiple font paths for cross-platform support."""
+        dirs = ["C:/Windows/Fonts/", "/usr/share/fonts/truetype/dejavu/", "/usr/share/fonts/", ""]
+        for d in dirs:
+            for n in names:
+                try:
+                    return ImageFont.truetype(d + n, size)
+                except (OSError, IOError):
+                    continue
+        return ImageFont.load_default()
+
+    title_font = _load_font(["Montserrat-Regular.ttf", "DejaVuSans.ttf", "arial.ttf"], 22)
+    heading_font = _load_font(["segoeuib.ttf", "DejaVuSans-Bold.ttf", "arialbd.ttf"], 11)
+    body_font = _load_font(["segoeui.ttf", "DejaVuSans.ttf", "arial.ttf"], 14)
+    body_bold = _load_font(["segoeuib.ttf", "DejaVuSans-Bold.ttf", "arialbd.ttf"], 14)
+    small_font = _load_font(["segoeui.ttf", "DejaVuSans.ttf", "arial.ttf"], 11)
+    big_num = _load_font(["segoeuib.ttf", "DejaVuSans-Bold.ttf", "arialbd.ttf"], 26)
+    price_font = _load_font(["segoeuib.ttf", "DejaVuSans-Bold.ttf", "arialbd.ttf"], 20)
+    badge_font = _load_font(["segoeuib.ttf", "DejaVuSans-Bold.ttf", "arialbd.ttf"], 10)
 
     # Calculate height
     H = 100 + 60 + 30 + len(top_markets) * 80 + 30 + max(len(arbitrage[:3]), 1) * 50 + 30 + len(movers) * 45 + 20
