@@ -13,15 +13,17 @@ const API_BASE = window.location.hostname === 'localhost' || window.location.hos
 
 // ── AFFILIATE LINKS ──
 const AFFILIATE = {
-    kalshi: { base: 'https://kalshi.com/markets/', param: '?utm_source=pulse&utm_medium=referral' },
+    kalshi: { base: 'https://kalshi.com/markets/', param: '?referral=9b5a413c-b37a-47a3-bbb3-f96c9286719f' },
     poly:   { base: 'https://polymarket.com/event/', param: '?utm_source=pulse&utm_medium=referral' },
 };
 function getAffiliateUrl(market) {
-    if (market.url && market.url !== '#') {
-        const sep = market.url.includes('?') ? '&' : '?';
-        return market.url + sep + 'utm_source=pulse&utm_medium=referral';
+    if (market.source === 'kalshi') {
+        // Always use Kalshi referral link for Kalshi markets
+        const base = market.url && market.url !== '#' ? market.url : AFFILIATE.kalshi.base + (market.ticker || '');
+        const sep = base.includes('?') ? '&' : '?';
+        return base + sep + 'referral=9b5a413c-b37a-47a3-bbb3-f96c9286719f';
     }
-    if (market.source === 'kalshi') return AFFILIATE.kalshi.base + (market.ticker || '') + AFFILIATE.kalshi.param;
+    if (market.url && market.url !== '#') return market.url;
     return AFFILIATE.poly.base + (market.ticker || '') + AFFILIATE.poly.param;
 }
 function trackAffiliateClick(platform) {

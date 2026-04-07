@@ -1070,6 +1070,29 @@ async def autopilot_config():
     }
 
 
+# ─── AUTOMATED AUTOPILOT SCANNER ───
+
+import asyncio
+
+async def autopilot_loop():
+    """Run autopilot scan every 5 minutes in the background."""
+    await asyncio.sleep(30)  # Wait for server to fully start
+    while True:
+        try:
+            await autopilot_scan()
+        except Exception as e:
+            print(f"Autopilot scan error: {e}")
+        await asyncio.sleep(300)  # 5 minutes
+
+
+@app.on_event("startup")
+async def start_autopilot():
+    """Start the autopilot scanner on server boot."""
+    if os.environ.get("PORT"):  # Only in production
+        asyncio.create_task(autopilot_loop())
+        print("Autopilot scanner started (every 5 min)")
+
+
 if __name__ == "__main__":
     import uvicorn
     port = int(os.environ.get("PORT", 8095))

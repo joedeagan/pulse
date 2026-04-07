@@ -68,6 +68,43 @@
 </head>
 <body>
 
+    <!-- Landing Page -->
+    <section id="landing" class="landing" style="display:none;">
+    <script>if(!localStorage.getItem('pulse-seen-landing'))document.getElementById('landing').style.display='flex';</script>
+        <div class="landing-content">
+            <div class="landing-badge">CROSS-PLATFORM PREDICTION MARKET ANALYTICS</div>
+            <h1 class="landing-title">PULSE</h1>
+            <p class="landing-subtitle">Trading. Logically.</p>
+            <p class="landing-desc">Real-time odds from Kalshi & Polymarket. AI-powered Pulse Scores tell you what to trade and when. Arbitrage detection finds price gaps across platforms. All in one dashboard.</p>
+
+            <div class="landing-features">
+                <div class="landing-feature">
+                    <span class="landing-feature-icon">📊</span>
+                    <span class="landing-feature-title">Pulse Score</span>
+                    <span class="landing-feature-desc">5-factor AI scoring (0-99) on every market with BUY/SELL signals</span>
+                </div>
+                <div class="landing-feature">
+                    <span class="landing-feature-icon">🔀</span>
+                    <span class="landing-feature-title">Cross-Platform</span>
+                    <span class="landing-feature-desc">See Kalshi & Polymarket side by side — spot arbitrage instantly</span>
+                </div>
+                <div class="landing-feature">
+                    <span class="landing-feature-icon">⚡</span>
+                    <span class="landing-feature-title">Autopilot Alerts</span>
+                    <span class="landing-feature-desc">Get notified when markets move — price spikes, momentum, arbitrage</span>
+                </div>
+                <div class="landing-feature">
+                    <span class="landing-feature-icon">🏆</span>
+                    <span class="landing-feature-title">Leagues</span>
+                    <span class="landing-feature-desc">Compete weekly with paper trades — climb the leaderboard</span>
+                </div>
+            </div>
+
+            <button class="landing-cta" onclick="document.getElementById('landing').style.display='none';localStorage.setItem('pulse-seen-landing','1');">Open Dashboard</button>
+            <p class="landing-note">Free forever. No signup required.</p>
+        </div>
+    </section>
+
     <!-- Daily Recap Banner -->
     <div id="recap-banner" class="recap-banner" style="display:none;"></div>
 
