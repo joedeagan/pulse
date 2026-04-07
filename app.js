@@ -3312,79 +3312,93 @@ loadPortfolio = function() {
 
 // ── SHARE POPUP (Feature 2) ──
 function generatePickCard(market) {
+    const scale = 2; // 2x for retina/high-DPI
+    const W = 600, H = 360;
     const canvas = document.createElement('canvas');
-    canvas.width = 600; canvas.height = 340;
+    canvas.width = W * scale; canvas.height = H * scale;
+    canvas.style.width = W + 'px'; canvas.style.height = H + 'px';
     const ctx = canvas.getContext('2d');
+    ctx.scale(scale, scale);
 
-    // Background gradient
-    const grad = ctx.createLinearGradient(0, 0, 600, 340);
-    grad.addColorStop(0, '#07070e'); grad.addColorStop(1, '#141428');
-    ctx.fillStyle = grad; roundRect(ctx, 0, 0, 600, 340, 16, true);
+    // Background
+    const grad = ctx.createLinearGradient(0, 0, W, H);
+    grad.addColorStop(0, '#0a0a14'); grad.addColorStop(1, '#12121f');
+    ctx.fillStyle = grad; roundRect(ctx, 0, 0, W, H, 20, true);
 
-    // Border
-    ctx.strokeStyle = 'rgba(255,255,255,0.08)'; ctx.lineWidth = 1;
-    roundRect(ctx, 0.5, 0.5, 599, 339, 16, false, true);
+    // Subtle border
+    ctx.strokeStyle = 'rgba(255,255,255,0.06)'; ctx.lineWidth = 1;
+    roundRect(ctx, 0.5, 0.5, W - 1, H - 1, 20, false, true);
+
+    // Top accent line
+    ctx.strokeStyle = '#0088ff'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(24, 2); ctx.lineTo(W - 24, 2); ctx.stroke();
 
     // "PULSE" header
-    ctx.fillStyle = '#5a5a6e'; ctx.font = '700 10px system-ui'; ctx.letterSpacing = '3px';
-    ctx.fillText('PULSE', 24, 32);
+    ctx.fillStyle = '#0088ff'; ctx.font = '800 11px system-ui';
+    ctx.fillText('PULSE', 28, 34);
 
     // Platform badge
     const plat = market.source === 'kalshi' ? 'KALSHI' : 'POLYMARKET';
     const platColor = market.source === 'kalshi' ? '#0088ff' : '#8b5cf6';
-    ctx.fillStyle = platColor + '20'; roundRect(ctx, 530 - plat.length * 4, 18, plat.length * 8 + 16, 20, 4, true);
-    ctx.fillStyle = platColor; ctx.font = '700 9px system-ui';
-    ctx.fillText(plat, 538 - plat.length * 4, 32);
+    ctx.fillStyle = platColor; ctx.font = '700 10px system-ui';
+    const platW = ctx.measureText(plat).width;
+    ctx.fillStyle = platColor + '18'; roundRect(ctx, W - 28 - platW - 16, 20, platW + 16, 22, 6, true);
+    ctx.fillStyle = platColor; ctx.fillText(plat, W - 28 - platW - 8, 35);
 
     // Market question (word wrap)
-    ctx.fillStyle = '#e8e8ed'; ctx.font = '600 17px system-ui';
+    ctx.fillStyle = '#eaeaef'; ctx.font = '600 18px system-ui';
     const words = (market.question || '').split(' ');
-    let line = '', y = 68;
+    let line = '', y = 72;
     for (const w of words) {
         const test = line ? line + ' ' + w : w;
-        if (ctx.measureText(test).width > 552) { ctx.fillText(line, 24, y); y += 24; line = w; }
+        if (ctx.measureText(test).width > W - 56) { ctx.fillText(line, 28, y); y += 26; line = w; }
         else line = test;
     }
-    if (line) ctx.fillText(line, 24, y);
+    if (line) ctx.fillText(line, 28, y);
 
     // Prices
-    const priceY = y + 40;
-    ctx.font = '700 28px system-ui';
+    const priceY = y + 48;
+    ctx.font = '700 32px system-ui';
     ctx.fillStyle = market.yes >= 50 ? '#00d68f' : '#8b8b99';
-    ctx.fillText(`YES ${market.yes}¢`, 24, priceY);
+    ctx.fillText(`YES ${market.yes}¢`, 28, priceY);
+    const noX = ctx.measureText(`YES ${market.yes}¢`).width + 48;
     ctx.fillStyle = market.no >= 50 ? '#ff3b5c' : '#8b8b99';
-    ctx.fillText(`NO ${market.no}¢`, 200, priceY);
+    ctx.fillText(`NO ${market.no}¢`, noX, priceY);
 
     // Pulse Score circle
     const ps = calcPulseScore(market, getMarketChange(market.ticker));
     const psColor = ps >= 67 ? '#00d68f' : ps >= 34 ? '#f0b000' : '#ff3b5c';
-    const cx = 520, cy = priceY + 20;
-    ctx.beginPath(); ctx.arc(cx, cy, 32, 0, Math.PI * 2);
+    const scoreX = W - 60, scoreY = priceY - 8;
+    ctx.beginPath(); ctx.arc(scoreX, scoreY, 36, 0, Math.PI * 2);
     ctx.strokeStyle = psColor; ctx.lineWidth = 3; ctx.stroke();
-    ctx.fillStyle = psColor; ctx.font = '800 24px system-ui'; ctx.textAlign = 'center';
-    ctx.fillText(ps, cx, cy + 8);
-    ctx.fillStyle = '#5a5a6e'; ctx.font = '700 8px system-ui';
-    ctx.fillText('PULSE', cx, cy + 22);
+    ctx.fillStyle = psColor; ctx.font = '800 28px system-ui'; ctx.textAlign = 'center';
+    ctx.fillText(ps, scoreX, scoreY + 10);
+    ctx.fillStyle = '#55556a'; ctx.font = '700 9px system-ui';
+    ctx.fillText('PULSE', scoreX, scoreY + 26);
     ctx.textAlign = 'left';
 
     // Signal badge
     const sig = getPulseSignal(market.ticker);
-    const sigY = priceY + 30;
-    let sigCol = '#f0b000', sigBg = 'rgba(240,176,0,0.15)';
-    if (sig.signal.includes('YES')) { sigCol = '#00d68f'; sigBg = 'rgba(0,214,143,0.15)'; }
-    else if (sig.signal.includes('NO')) { sigCol = '#ff3b5c'; sigBg = 'rgba(255,59,92,0.15)'; }
-    ctx.fillStyle = sigBg; roundRect(ctx, 24, sigY, ctx.measureText(sig.signal).width + 24, 26, 6, true);
-    ctx.fillStyle = sigCol; ctx.font = '700 12px system-ui';
-    ctx.fillText(sig.signal, 36, sigY + 17);
+    const sigY = priceY + 24;
+    let sigCol = '#f0b000';
+    if (sig.signal.includes('YES')) sigCol = '#00d68f';
+    else if (sig.signal.includes('NO')) sigCol = '#ff3b5c';
+    ctx.font = '700 14px system-ui';
+    const sigW = ctx.measureText(sig.signal).width;
+    ctx.fillStyle = sigCol + '18'; roundRect(ctx, 28, sigY, sigW + 24, 30, 8, true);
+    ctx.fillStyle = sigCol;
+    ctx.fillText(sig.signal, 40, sigY + 21);
+
+    // Divider
+    ctx.strokeStyle = 'rgba(255,255,255,0.06)'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(28, H - 44); ctx.lineTo(W - 28, H - 44); ctx.stroke();
 
     // Footer
-    ctx.fillStyle = '#3a3a4e'; ctx.font = '400 11px system-ui';
-    ctx.fillText('pulse-api-joed.onrender.com', 24, 322);
-    ctx.fillText(new Date().toLocaleDateString(), 480, 322);
-
-    // Divider line
-    ctx.strokeStyle = 'rgba(255,255,255,0.06)'; ctx.lineWidth = 1;
-    ctx.beginPath(); ctx.moveTo(24, 300); ctx.lineTo(576, 300); ctx.stroke();
+    ctx.fillStyle = '#55556a'; ctx.font = '500 12px system-ui';
+    ctx.fillText('pulse-api-joed.onrender.com', 28, H - 18);
+    ctx.textAlign = 'right';
+    ctx.fillText(new Date().toLocaleDateString(), W - 28, H - 18);
+    ctx.textAlign = 'left';
 
     return canvas;
 }
