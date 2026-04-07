@@ -153,7 +153,7 @@ async def get_kalshi():
             # Fetch events — the clean parent questions
             resp = await client.get(
                 "https://api.elections.kalshi.com/trade-api/v2/events",
-                params={"limit": 40, "status": "open"},
+                params={"limit": 100, "status": "open"},
                 timeout=15,
             )
             events = resp.json().get("events", [])
@@ -234,12 +234,11 @@ async def get_kalshi():
                         "url": f"https://kalshi.com/markets/{series_ticker}/{event_ticker}",
                     })
 
-                if len(result) >= 30:
+                if len(result) >= 80:
                     break
 
-            # Keep all Kalshi markets (most have low volume but are still active)
             result.sort(key=lambda x: x["volume"], reverse=True)
-            return {"markets": result[:30], "count": min(len(result), 30)}
+            return {"markets": result[:80], "count": min(len(result), 80)}
     except Exception as e:
         return {"markets": [], "error": str(e)}
 

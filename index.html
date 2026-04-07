@@ -100,10 +100,42 @@
                 </div>
             </div>
 
-            <button class="landing-cta" onclick="document.getElementById('landing').style.display='none';localStorage.setItem('pulse-seen-landing','1');">Open Dashboard</button>
+            <button class="landing-cta" onclick="requestPushAndEnter()">Open Dashboard</button>
             <p class="landing-note">Free forever. No signup required.</p>
+            <script>
+            function requestPushAndEnter() {
+                localStorage.setItem('pulse-seen-landing','1');
+                // Show notification permission overlay
+                if ('Notification' in window && Notification.permission === 'default') {
+                    document.getElementById('push-overlay').style.display = 'flex';
+                } else {
+                    document.getElementById('landing').style.display = 'none';
+                }
+            }
+            function allowPush() {
+                Notification.requestPermission().then(() => {
+                    document.getElementById('push-overlay').style.display = 'none';
+                    document.getElementById('landing').style.display = 'none';
+                });
+            }
+            function skipPush() {
+                document.getElementById('push-overlay').style.display = 'none';
+                document.getElementById('landing').style.display = 'none';
+            }
+            </script>
         </div>
     </section>
+
+    <!-- Push Notification Overlay -->
+    <div id="push-overlay" class="push-overlay" style="display:none;">
+        <div class="push-overlay-content">
+            <div style="font-size:48px;margin-bottom:16px;">🔔</div>
+            <h2 style="font-size:22px;font-weight:700;color:var(--text);margin-bottom:8px;">Never Miss a Trade</h2>
+            <p style="font-size:14px;color:var(--text-mid);margin-bottom:24px;line-height:1.5;">Get real-time alerts when markets move — price spikes, arbitrage opportunities, and momentum breakouts sent directly to your browser.</p>
+            <button class="landing-cta" onclick="allowPush()" style="width:100%;margin-bottom:10px;">Enable Notifications</button>
+            <button onclick="skipPush()" style="background:none;border:none;color:var(--text-dim);font-size:13px;cursor:pointer;">Maybe later</button>
+        </div>
+    </div>
 
     <!-- Daily Recap Banner -->
     <div id="recap-banner" class="recap-banner" style="display:none;"></div>

@@ -2794,6 +2794,25 @@ body.light .buy-no:hover { background: #e53e3e; color: #fff; }
     .league-stats-row { grid-template-columns: repeat(2, 1fr); }
 }
 
+/* ── PUSH NOTIFICATION OVERLAY ── */
+.push-overlay {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: var(--bg);
+    z-index: 20001;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.push-overlay-content {
+    max-width: 400px;
+    padding: 48px 32px;
+    text-align: center;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+}
+
 /* ── PULSE AUTOPILOT ── */
 .autopilot-panel {
     position: fixed;
