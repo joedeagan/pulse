@@ -861,6 +861,215 @@ async def check_pro(email: str = ""):
     return {"pro": email.lower() in [p.lower() for p in pros]}
 
 
+# ─── PULSE AUTOPILOT (Smart Alerts Scanner) ───
+
+ONESIGNAL_APP_ID = os.environ.get("ONESIGNAL_APP_ID", "")
+ONESIGNAL_API_KEY = os.environ.get("ONESIGNAL_API_KEY", "")
+ALERTS_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "alerts_history.json")
+SNAPSHOTS_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "market_snapshots.json")
+
+
+def load_snapshots():
+    try:
+        with open(SNAPSHOTS_FILE, "r") as f:
+            return json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError):
+        return {}
+
+
+def save_snapshots(data):
+    with open(SNAPSHOTS_FILE, "w") as f:
+        json.dump(data, f)
+
+
+def load_alerts_history():
+    try:
+        with open(ALERTS_FILE, "r") as f:
+            return json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError):
+        return []
+
+
+def save_alerts_history(alerts):
+    # Keep last 200 alerts
+    with open(ALERTS_FILE, "w") as f:
+        json.dump(alerts[-200:], f)
+
+
+async def send_push(title, message, url="https://pulse-api-joed.onrender.com", segment="Pro Users"):
+    """Send push notification via OneSignal."""
+    if not ONESIGNAL_APP_ID or not ONESIGNAL_API_KEY:
+        return False
+    try:
+        async with httpx.AsyncClient() as client:
+            resp = await client.post(
+                "https://onesignal.com/api/v1/notifications",
+                headers={
+                    "Authorization": f"Basic {ONESIGNAL_API_KEY}",
+                    "Content-Type": "application/json",
+                },
+                json={
+                    "app_id": ONESIGNAL_APP_ID,
+                    "included_segments": [segment],
+                    "headings": {"en": title},
+                    "contents": {"en": message},
+                    "url": url,
+                    "chrome_web_badge": "https://pulse-api-joed.onrender.com/icon-192.png",
+                },
+                timeout=10,
+            )
+            return resp.status_code == 200
+    except Exception:
+        return False
+
+
+@app.get("/api/autopilot/scan")
+async def autopilot_scan():
+    """Scan markets for trade opportunities. Returns alerts and optionally pushes to Pro users."""
+    markets_data = await get_all_markets()
+    kalshi = markets_data.get("kalshi", [])
+    poly = markets_data.get("polymarket", [])
+    arb = markets_data.get("arbitrage", [])
+    all_markets = kalshi + poly
+
+    prev_snapshots = load_snapshots()
+    alerts = []
+    now = datetime.now(timezone.utc).isoformat()
+
+    for m in all_markets:
+        ticker = m.get("ticker", "")
+        yes = m.get("yes", 50)
+        vol = m.get("volume", 0)
+        question = m.get("question", "")
+        source = m.get("source", "")
+        url = m.get("url", "https://pulse-api-joed.onrender.com")
+
+        prev = prev_snapshots.get(ticker, {})
+        prev_yes = prev.get("yes", yes)
+        prev_vol = prev.get("volume", vol)
+
+        price_change = yes - prev_yes
+
+        # ── ALERT: Big price move (5¢+) ──
+        if abs(price_change) >= 5 and prev_yes > 0:
+            direction = "surged" if price_change > 0 else "dropped"
+            alerts.append({
+                "type": "price_move",
+                "severity": "high" if abs(price_change) >= 10 else "medium",
+                "title": f"Price {direction} {abs(price_change)}¢",
+                "message": f"{question[:50]} — YES moved from {prev_yes}¢ to {yes}¢",
+                "ticker": ticker,
+                "source": source,
+                "url": url,
+                "price_change": price_change,
+                "timestamp": now,
+            })
+
+        # ── ALERT: Momentum breakout (high vol + price move) ──
+        if abs(price_change) >= 3 and vol > 100000:
+            side = "YES" if price_change > 0 else "NO"
+            alerts.append({
+                "type": "momentum",
+                "severity": "high",
+                "title": f"Momentum: BUY {side}",
+                "message": f"{question[:50]} — {side} at {yes}¢, high volume ${vol:,.0f}",
+                "ticker": ticker,
+                "source": source,
+                "url": url,
+                "timestamp": now,
+            })
+
+        # ── ALERT: Score spike (price near 25¢ or 75¢ = high confidence zone) ──
+        if (20 <= yes <= 30 or 70 <= yes <= 80) and vol > 50000:
+            side = "YES" if yes >= 70 else "NO"
+            alerts.append({
+                "type": "score_spike",
+                "severity": "medium",
+                "title": f"High confidence: BUY {side}",
+                "message": f"{question[:50]} — {side} at {yes}¢ with strong volume",
+                "ticker": ticker,
+                "source": source,
+                "url": url,
+                "timestamp": now,
+            })
+
+    # ── ALERT: Arbitrage opportunities ──
+    for a in arb:
+        if a.get("diff", 0) >= 5:
+            alerts.append({
+                "type": "arbitrage",
+                "severity": "high",
+                "title": f"Arbitrage: {a['diff']}¢ spread",
+                "message": f"{a['topic']} — Kalshi {a['kalshi']['yes']}¢ vs Poly {a['poly']['yes']}¢. {a['direction']}",
+                "ticker": a.get("topic", ""),
+                "url": "https://pulse-api-joed.onrender.com",
+                "timestamp": now,
+            })
+
+    # Deduplicate by ticker+type (don't spam same alert)
+    seen = set()
+    unique_alerts = []
+    for a in alerts:
+        key = f"{a['ticker']}:{a['type']}"
+        if key not in seen:
+            seen.add(key)
+            unique_alerts.append(a)
+    alerts = unique_alerts
+
+    # Save current snapshots for next comparison
+    new_snapshots = {}
+    for m in all_markets:
+        new_snapshots[m.get("ticker", "")] = {
+            "yes": m.get("yes", 50),
+            "volume": m.get("volume", 0),
+            "question": m.get("question", ""),
+        }
+    save_snapshots(new_snapshots)
+
+    # Save alerts to history
+    history = load_alerts_history()
+    history.extend(alerts)
+    save_alerts_history(history)
+
+    # Send top alert as push notification (only the highest severity one)
+    push_sent = False
+    high_alerts = [a for a in alerts if a["severity"] == "high"]
+    if high_alerts:
+        top = high_alerts[0]
+        push_sent = await send_push(
+            title=top["title"],
+            message=top["message"],
+            url=top.get("url", "https://pulse-api-joed.onrender.com"),
+        )
+
+    return {
+        "alerts": alerts,
+        "alert_count": len(alerts),
+        "push_sent": push_sent,
+        "scanned_markets": len(all_markets),
+        "timestamp": now,
+    }
+
+
+@app.get("/api/autopilot/alerts")
+async def get_alerts(limit: int = 20):
+    """Get recent alert history."""
+    history = load_alerts_history()
+    return {
+        "alerts": history[-limit:][::-1],  # Most recent first
+        "total": len(history),
+    }
+
+
+@app.get("/api/autopilot/config")
+async def autopilot_config():
+    """Get OneSignal config for frontend."""
+    return {
+        "onesignal_app_id": ONESIGNAL_APP_ID,
+        "push_enabled": bool(ONESIGNAL_APP_ID),
+    }
+
+
 if __name__ == "__main__":
     import uvicorn
     port = int(os.environ.get("PORT", 8095))

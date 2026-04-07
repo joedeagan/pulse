@@ -2686,6 +2686,44 @@ body.light .buy-no:hover { background: #e53e3e; color: #fff; }
     .league-stats-row { grid-template-columns: repeat(2, 1fr); }
 }
 
+/* ── PULSE AUTOPILOT ── */
+.autopilot-panel {
+    position: fixed;
+    top: 60px;
+    right: 16px;
+    width: 360px;
+    max-height: 80vh;
+    background: var(--bg-card);
+    border: 1px solid var(--accent);
+    border-radius: 14px;
+    z-index: 9999;
+    overflow: hidden;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+    display: flex;
+    flex-direction: column;
+}
+.autopilot-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--border);
+}
+.autopilot-alerts {
+    overflow-y: auto;
+    max-height: 50vh;
+    padding: 8px;
+}
+.autopilot-alert {
+    padding: 10px 12px;
+    margin-bottom: 6px;
+    background: rgba(255,255,255,0.02);
+    border-radius: 8px;
+}
+@media (max-width: 600px) {
+    .autopilot-panel { right: 8px; left: 8px; width: auto; top: 50px; }
+}
+
 /* ── PULSE PRO MODAL ── */
 .pro-modal {
     position: fixed;

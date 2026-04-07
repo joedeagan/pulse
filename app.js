@@ -2479,6 +2479,7 @@ function updateNotifLabel() {
 }
 
 async function toggleNotifications() {
+    if (!isPro()) { showProUpsell('Push Notifications'); return; }
     if (!notificationsEnabled) {
         // Request permission
         if (!('Notification' in window)) {
@@ -2859,9 +2860,10 @@ function makeTrendingCard(m, value, type) {
 }
 
 // ── AUTO REFRESH with countdown ──
-let refreshCountdown = 120;
-refreshInterval1 = setInterval(loadMarkets, 120000);
-refreshInterval2 = setInterval(loadBot, 120000);
+const refreshMs = isPro() ? 30000 : 120000;
+let refreshCountdown = isPro() ? 30 : 120;
+refreshInterval1 = setInterval(loadMarkets, refreshMs);
+refreshInterval2 = setInterval(loadBot, refreshMs);
 setInterval(() => {
     refreshCountdown--;
     if (refreshCountdown <= 0) refreshCountdown = 120;
@@ -2883,6 +2885,7 @@ function savePriceAlerts(alerts) {
 
 function setPriceAlert() {
     if (!currentDetailMarket) return;
+    if (!isPro()) { showProUpsell('Custom Price Alerts'); return; }
     const direction = document.getElementById('alert-direction').value;
     const threshold = parseInt(document.getElementById('alert-threshold').value);
     if (!threshold || threshold < 1 || threshold > 99) { alert('Enter a threshold between 1-99¢'); return; }
@@ -4145,6 +4148,24 @@ function isPro() {
     return localStorage.getItem('pulse-pro') === 'true';
 }
 
+function exportSignalHistory() {
+    if (!isPro()) { showProUpsell('Signal History Export'); return; }
+    const snapshots = JSON.parse(localStorage.getItem('pulse-snapshots') || '{}');
+    let csv = 'Ticker,Timestamp,Price,Score,Signal\n';
+    for (const [ticker, entries] of Object.entries(snapshots)) {
+        for (const e of entries) {
+            csv += `${ticker},${new Date(e.t).toISOString()},${e.p},${e.s || ''},${e.sig || ''}\n`;
+        }
+    }
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `pulse-signals-${new Date().toISOString().split('T')[0]}.csv`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+    showToast('Signal history exported!');
+}
+
 function showProUpsell(feature) {
     const existing = document.querySelector('.pro-modal');
     if (existing) existing.remove();
@@ -4190,6 +4211,73 @@ if (window.location.search.includes('pro=success')) {
     showToast('Welcome to PULSE Pro!');
     history.replaceState({}, '', '/');
 }
+
+// ── PULSE AUTOPILOT ──
+async function loadAutopilotAlerts() {
+    try {
+        const resp = await fetch((API_BASE || '') + '/api/autopilot/alerts?limit=10');
+        if (!resp.ok) return;
+        const data = await resp.json();
+        window._autopilotAlerts = data.alerts || [];
+    } catch {}
+}
+
+function showAutopilotPanel() {
+    const alerts = window._autopilotAlerts || [];
+    const existing = document.querySelector('.autopilot-panel');
+    if (existing) { existing.remove(); return; }
+
+    const severityColors = { high: '#ff3b5c', medium: '#f0b000', low: '#5a5a6e' };
+    const typeIcons = { price_move: '📈', momentum: '⚡', score_spike: '🎯', arbitrage: '💰' };
+
+    const alertsHtml = alerts.length === 0
+        ? '<p style="color:var(--text-dim);font-size:13px;text-align:center;padding:20px;">No alerts yet. Autopilot scans every 5 minutes.</p>'
+        : alerts.map(a => `
+            <div class="autopilot-alert" style="border-left:3px solid ${severityColors[a.severity] || '#5a5a6e'};">
+                <div style="display:flex;justify-content:space-between;align-items:center;">
+                    <span style="font-size:13px;font-weight:600;color:var(--text);">${typeIcons[a.type] || '📊'} ${a.title}</span>
+                    <span style="font-size:10px;color:var(--text-dim);">${new Date(a.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                </div>
+                <p style="margin:4px 0 0;font-size:12px;color:var(--text-mid);line-height:1.4;">${a.message}</p>
+            </div>
+        `).join('');
+
+    const panel = document.createElement('div');
+    panel.className = 'autopilot-panel';
+    panel.innerHTML = `
+        <div class="autopilot-header">
+            <div>
+                <span style="font-size:10px;letter-spacing:2px;color:var(--accent);font-weight:700;">PULSE AUTOPILOT</span>
+                ${isPro() ? '<span style="font-size:9px;color:#00d68f;margin-left:8px;font-weight:700;">PRO</span>' : '<span style="font-size:9px;color:#f0b000;margin-left:8px;font-weight:700;">FREE (delayed)</span>'}
+            </div>
+            <button onclick="this.closest('.autopilot-panel').remove()" style="background:none;border:none;color:var(--text-dim);font-size:18px;cursor:pointer;">×</button>
+        </div>
+        <div class="autopilot-alerts">${alertsHtml}</div>
+        ${!isPro() ? '<div style="padding:12px;text-align:center;border-top:1px solid var(--border);"><button onclick="showProUpsell(\'Real-time Autopilot Alerts\')" style="background:var(--accent);color:#fff;border:none;border-radius:8px;padding:10px 20px;font-size:12px;font-weight:700;cursor:pointer;">Upgrade for Real-time Alerts</button></div>' : ''}
+        <div style="padding:8px 12px;text-align:center;border-top:1px solid var(--border);">
+            <button onclick="triggerAutopilotScan()" style="background:rgba(0,136,255,0.1);color:var(--accent);border:1px solid rgba(0,136,255,0.2);border-radius:6px;padding:6px 14px;font-size:11px;cursor:pointer;">Scan Now</button>
+        </div>
+    `;
+    document.body.appendChild(panel);
+}
+
+async function triggerAutopilotScan() {
+    showToast('Scanning markets...');
+    try {
+        const resp = await fetch((API_BASE || '') + '/api/autopilot/scan');
+        const data = await resp.json();
+        showToast(`Found ${data.alert_count} alerts across ${data.scanned_markets} markets`);
+        await loadAutopilotAlerts();
+        // Refresh the panel
+        const panel = document.querySelector('.autopilot-panel');
+        if (panel) { panel.remove(); showAutopilotPanel(); }
+    } catch {
+        showToast('Scan failed — try again');
+    }
+}
+
+// Load alerts on page load
+loadAutopilotAlerts();
 
 // ── SERVICE WORKER (PWA) ──
 if ('serviceWorker' in navigator) {
