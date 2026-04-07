@@ -3496,29 +3496,26 @@ async function submitSignup() {
     }
     statusEl.textContent = 'Subscribing...';
     try {
-        const resp = await fetch((API_BASE || '') + '/api/subscribe', {
+        // Subscribe via Beehiiv
+        const resp = await fetch('https://api.beehiiv.com/v2/publications/pub_pulsemarkets/subscriptions', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email }),
+            body: JSON.stringify({ email, utm_source: 'pulse-dashboard' }),
         });
-        const data = await resp.json();
-        if (data.status === 'subscribed') {
-            statusEl.textContent = '✓ Subscribed! You\'ll get the weekly PULSE digest.';
+        if (resp.ok || resp.status === 409) {
+            statusEl.textContent = '✓ Subscribed! Check your email to confirm.';
             statusEl.style.color = '#00d68f';
-        } else if (data.status === 'already_subscribed') {
-            statusEl.textContent = '✓ You\'re already subscribed!';
-            statusEl.style.color = '#f0b000';
         } else {
-            statusEl.textContent = data.error || 'Something went wrong';
+            // Fallback: open Beehiiv subscribe page
+            window.open(`https://pulsemarkets.beehiiv.com/subscribe?email=${encodeURIComponent(email)}`, '_blank');
+            statusEl.textContent = '✓ Redirecting to confirm subscription...';
+            statusEl.style.color = '#00d68f';
         }
         document.getElementById('signup-email').value = '';
     } catch {
-        // Fallback to localStorage if API is down
-        let emails = [];
-        try { emails = JSON.parse(localStorage.getItem('pulse-signups') || '[]'); } catch {}
-        if (!emails.includes(email)) emails.push(email);
-        localStorage.setItem('pulse-signups', JSON.stringify(emails));
-        statusEl.textContent = '✓ Subscribed! Weekly digest coming soon.';
+        // Fallback: open Beehiiv subscribe page directly
+        window.open(`https://pulsemarkets.beehiiv.com/subscribe?email=${encodeURIComponent(email)}`, '_blank');
+        statusEl.textContent = '✓ Redirecting to confirm subscription...';
         statusEl.style.color = '#00d68f';
         document.getElementById('signup-email').value = '';
     }
