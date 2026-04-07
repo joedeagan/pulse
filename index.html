@@ -27,7 +27,29 @@
     <meta name="twitter:description" content="Real-time prediction market analytics. AI-powered Pulse Scores, cross-platform arbitrage, and live odds from Kalshi & Polymarket.">
     <meta name="twitter:image" content="https://pulse-api-joed.onrender.com/og-image.png">
 
-    <link rel="stylesheet" href="style.css?v=12">
+    <!-- JSON-LD Structured Data -->
+    <script type="application/ld+json">
+    {
+        "@context": "https://schema.org",
+        "@type": "WebApplication",
+        "name": "PULSE",
+        "description": "Cross-platform prediction market analytics dashboard. Real-time odds from Kalshi & Polymarket with AI-powered Pulse Scores.",
+        "url": "https://pulse-api-joed.onrender.com",
+        "applicationCategory": "FinanceApplication",
+        "operatingSystem": "Web",
+        "offers": {
+            "@type": "Offer",
+            "price": "0",
+            "priceCurrency": "USD"
+        },
+        "author": {
+            "@type": "Person",
+            "name": "Joe Deagan"
+        }
+    }
+    </script>
+
+    <link rel="stylesheet" href="style.css?v=13">
     <link rel="manifest" href="/manifest.json">
     <link rel="icon" type="image/png" href="/icon-192.png">
     <link rel="apple-touch-icon" href="/icon-192.png">
@@ -477,6 +499,6 @@
         </a>
     </nav>
 
-    <script src="app.js?v=12"></script>
+    <script src="app.js?v=13"></script>
 </body>
 </html>

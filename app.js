@@ -13,14 +13,23 @@ const API_BASE = window.location.hostname === 'localhost' || window.location.hos
 
 // ── AFFILIATE LINKS ──
 const AFFILIATE = {
-    kalshi: { base: 'https://kalshi.com/markets/', param: '' },
-    poly:   { base: 'https://polymarket.com/event/', param: '' },
+    kalshi: { base: 'https://kalshi.com/markets/', param: '?utm_source=pulse&utm_medium=referral' },
+    poly:   { base: 'https://polymarket.com/event/', param: '?utm_source=pulse&utm_medium=referral' },
 };
 function getAffiliateUrl(market) {
-    // Use existing URL if available (backend provides correct slugs)
-    if (market.url && market.url !== '#') return market.url;
+    if (market.url && market.url !== '#') {
+        const sep = market.url.includes('?') ? '&' : '?';
+        return market.url + sep + 'utm_source=pulse&utm_medium=referral';
+    }
     if (market.source === 'kalshi') return AFFILIATE.kalshi.base + (market.ticker || '') + AFFILIATE.kalshi.param;
     return AFFILIATE.poly.base + (market.ticker || '') + AFFILIATE.poly.param;
+}
+function trackAffiliateClick(platform) {
+    const clicks = JSON.parse(localStorage.getItem('pulse-affiliate-clicks') || '{}');
+    clicks[platform] = (clicks[platform] || 0) + 1;
+    clicks.total = (clicks.total || 0) + 1;
+    localStorage.setItem('pulse-affiliate-clicks', JSON.stringify(clicks));
+    fetch((API_BASE || '') + '/api/clicks', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ platform }) }).catch(() => {});
 }
 
 // ── TAB NAVIGATION ──
@@ -278,8 +287,9 @@ function renderMarkets(kalshiMarkets, polyMarkets) {
     checkPriceAlerts(kalshiMarkets, polyMarkets);
     checkArbAlerts(arbitrage);
 
-    // Generate AI market brief
+    // Generate AI market brief + weekly recap
     generateMarketBrief(kalshiMarkets, polyMarkets);
+    loadWeeklyRecap();
 
     // Update filter chip counts
     updateFilterCounts(allMkts);
@@ -556,7 +566,7 @@ function createMarketCard(market, platform, priceChange) {
     tradeBtn.target = '_blank';
     tradeBtn.rel = 'noopener';
     tradeBtn.textContent = `Trade on ${platform === 'kalshi' ? 'Kalshi' : 'Polymarket'} →`;
-    tradeBtn.addEventListener('click', (e) => e.stopPropagation());
+    tradeBtn.addEventListener('click', (e) => { e.stopPropagation(); trackAffiliateClick(platform); });
     card.appendChild(tradeBtn);
 
     const realHistory = getPriceHistory(market.ticker);
@@ -973,6 +983,7 @@ function showArbitrage(opportunities) {
 // and shows a popup with the AI's analysis: should you bet YES or NO?
 
 function analyzeMarket(market) {
+    if (!isPro()) { showProUpsell('AI Market Analysis'); return; }
     const popup = document.getElementById('ai-popup');
     const title = document.getElementById('ai-title');
     const body = document.getElementById('ai-body');
@@ -4073,6 +4084,112 @@ recordPortfolioSnapshot = function() {
     initLeagueWeek();
     recordLeagueSnapshot();
 };
+
+// ── WEEKLY RECAP ──
+async function loadWeeklyRecap() {
+    try {
+        const resp = await fetch((API_BASE || '') + '/api/recap');
+        if (!resp.ok) return;
+        const recap = await resp.json();
+
+        const container = document.getElementById('ai-brief');
+        if (!container) return;
+
+        const interesting = recap.interesting || [];
+        let marketsHtml = interesting.slice(0, 4).map(m => {
+            const sig = m.yes >= 70 ? 'BUY YES' : (m.yes <= 30 ? 'BUY NO' : 'WATCH');
+            const sigColor = m.yes >= 70 ? '#00d68f' : (m.yes <= 30 ? '#ff3b5c' : '#f0b000');
+            const vol = m.volume ? '$' + Math.round(m.volume).toLocaleString() : '';
+            return `<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border);">
+                <span style="font-size:13px;color:var(--text);flex:1;">${shortenTitle(m.question)}</span>
+                <span style="font-size:14px;font-weight:700;color:${sigColor};margin-left:8px;">${m.yes}¢ <span style="font-size:10px;">${sig}</span></span>
+            </div>`;
+        }).join('');
+
+        const cats = recap.categories || {};
+        const catHtml = Object.entries(cats).sort((a, b) => b[1] - a[1]).slice(0, 4)
+            .map(([c, n]) => `<span style="font-size:11px;color:var(--text-dim);margin-right:10px;">${c}: ${n}</span>`).join('');
+
+        container.innerHTML = `
+            <div class="brief-card">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+                    <h3 style="margin:0;font-size:15px;">Weekly Recap — ${recap.date}</h3>
+                    <button onclick="shareRecap()" style="background:rgba(0,136,255,0.1);color:var(--accent);border:1px solid rgba(0,136,255,0.2);border-radius:6px;padding:4px 10px;font-size:11px;cursor:pointer;">Share</button>
+                </div>
+                <div style="display:flex;gap:16px;margin-bottom:14px;flex-wrap:wrap;">
+                    <span style="font-size:12px;color:var(--accent);font-weight:700;">${recap.total_markets} markets</span>
+                    <span style="font-size:12px;color:var(--text-dim);">${recap.kalshi_count} Kalshi</span>
+                    <span style="font-size:12px;color:var(--text-dim);">${recap.poly_count} Polymarket</span>
+                    <span style="font-size:12px;color:#f0b000;">${recap.arbitrage_count} arb opps</span>
+                </div>
+                <div style="margin-bottom:10px;">${marketsHtml}</div>
+                <div style="margin-top:8px;">${catHtml}</div>
+            </div>`;
+
+        // Store recap text for sharing
+        window._recapShareText = recap.share_text;
+    } catch {}
+}
+
+function shareRecap() {
+    const text = window._recapShareText || 'Check out PULSE — cross-platform prediction market analytics\nhttps://pulse-api-joed.onrender.com';
+    if (navigator.share) {
+        navigator.share({ title: 'PULSE Weekly Recap', text }).catch(() => {});
+    } else if (navigator.clipboard) {
+        navigator.clipboard.writeText(text).then(() => showToast('Recap copied!'));
+    }
+}
+
+// ── PULSE PRO ──
+function isPro() {
+    return localStorage.getItem('pulse-pro') === 'true';
+}
+
+function showProUpsell(feature) {
+    const existing = document.querySelector('.pro-modal');
+    if (existing) existing.remove();
+
+    const modal = document.createElement('div');
+    modal.className = 'pro-modal';
+    modal.innerHTML = `
+        <div class="pro-modal-content">
+            <div style="font-size:10px;letter-spacing:3px;color:var(--accent);font-weight:700;margin-bottom:8px;">PULSE PRO</div>
+            <h3 style="margin:0 0 8px;font-size:18px;color:var(--text);">${feature || 'Unlock Premium Features'}</h3>
+            <p style="color:var(--text-dim);font-size:13px;margin:0 0 16px;line-height:1.5;">Get access to AI Analysis, Signal History Export, Custom Push Alerts, and Priority Data Refresh.</p>
+            <div style="font-size:24px;font-weight:800;color:var(--text);margin-bottom:16px;">$9.99<span style="font-size:13px;color:var(--text-dim);font-weight:400;">/month</span></div>
+            <button class="pro-btn" onclick="startProCheckout()">Upgrade to Pro</button>
+            <button onclick="this.closest('.pro-modal').remove()" style="background:none;border:none;color:var(--text-dim);font-size:12px;cursor:pointer;margin-top:10px;">Maybe later</button>
+        </div>
+    `;
+    document.body.appendChild(modal);
+}
+
+async function startProCheckout() {
+    try {
+        const resp = await fetch((API_BASE || '') + '/api/pro/checkout', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({}),
+        });
+        const data = await resp.json();
+        if (data.url) {
+            window.open(data.url, '_blank');
+        } else {
+            showToast(data.error || 'Stripe not configured yet — coming soon!');
+        }
+    } catch {
+        showToast('Pro subscriptions coming soon!');
+    }
+    const modal = document.querySelector('.pro-modal');
+    if (modal) modal.remove();
+}
+
+// Check for pro=success in URL
+if (window.location.search.includes('pro=success')) {
+    localStorage.setItem('pulse-pro', 'true');
+    showToast('Welcome to PULSE Pro!');
+    history.replaceState({}, '', '/');
+}
 
 // ── SERVICE WORKER (PWA) ──
 if ('serviceWorker' in navigator) {

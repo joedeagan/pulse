@@ -2686,6 +2686,41 @@ body.light .buy-no:hover { background: #e53e3e; color: #fff; }
     .league-stats-row { grid-template-columns: repeat(2, 1fr); }
 }
 
+/* ── PULSE PRO MODAL ── */
+.pro-modal {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.7);
+    z-index: 10001;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(6px);
+}
+.pro-modal-content {
+    background: var(--bg-card);
+    border: 1px solid var(--accent);
+    border-radius: 16px;
+    padding: 32px;
+    max-width: 380px;
+    width: 90%;
+    text-align: center;
+}
+.pro-btn {
+    width: 100%;
+    padding: 14px;
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    border-radius: 10px;
+    font-size: 15px;
+    font-weight: 700;
+    font-family: var(--font);
+    cursor: pointer;
+    transition: opacity 0.2s;
+}
+.pro-btn:hover { opacity: 0.9; }
+
 /* ── PULSE AI CHAT WIDGET ── */
 #pulse-chat-btn {
     position: fixed;

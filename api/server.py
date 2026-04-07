@@ -688,6 +688,179 @@ async def send_newsletter():
     }
 
 
+# ─── AFFILIATE CLICK TRACKING ───
+
+CLICKS_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "clicks.json")
+
+
+@app.post("/api/clicks")
+async def track_click(request: Request):
+    body = await request.json()
+    platform = body.get("platform", "unknown")
+    try:
+        with open(CLICKS_FILE, "r") as f:
+            clicks = json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError):
+        clicks = {}
+    clicks[platform] = clicks.get(platform, 0) + 1
+    clicks["total"] = clicks.get("total", 0) + 1
+    with open(CLICKS_FILE, "w") as f:
+        json.dump(clicks, f)
+    return {"status": "tracked"}
+
+
+@app.get("/api/clicks")
+async def get_clicks():
+    try:
+        with open(CLICKS_FILE, "r") as f:
+            return json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError):
+        return {}
+
+
+# ─── SEO: ROBOTS.TXT + SITEMAP ───
+
+@app.get("/robots.txt")
+async def robots():
+    from fastapi.responses import PlainTextResponse
+    return PlainTextResponse(
+        "User-agent: *\nAllow: /\nSitemap: https://pulse-api-joed.onrender.com/sitemap.xml\n"
+    )
+
+
+@app.get("/sitemap.xml")
+async def sitemap():
+    from fastapi.responses import Response
+    xml = f"""<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url><loc>https://pulse-api-joed.onrender.com/</loc><changefreq>hourly</changefreq><priority>1.0</priority></url>
+</urlset>"""
+    return Response(content=xml, media_type="application/xml")
+
+
+# ─── WEEKLY RECAP ───
+
+@app.get("/api/recap")
+async def get_recap():
+    """Generate weekly market recap from current data."""
+    markets_data = await get_all_markets()
+    kalshi = markets_data.get("kalshi", [])
+    poly = markets_data.get("polymarket", [])
+    arb = markets_data.get("arbitrage", [])
+    all_markets = kalshi + poly
+
+    # Top by volume
+    by_volume = sorted(all_markets, key=lambda x: x.get("volume", 0), reverse=True)[:5]
+
+    # Most interesting (not dead markets)
+    interesting = [m for m in all_markets if 5 <= m.get("yes", 50) <= 95]
+    interesting.sort(key=lambda x: x.get("volume", 0), reverse=True)
+
+    # Highest conviction
+    movers = sorted(all_markets, key=lambda x: abs(x.get("yes", 50) - 50), reverse=True)[:5]
+
+    # Category breakdown
+    categories = {}
+    for m in all_markets:
+        cat = m.get("category", "other")
+        categories[cat] = categories.get(cat, 0) + 1
+
+    # Generate shareable text
+    top3 = interesting[:3]
+    share_text = f"PULSE Weekly Recap\n\n"
+    for m in top3:
+        sig = "BUY YES" if m["yes"] >= 70 else ("BUY NO" if m["yes"] <= 30 else "WATCH")
+        share_text += f"{m['question'][:50]}\nYES {m['yes']}c — {sig}\n\n"
+    share_text += f"{len(all_markets)} markets tracked across Kalshi & Polymarket\nhttps://pulse-api-joed.onrender.com"
+
+    return {
+        "date": datetime.now().strftime("%B %d, %Y"),
+        "total_markets": len(all_markets),
+        "kalshi_count": len(kalshi),
+        "poly_count": len(poly),
+        "arbitrage_count": len(arb),
+        "top_by_volume": by_volume,
+        "interesting": interesting[:8],
+        "highest_conviction": movers,
+        "categories": categories,
+        "arbitrage": arb[:3],
+        "share_text": share_text,
+    }
+
+
+# ─── PULSE PRO ───
+
+STRIPE_PRICE_ID = os.environ.get("STRIPE_PRICE_ID", "")
+STRIPE_SECRET_KEY = os.environ.get("STRIPE_SECRET_KEY", "")
+PRO_USERS_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "pro_users.json")
+
+
+def load_pro_users():
+    try:
+        with open(PRO_USERS_FILE, "r") as f:
+            return json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError):
+        return []
+
+
+@app.post("/api/pro/checkout")
+async def pro_checkout(request: Request):
+    """Create a Stripe Checkout session for PULSE Pro."""
+    if not STRIPE_SECRET_KEY:
+        return JSONResponse({"error": "Stripe not configured yet"}, status_code=500)
+
+    try:
+        import stripe
+        stripe.api_key = STRIPE_SECRET_KEY
+
+        body = await request.json()
+        email = body.get("email", "")
+
+        session = stripe.checkout.Session.create(
+            mode="subscription",
+            line_items=[{"price": STRIPE_PRICE_ID, "quantity": 1}],
+            customer_email=email if email else None,
+            success_url="https://pulse-api-joed.onrender.com/?pro=success",
+            cancel_url="https://pulse-api-joed.onrender.com/?pro=cancel",
+        )
+        return {"url": session.url}
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+
+@app.post("/api/pro/webhook")
+async def pro_webhook(request: Request):
+    """Handle Stripe webhook for subscription confirmation."""
+    try:
+        import stripe
+        stripe.api_key = STRIPE_SECRET_KEY
+
+        body = await request.body()
+        event = json.loads(body)
+
+        if event.get("type") == "checkout.session.completed":
+            session = event["data"]["object"]
+            email = session.get("customer_email", "")
+            if email:
+                pros = load_pro_users()
+                if email not in pros:
+                    pros.append(email)
+                    with open(PRO_USERS_FILE, "w") as f:
+                        json.dump(pros, f)
+        return {"status": "ok"}
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=400)
+
+
+@app.get("/api/pro/check")
+async def check_pro(email: str = ""):
+    """Check if email is a pro user."""
+    if not email:
+        return {"pro": False}
+    pros = load_pro_users()
+    return {"pro": email.lower() in [p.lower() for p in pros]}
+
+
 if __name__ == "__main__":
     import uvicorn
     port = int(os.environ.get("PORT", 8095))
