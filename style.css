@@ -34,9 +34,9 @@
 }
 .landing-title {
     font-family: var(--font);
-    font-size: 52px;
+    font-size: 56px;
     font-weight: 800;
-    letter-spacing: 6px;
+    letter-spacing: 3px;
     color: var(--text);
     margin-bottom: 8px;
 }
@@ -298,9 +298,9 @@ nav {
 }
 
 .hero h1 {
-    font-size: 52px;
+    font-size: 48px;
     font-weight: 800;
-    letter-spacing: 8px;
+    letter-spacing: 4px;
     background: linear-gradient(135deg, #fff 0%, #4dc9ff 30%, #0088ff 60%, #00d68f 100%);
     background-size: 200% 200%;
     animation: hero-enter 1s cubic-bezier(0.16, 1, 0.3, 1) 0.2s both, title-shimmer 4s ease-in-out infinite;

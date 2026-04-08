@@ -9,7 +9,7 @@
 
 // API base — uses same origin when served from backend, or Render URL from GitHub Pages
 const API_BASE = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
-    ? '' : (window.location.origin.includes('github.io') ? 'https://pulse-api-joed.onrender.com' : '');
+    ? '' : (window.location.origin.includes('github.io') ? 'https://sygnalmarkets.com' : '');
 
 // ── AFFILIATE LINKS ──
 const AFFILIATE = {
@@ -212,10 +212,10 @@ function renderMarkets(kalshiMarkets, polyMarkets) {
     const allMkts = [...kalshiMarkets, ...polyMarkets];
     savePriceSnapshot(allMkts);
 
-    // Compute Pulse Scores for ALL markets at once (percentile-based)
+    // Compute Sygnal Scores for ALL markets at once (percentile-based)
     computeAllPulseScores(allMkts);
 
-    // Check for Pulse Score spikes
+    // Check for Sygnal Score spikes
     checkPulseScoreSpikes(allMkts);
 
     grid.innerHTML = '';
@@ -266,7 +266,7 @@ function renderMarkets(kalshiMarkets, polyMarkets) {
         }
     }
 
-    // Sort: starred first, then by pulse score (highest first)
+    // Sort: starred first, then by sygnal score (highest first)
     allCards.sort((a, b) => {
         const aStarred = wl.includes(a.market.ticker) ? 1 : 0;
         const bStarred = wl.includes(b.market.ticker) ? 1 : 0;
@@ -511,7 +511,7 @@ function createMarketCard(market, platform, priceChange) {
         changeHtml = `<span class="price-change" style="color:${changeColor}">${arrow}${Math.abs(priceChange)}¢</span>`;
     }
 
-    // Pulse Score — combines price confidence + volume strength + momentum
+    // Sygnal Score — combines price confidence + volume strength + momentum
     const pulseScore = calcPulseScore(market, priceChange);
     const pulseColor = pulseScore >= 67 ? '#00d68f' : pulseScore >= 34 ? '#f0b000' : '#ff3b5c';
     const pulseLabel = pulseScore >= 67 ? 'TRADE' : pulseScore >= 34 ? 'WATCH' : 'SKIP';
@@ -549,7 +549,7 @@ function createMarketCard(market, platform, priceChange) {
     sparkDiv.appendChild(sparkCanvas);
     card.appendChild(sparkDiv);
 
-    // Pulse Score footer + signal badge
+    // Sygnal Score footer + signal badge
     const pulseFooter = document.createElement('div');
     pulseFooter.className = 'card-pulse-footer';
     const sig = getPulseSignal(market.ticker);
@@ -1326,7 +1326,7 @@ if (localStorage.getItem('pulse-theme') === 'light') {
 }
 
 
-// ── NAV SYGNAL LOGO — mini heartbeat animation ──
+// ── NAV SYGNAL LOGO — broadcast signal wave animation ──
 (function() {
     const c = document.getElementById('nav-orb');
     if (!c) return;
@@ -1338,73 +1338,51 @@ if (localStorage.getItem('pulse-theme') === 'light') {
     let t = 0;
     let _navOrbRAF;
 
-    function ekgY(x) {
-        if (x < 0.1) return 0;
-        if (x < 0.15) return (x - 0.1) * 6;
-        if (x < 0.2) return 0.3 - (x - 0.15) * 10;
-        if (x < 0.25) return -0.2;
-        if (x < 0.32) return -0.2 + (x - 0.25) * 18;
-        if (x < 0.38) return 1.06 - (x - 0.32) * 22;
-        if (x < 0.42) return -0.26 + (x - 0.38) * 6;
-        if (x < 0.5) return -0.02;
-        if (x < 0.55) return (x - 0.5) * 4;
-        if (x < 0.65) return 0.2 - (x - 0.55) * 2;
-        return 0;
-    }
-
     function draw() {
-        t += 0.02;
+        t += 0.015;
         ctx.clearRect(0, 0, 32, 32);
         const cx = 16, cy = 16;
         const light = document.body.classList.contains('light');
-        const green = light ? '0, 160, 110' : '0, 214, 143';
         const blue = light ? '0, 90, 180' : '0, 136, 255';
-        const alpha = light ? 0.7 : 0.5;
+        const cyan = light ? '0, 160, 200' : '0, 200, 255';
 
-        // Outer circle
-        ctx.beginPath();
-        ctx.arc(cx, cy, 14, 0, Math.PI * 2);
-        ctx.strokeStyle = `rgba(${blue}, ${light ? 0.15 : 0.1})`;
-        ctx.lineWidth = 1;
-        ctx.stroke();
-
-        // Pulse ring
-        const phase = (t * 0.4) % 1;
-        const ringR = 3 + phase * 12;
-        const ringA = (1 - phase) * (light ? 0.2 : 0.12);
-        ctx.beginPath();
-        ctx.arc(cx, cy, ringR, 0, Math.PI * 2);
-        ctx.strokeStyle = `rgba(${green}, ${ringA})`;
-        ctx.lineWidth = 1;
-        ctx.stroke();
-
-        // EKG line
-        const offset = (t * 0.4) % 1;
-        ctx.save();
-        ctx.beginPath();
-        ctx.arc(cx, cy, 13, 0, Math.PI * 2);
-        ctx.clip();
-        ctx.beginPath();
-        for (let px = 0; px <= 28; px++) {
-            const x = 2 + px;
-            const normX = ((px / 28) + offset) % 1;
-            const y = cy - ekgY(normX) * 9;
-            if (px === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+        // Broadcast arcs (3 concentric, animating outward)
+        for (let i = 0; i < 3; i++) {
+            const phase = (t * 0.5 + i * 0.33) % 1;
+            const r = 4 + phase * 11;
+            const alpha = (1 - phase) * 0.5;
+            ctx.beginPath();
+            ctx.arc(cx, cy, r, -Math.PI * 0.4, Math.PI * 0.4);
+            ctx.strokeStyle = `rgba(${blue}, ${alpha})`;
+            ctx.lineWidth = 1.5;
+            ctx.stroke();
         }
-        ctx.strokeStyle = `rgba(${green}, ${alpha * 0.3})`;
-        ctx.lineWidth = 3;
-        ctx.stroke();
-        ctx.strokeStyle = `rgba(${green}, ${alpha})`;
-        ctx.lineWidth = 1.5;
-        ctx.stroke();
-        ctx.restore();
 
-        // Center dot
-        const p = Math.sin(t * 2) * 0.15 + 0.85;
+        // Mirror arcs on left side
+        for (let i = 0; i < 3; i++) {
+            const phase = (t * 0.5 + i * 0.33) % 1;
+            const r = 4 + phase * 11;
+            const alpha = (1 - phase) * 0.5;
+            ctx.beginPath();
+            ctx.arc(cx, cy, r, Math.PI * 0.6, Math.PI * 1.4);
+            ctx.strokeStyle = `rgba(${blue}, ${alpha})`;
+            ctx.lineWidth = 1.5;
+            ctx.stroke();
+        }
+
+        // Center dot (pulsing)
+        const p = Math.sin(t * 3) * 0.2 + 0.8;
         ctx.beginPath();
-        ctx.arc(cx, cy, 2.5 * p, 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(${green}, ${0.6 * p})`;
+        ctx.arc(cx, cy, 3 * p, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(${cyan}, ${0.8 * p})`;
         ctx.fill();
+
+        // Inner glow ring
+        ctx.beginPath();
+        ctx.arc(cx, cy, 5, 0, Math.PI * 2);
+        ctx.strokeStyle = `rgba(${blue}, 0.15)`;
+        ctx.lineWidth = 1;
+        ctx.stroke();
 
         _navOrbRAF = requestAnimationFrame(draw);
     }
@@ -2030,7 +2008,7 @@ function openDetail(market, platform) {
     }
     setTimeout(() => drawDetailChart(canvas, detailChartData), 50);
 
-    // Pulse Score history
+    // Sygnal Score history
     const scoreHistory = getPulseScoreHistory(market.ticker);
     const histEl = document.getElementById('detail-pulse-history');
     if (scoreHistory.length >= 3) {
@@ -2043,7 +2021,7 @@ function openDetail(market, platform) {
             const trendColor = trend > 3 ? 'var(--green)' : trend < -3 ? 'var(--red)' : 'var(--text-dim)';
             histEl.innerHTML = `
                 <div class="pulse-history-section">
-                    <h4>Pulse Score History</h4>
+                    <h4>Sygnal Score History</h4>
                     <canvas id="pulse-history-chart" width="600" height="100"></canvas>
                     <div class="pulse-history-stats">
                         <span>Low: <b style="color:var(--red)">${minS}</b></span>
@@ -2509,8 +2487,8 @@ function sendNotification(title, body, tag) {
     try {
         new Notification(title, {
             body: body,
-            icon: 'https://pulse-api-joed.onrender.com/favicon.ico',
-            badge: 'https://pulse-api-joed.onrender.com/favicon.ico',
+            icon: 'https://sygnalmarkets.com/favicon.ico',
+            badge: 'https://sygnalmarkets.com/favicon.ico',
             tag: tag || undefined,  // prevents duplicate notifs with same tag
             silent: false,
         });
@@ -2728,7 +2706,7 @@ function checkPulseScoreSpikes(allMarkets) {
             const change = score - prev;
             if (change >= 15) {
                 sendNotification(
-                    `\uD83D\uDCCA Pulse Score Spike: ${shortenTitle(m.question)}`,
+                    `\uD83D\uDCCA Sygnal Score Spike: ${shortenTitle(m.question)}`,
                     `Score jumped from ${prev} \u2192 ${score} (+${change})`,
                     'pulse-spike-' + m.ticker
                 );
@@ -2759,7 +2737,7 @@ function buildTrendingPanel() {
         }
     }
 
-    // ── Section 2: Pulse Score Risers ──
+    // ── Section 2: Sygnal Score Risers ──
     const prevScores = {};
     try { Object.assign(prevScores, JSON.parse(localStorage.getItem('pulse-prev-scores') || '{}')); } catch {}
     const risers = [];
@@ -2775,14 +2753,14 @@ function buildTrendingPanel() {
     if (risers.length > 0) {
         const header2 = document.createElement('div');
         header2.className = 'trending-section-header';
-        header2.innerHTML = '<span class="trending-section-icon">📈</span> Pulse Score Rising';
+        header2.innerHTML = '<span class="trending-section-icon">📈</span> Sygnal Score Rising';
         grid.appendChild(header2);
         for (const t of risers.slice(0, 6)) {
             grid.appendChild(makeTrendingCard(t.market, t.change, 'pulse'));
         }
     }
 
-    // ── Section 3: Top Pulse Scores (always available) ──
+    // ── Section 3: Top Sygnal Scores (always available) ──
     const topPulse = allMarketCards
         .map(c => ({ market: c.market, score: calcPulseScore(c.market, 0) }))
         .sort((a, b) => b.score - a.score)
@@ -3381,7 +3359,7 @@ function generatePickCard(market) {
     ctx.fillStyle = market.no >= 50 ? '#ff3b5c' : '#8b8b99';
     ctx.fillText(`NO ${market.no}¢`, noX, priceY);
 
-    // Pulse Score circle
+    // Sygnal Score circle
     const ps = calcPulseScore(market, getMarketChange(market.ticker));
     const psColor = ps >= 67 ? '#00d68f' : ps >= 34 ? '#f0b000' : '#ff3b5c';
     const scoreX = W - 60, scoreY2 = priceY - 10;
@@ -3415,7 +3393,7 @@ function generatePickCard(market) {
 
     // Footer
     ctx.fillStyle = '#44445a'; ctx.font = '500 11px system-ui';
-    ctx.fillText('pulse-api-joed.onrender.com', 28, H - 14);
+    ctx.fillText('sygnalmarkets.com', 28, H - 14);
     ctx.textAlign = 'right';
     ctx.fillText(new Date().toLocaleDateString(), W - 28, H - 14);
     ctx.textAlign = 'left';
@@ -3438,7 +3416,7 @@ function showSharePopup(market) {
     const canvas = generatePickCard(market);
     const ps = calcPulseScore(market, 0);
     const sig = getPulseSignal(market.ticker);
-    const text = `${market.question}\n\nYES ${market.yes}¢ · NO ${market.no}¢\nPulse Score: ${ps}/99 — ${sig.signal}\n\npulse-api-joed.onrender.com`;
+    const text = `${market.question}\n\nYES ${market.yes}¢ · NO ${market.no}¢\nSygnal Score: ${ps}/99 — ${sig.signal}\n\nsygnalmarkets.com`;
     const twitterUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}`;
 
     const popup = document.createElement('div');
@@ -3491,7 +3469,7 @@ function showEmbedCode(market) {
     <span style="font-size:11px;color:#5a5a6e;letter-spacing:2px;font-weight:700;">SYGNAL</span>
     <span style="font-size:18px;font-weight:800;color:${psColor};">${ps}</span>
   </div>
-  <a href="${market.url || 'https://pulse-api-joed.onrender.com'}" target="_blank" style="font-size:11px;color:#0088ff;text-decoration:none;display:block;margin-top:8px;">View on Sygnal \u2192</a>
+  <a href="${market.url || 'https://sygnalmarkets.com'}" target="_blank" style="font-size:11px;color:#0088ff;text-decoration:none;display:block;margin-top:8px;">View on Sygnal \u2192</a>
 </div>`;
 
     const popup = document.createElement('div');
@@ -3516,7 +3494,7 @@ function getMarketInsights(market) {
 
     const insights = [];
 
-    if (ps >= 70) insights.push({ icon: '\uD83D\uDD25', text: `High confidence signal \u2014 Pulse Score ${ps}/99` });
+    if (ps >= 70) insights.push({ icon: '\uD83D\uDD25', text: `High confidence signal \u2014 Sygnal Score ${ps}/99` });
     else if (ps <= 30) insights.push({ icon: '\u26A0\uFE0F', text: 'Low confidence \u2014 thin volume or uncertain outcome' });
 
     if (Math.abs(change) >= 5) insights.push({ icon: change > 0 ? '\uD83D\uDCC8' : '\uD83D\uDCC9', text: `Price moved ${Math.abs(change)}\u00A2 recently \u2014 ${change > 0 ? 'bullish' : 'bearish'} momentum` });
@@ -3772,8 +3750,8 @@ function processChatQuery(query) {
     }
 
     // Pulse score explanation
-    if (q.includes('pulse score') || q.includes('how does scoring') || q.includes('what is pulse')) {
-        return "The Pulse Score (0-99) rates how tradeable a market is using 5 factors:<br><br>" +
+    if (q.includes('sygnal score') || q.includes('how does scoring') || q.includes('what is pulse')) {
+        return "The Sygnal Score (0-99) rates how tradeable a market is using 5 factors:<br><br>" +
             "<b>Price Position (0-20)</b> — best at 25¢/75¢<br>" +
             "<b>Volume (0-20)</b> — more trading = reliable<br>" +
             "<b>Momentum (0-20)</b> — price moving fast<br>" +
@@ -3816,11 +3794,11 @@ function processChatQuery(query) {
         const sigColor = sig.signal.includes('YES') ? '#00d68f' : sig.signal.includes('NO') ? '#ff3b5c' : '#f0b000';
         const sigBg = sig.signal.includes('YES') ? 'rgba(0,214,143,0.15)' : sig.signal.includes('NO') ? 'rgba(255,59,92,0.15)' : 'rgba(240,176,0,0.12)';
         return `<b>${m.question}</b><br>YES ${m.yes}¢ · NO ${m.no}¢<br>` +
-            `Pulse Score: <b>${score}</b> · <span class="chat-signal" style="color:${sigColor};background:${sigBg};">${sig.signal}</span><br>` +
+            `Sygnal Score: <b>${score}</b> · <span class="chat-signal" style="color:${sigColor};background:${sigBg};">${sig.signal}</span><br>` +
             `Volume: $${(m.volume || 0).toLocaleString()}`;
     }
 
-    return "I can help with:<br>• <b>\"best trades\"</b> — top signals right now<br>• <b>\"how is the bot doing\"</b> — Kalshi bot status<br>• <b>\"Bitcoin\"</b> or any topic — find markets<br>• <b>\"pulse score\"</b> — how scoring works<br>• <b>\"accuracy\"</b> — signal track record";
+    return "I can help with:<br>• <b>\"best trades\"</b> — top signals right now<br>• <b>\"how is the bot doing\"</b> — Kalshi bot status<br>• <b>\"Bitcoin\"</b> or any topic — find markets<br>• <b>\"sygnal score\"</b> — how scoring works<br>• <b>\"accuracy\"</b> — signal track record";
 }
 
 function searchMarketChat(query, category) {
@@ -4171,7 +4149,7 @@ async function loadWeeklyRecap() {
 }
 
 function shareRecap() {
-    const text = window._recapShareText || 'Check out Sygnal Markets — cross-platform prediction market analytics\nhttps://pulse-api-joed.onrender.com';
+    const text = window._recapShareText || 'Check out Sygnal Markets — cross-platform prediction market analytics\nhttps://sygnalmarkets.com';
     if (navigator.share) {
         navigator.share({ title: 'Sygnal Weekly Recap', text }).catch(() => {});
     } else if (navigator.clipboard) {
