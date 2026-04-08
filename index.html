@@ -180,6 +180,14 @@
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><circle cx="5" cy="5" r="2"/><circle cx="19" cy="5" r="2"/><circle cx="5" cy="19" r="2"/><circle cx="19" cy="19" r="2"/><line x1="9.5" y1="9.5" x2="6.5" y2="6.5"/><line x1="14.5" y1="9.5" x2="17.5" y2="6.5"/><line x1="9.5" y1="14.5" x2="6.5" y2="17.5"/><line x1="14.5" y1="14.5" x2="17.5" y2="17.5"/></svg>
                 Correlations
             </a>
+            <a href="#" onclick="switchTab('compare', this); return false;">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="8" height="18" rx="1"/><rect x="14" y="3" width="8" height="18" rx="1"/><line x1="12" y1="6" x2="12" y2="18" stroke-dasharray="2 2"/></svg>
+                Compare
+            </a>
+            <a href="#" onclick="switchTab('alerts', this); return false;">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>
+                Alerts
+            </a>
         </div>
         <div class="settings-dropdown">
             <button class="settings-btn" onclick="toggleSettings()">
@@ -371,6 +379,12 @@
         <div class="market-grid">
             <div class="market-card"><h3>Loading...</h3></div>
         </div>
+    </section>
+
+    <!-- News Feed -->
+    <section id="news-feed" style="display:none;">
+        <h3 style="font-size:13px;color:var(--text-dim);letter-spacing:2px;margin-bottom:12px;">MARKET NEWS</h3>
+        <div id="news-feed-content" class="news-feed-grid"></div>
     </section>
 
     <!-- Market Detail Overlay -->
@@ -571,6 +585,65 @@
 
         <!-- Bot Signals -->
         <div id="bot-signals-section"></div>
+
+        <!-- Performance Dashboard -->
+        <div class="bot-perf-dashboard">
+            <h3 class="bot-controls-title">PERFORMANCE</h3>
+            <div class="perf-stats-row" id="perf-stats-row"></div>
+            <canvas id="equity-chart" width="800" height="160"></canvas>
+        </div>
+
+        <!-- Trade History -->
+        <div class="bot-trade-history">
+            <div class="trade-hist-header">
+                <h3 class="bot-controls-title">TRADE HISTORY</h3>
+                <div class="trade-hist-filters">
+                    <button class="chip active" onclick="filterTradeHistory('all', this)">All</button>
+                    <button class="chip" onclick="filterTradeHistory('wins', this)">Wins</button>
+                    <button class="chip" onclick="filterTradeHistory('losses', this)">Losses</button>
+                </div>
+            </div>
+            <div id="trade-history-table"></div>
+            <button class="bot-save-btn" style="margin-top:12px;background:var(--bg-card);color:var(--accent);border:1px solid var(--border);" onclick="loadMoreTrades()">Load More</button>
+        </div>
+    </section>
+
+    <!-- Market Comparison Tool -->
+    <section id="compare-panel" class="view-hidden">
+        <h2>Market Comparison</h2>
+        <p style="color:var(--text-dim);font-size:13px;margin-bottom:16px;">Side-by-side view of the same event across Kalshi & Polymarket. Spot price gaps instantly.</p>
+        <div id="compare-grid" class="compare-grid"></div>
+    </section>
+
+    <!-- Custom Alerts Engine -->
+    <section id="alerts-panel" class="view-hidden">
+        <h2>Custom Alerts</h2>
+        <p style="color:var(--text-dim);font-size:13px;margin-bottom:16px;">Get notified when markets match your rules.</p>
+        <div class="alert-builder">
+            <div class="alert-builder-row">
+                <select id="alert-condition" class="alert-select">
+                    <option value="score-above">Sygnal Score above</option>
+                    <option value="score-below">Sygnal Score below</option>
+                    <option value="price-above">YES price above</option>
+                    <option value="price-below">YES price below</option>
+                    <option value="change-up">Price jumps up by</option>
+                    <option value="change-down">Price drops by</option>
+                    <option value="signal-buy">Signal is BUY YES</option>
+                    <option value="signal-sell">Signal is BUY NO</option>
+                </select>
+                <input type="number" id="alert-threshold" class="alert-input" placeholder="Value" value="80">
+                <select id="alert-category" class="alert-select">
+                    <option value="all">Any Category</option>
+                    <option value="crypto">Crypto</option>
+                    <option value="sports">Sports</option>
+                    <option value="politics">Politics</option>
+                    <option value="weather">Weather</option>
+                    <option value="finance">Finance</option>
+                </select>
+                <button class="alert-add-btn" onclick="addCustomAlertRule()">+ Add Rule</button>
+            </div>
+        </div>
+        <div id="custom-alert-rules" style="margin-top:16px;"></div>
     </section>
 
     <!-- Sygnal AI Chat Widget -->

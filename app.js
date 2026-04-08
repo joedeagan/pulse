@@ -81,14 +81,20 @@ function switchTab(tab, btn) {
     const trendingEl = document.getElementById('trending-panel');
     const leaguesEl = document.getElementById('leagues-panel');
 
-    const marketsView = [heroEl, statsEl, filtersEl, marketsEl, briefEl, explainerEl, signupEl];
+    const compareEl = document.getElementById('compare-panel');
+    const alertsEl = document.getElementById('alerts-panel');
+    const newsFeedEl = document.getElementById('news-feed');
+
+    const marketsView = [heroEl, statsEl, filtersEl, marketsEl, briefEl, explainerEl, signupEl, newsFeedEl];
     const botView = [botEl];
     const portfolioView = [portfolioEl];
     const arbView = [arbEl];
     const corrView = [corrEl];
     const trendingView = [trendingEl];
     const leaguesView = [leaguesEl];
-    const allSections = [...marketsView, ...botView, ...portfolioView, ...arbView, ...corrView, ...trendingView, ...leaguesView];
+    const compareView = [compareEl];
+    const alertsView = [alertsEl];
+    const allSections = [...marketsView, ...botView, ...portfolioView, ...arbView, ...corrView, ...trendingView, ...leaguesView, ...compareView, ...alertsView];
 
     // Hide everything
     allSections.forEach(el => { if (el) el.classList.add('view-hidden'); });
@@ -102,6 +108,8 @@ function switchTab(tab, btn) {
     else if (tab === 'trending') { visible = trendingView; buildTrendingPanel(); }
     else if (tab === 'correlations') { visible = corrView; }
     else if (tab === 'leagues') { visible = leaguesView; buildLeaguePanel(); }
+    else if (tab === 'compare') { visible = compareView; buildComparePanel(); }
+    else if (tab === 'alerts') { visible = alertsView; renderAlertRules(); }
 
     visible.forEach(el => { if (el) el.classList.remove('view-hidden'); });
 }
@@ -4444,6 +4452,510 @@ async function triggerAutopilotScan() {
 
 // Load alerts on page load
 loadAutopilotAlerts();
+
+// ══════════════════════════════════════════════
+// FEATURE 1: PERFORMANCE DASHBOARD
+// ══════════════════════════════════════════════
+let _botTradesCache = [];
+let _tradeHistoryOffset = 0;
+
+async function loadBotPerformance() {
+    try {
+        const resp = await fetch(API_BASE + '/api/bot/trades?limit=100');
+        if (!resp.ok) return;
+        const data = await resp.json();
+        _botTradesCache = data.trades || data || [];
+        renderPerfStats();
+        drawEquityChart();
+        renderTradeHistory(_botTradesCache);
+    } catch(e) { console.log('Bot perf unavailable'); }
+}
+
+function renderPerfStats() {
+    const trades = _botTradesCache;
+    if (!trades.length) return;
+    const wins = trades.filter(t => (t.realized_pnl || t.pnl || 0) > 0).length;
+    const losses = trades.filter(t => (t.realized_pnl || t.pnl || 0) < 0).length;
+    const totalPnl = trades.reduce((s, t) => s + (t.realized_pnl || t.pnl || 0), 0);
+    const winRate = trades.length > 0 ? ((wins / trades.length) * 100).toFixed(0) : 0;
+    const avgWin = wins > 0 ? (trades.filter(t => (t.realized_pnl || t.pnl || 0) > 0).reduce((s, t) => s + (t.realized_pnl || t.pnl || 0), 0) / wins).toFixed(2) : '0.00';
+    const avgLoss = losses > 0 ? (trades.filter(t => (t.realized_pnl || t.pnl || 0) < 0).reduce((s, t) => s + Math.abs(t.realized_pnl || t.pnl || 0), 0) / losses).toFixed(2) : '0.00';
+
+    const el = document.getElementById('perf-stats-row');
+    if (!el) return;
+    el.innerHTML = `
+        <div class="perf-stat"><span class="perf-stat-val ${totalPnl >= 0 ? 'positive' : 'negative'}">${totalPnl >= 0 ? '+' : ''}$${totalPnl.toFixed(2)}</span><span class="perf-stat-label">Total P&L</span></div>
+        <div class="perf-stat"><span class="perf-stat-val">${winRate}%</span><span class="perf-stat-label">Win Rate</span></div>
+        <div class="perf-stat"><span class="perf-stat-val">${trades.length}</span><span class="perf-stat-label">Total Trades</span></div>
+        <div class="perf-stat"><span class="perf-stat-val positive">$${avgWin}</span><span class="perf-stat-label">Avg Win</span></div>
+        <div class="perf-stat"><span class="perf-stat-val negative">$${avgLoss}</span><span class="perf-stat-label">Avg Loss</span></div>
+        <div class="perf-stat"><span class="perf-stat-val">${wins}W / ${losses}L</span><span class="perf-stat-label">Record</span></div>
+    `;
+}
+
+function drawEquityChart() {
+    const canvas = document.getElementById('equity-chart');
+    if (!canvas || !_botTradesCache.length) return;
+    const ctx = canvas.getContext('2d');
+    const w = canvas.width, h = canvas.height;
+    ctx.clearRect(0, 0, w, h);
+
+    // Build cumulative P&L curve
+    const trades = [..._botTradesCache].reverse();
+    let cumPnl = 0;
+    const points = [0];
+    for (const t of trades) {
+        cumPnl += (t.realized_pnl || t.pnl || 0);
+        points.push(cumPnl);
+    }
+
+    const min = Math.min(...points);
+    const max = Math.max(...points);
+    const range = max - min || 1;
+    const pad = 20;
+
+    // Grid lines
+    ctx.strokeStyle = 'rgba(255,255,255,0.05)';
+    ctx.lineWidth = 1;
+    for (let i = 0; i < 5; i++) {
+        const y = pad + (i / 4) * (h - pad * 2);
+        ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke();
+    }
+
+    // Zero line
+    const zeroY = h - pad - ((0 - min) / range) * (h - pad * 2);
+    ctx.strokeStyle = 'rgba(255,255,255,0.2)';
+    ctx.setLineDash([4, 4]);
+    ctx.beginPath(); ctx.moveTo(0, zeroY); ctx.lineTo(w, zeroY); ctx.stroke();
+    ctx.setLineDash([]);
+
+    // Equity curve
+    const trending = points[points.length - 1] >= 0;
+    const color = trending ? '0, 214, 143' : '255, 59, 92';
+    ctx.beginPath();
+    for (let i = 0; i < points.length; i++) {
+        const x = (i / (points.length - 1)) * w;
+        const y = h - pad - ((points[i] - min) / range) * (h - pad * 2);
+        if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    }
+    ctx.strokeStyle = `rgba(${color}, 0.9)`;
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    // Fill
+    const lastX = w, lastY = h - pad - ((points[points.length - 1] - min) / range) * (h - pad * 2);
+    ctx.lineTo(lastX, h);
+    ctx.lineTo(0, h);
+    ctx.closePath();
+    const grad = ctx.createLinearGradient(0, 0, 0, h);
+    grad.addColorStop(0, `rgba(${color}, 0.15)`);
+    grad.addColorStop(1, `rgba(${color}, 0)`);
+    ctx.fillStyle = grad;
+    ctx.fill();
+}
+
+// ══════════════════════════════════════════════
+// FEATURE 2: NEWS FEED
+// ══════════════════════════════════════════════
+function buildNewsFeed() {
+    const container = document.getElementById('news-feed-content');
+    if (!container || !allMarketCards.length) return;
+
+    // Generate contextual news items from market data
+    const newsItems = [];
+    const movers = allMarketCards.filter(c => Math.abs(getMarketChange(c.market.ticker)) >= 3).slice(0, 5);
+    for (const c of movers) {
+        const ch = getMarketChange(c.market.ticker);
+        const dir = ch > 0 ? 'surges' : 'drops';
+        newsItems.push({
+            title: `${shortenTitle(c.market.question, 60)} ${dir} ${Math.abs(ch).toFixed(0)}¢`,
+            tag: categorize(c.market.question || c.market.title || ''),
+            time: 'Live',
+            color: ch > 0 ? 'var(--green)' : 'var(--red)',
+            ticker: c.market.ticker
+        });
+    }
+
+    // High score markets
+    const highScore = allMarketCards.filter(c => calcSygnalScore(c.market, 0) >= 80).slice(0, 3);
+    for (const c of highScore) {
+        newsItems.push({
+            title: `${shortenTitle(c.market.question, 60)} hits Sygnal Score ${calcSygnalScore(c.market, 0)}`,
+            tag: 'signal',
+            time: 'Now',
+            color: 'var(--green)',
+            ticker: c.market.ticker
+        });
+    }
+
+    // Arbitrage opportunities
+    const arbs = findArbitrage ? findArbitrage(lastKalshiMarkets || [], lastPolyMarkets || []) : [];
+    for (const arb of arbs.slice(0, 3)) {
+        newsItems.push({
+            title: `Arbitrage: ${shortenTitle(arb.question || arb.title || '?', 50)} — ${arb.spread || arb.diff || '?'}¢ spread`,
+            tag: 'arbitrage',
+            time: 'Live',
+            color: 'var(--accent)'
+        });
+    }
+
+    if (!newsItems.length) {
+        container.innerHTML = '<p style="color:var(--text-dim);font-size:13px;">No notable market activity right now.</p>';
+        return;
+    }
+
+    container.innerHTML = newsItems.map(n => `
+        <div class="news-item" ${n.ticker ? `onclick="openDetail(allMarketCards.find(c=>c.market.ticker==='${n.ticker}')?.market)" style="cursor:pointer;"` : ''}>
+            <span class="news-tag" style="color:${n.color}">${n.tag.toUpperCase()}</span>
+            <span class="news-title">${n.title}</span>
+            <span class="news-time">${n.time}</span>
+        </div>
+    `).join('');
+}
+
+// ══════════════════════════════════════════════
+// FEATURE 3: WATCHLIST TARGET PRICE NOTIFICATIONS
+// ══════════════════════════════════════════════
+function checkWatchlistAlerts() {
+    if (!notificationsEnabled) return;
+    const wl = getWatchlist();
+    const targets = JSON.parse(localStorage.getItem('sygnal-watchlist-targets') || '{}');
+
+    for (const ticker of wl) {
+        const card = allMarketCards.find(c => c.market.ticker === ticker);
+        if (!card) continue;
+        const target = targets[ticker];
+        if (!target) continue;
+
+        const price = card.market.yes;
+        if (target.direction === 'above' && price >= target.value) {
+            sendNotification(`${shortenTitle(card.market.question, 40)} hit ${price}¢`, `Target: above ${target.value}¢`, 'sygnal-wl-' + ticker);
+            delete targets[ticker];
+        } else if (target.direction === 'below' && price <= target.value) {
+            sendNotification(`${shortenTitle(card.market.question, 40)} dropped to ${price}¢`, `Target: below ${target.value}¢`, 'sygnal-wl-' + ticker);
+            delete targets[ticker];
+        }
+    }
+    localStorage.setItem('sygnal-watchlist-targets', JSON.stringify(targets));
+}
+
+// ══════════════════════════════════════════════
+// FEATURE 4: BOT TRADE HISTORY
+// ══════════════════════════════════════════════
+let _tradeHistFilter = 'all';
+
+function renderTradeHistory(trades) {
+    const el = document.getElementById('trade-history-table');
+    if (!el) return;
+
+    let filtered = trades;
+    if (_tradeHistFilter === 'wins') filtered = trades.filter(t => (t.realized_pnl || t.pnl || 0) > 0);
+    if (_tradeHistFilter === 'losses') filtered = trades.filter(t => (t.realized_pnl || t.pnl || 0) < 0);
+
+    if (!filtered.length) {
+        el.innerHTML = '<p style="color:var(--text-dim);font-size:13px;padding:12px;">No trades found.</p>';
+        return;
+    }
+
+    el.innerHTML = filtered.slice(0, 20 + _tradeHistoryOffset).map(t => {
+        const pnl = t.realized_pnl || t.pnl || 0;
+        const pnlClass = pnl > 0 ? 'positive' : pnl < 0 ? 'negative' : '';
+        const pnlStr = pnl >= 0 ? '+$' + pnl.toFixed(2) : '-$' + Math.abs(pnl).toFixed(2);
+        const side = (t.side || '').toUpperCase();
+        const title = t.title || decodeTicker(t.ticker || '?');
+        const price = t.price ? (t.price * 100).toFixed(0) + '¢' : t.avg_price ? t.avg_price.toFixed(0) + '¢' : '—';
+        const time = t.created_at || t.timestamp || '';
+        const timeStr = time ? new Date(time).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
+        return `<div class="trade-hist-row">
+            <span class="trade-hist-side ${side.toLowerCase()}">${side}</span>
+            <span class="trade-hist-title">${shortenTitle(title, 40)}</span>
+            <span class="trade-hist-price">${price}</span>
+            <span class="trade-hist-pnl ${pnlClass}">${pnlStr}</span>
+            <span class="trade-hist-time">${timeStr}</span>
+        </div>`;
+    }).join('');
+}
+
+function filterTradeHistory(filter, btn) {
+    _tradeHistFilter = filter;
+    _tradeHistoryOffset = 0;
+    document.querySelectorAll('.trade-hist-filters .chip').forEach(c => c.classList.remove('active'));
+    if (btn) btn.classList.add('active');
+    renderTradeHistory(_botTradesCache);
+}
+
+function loadMoreTrades() {
+    _tradeHistoryOffset += 20;
+    renderTradeHistory(_botTradesCache);
+}
+
+// ══════════════════════════════════════════════
+// FEATURE 5: MULTI-TIMEFRAME CHARTS
+// ══════════════════════════════════════════════
+function getMultiTimeframeData(ticker) {
+    const snapshots = JSON.parse(localStorage.getItem('sygnal-snapshots') || '{}');
+    const allPrices = [];
+    for (const [ts, markets] of Object.entries(snapshots)) {
+        const m = (markets || []).find(x => x.ticker === ticker);
+        if (m) allPrices.push({ ts: parseInt(ts), price: m.yes || m.price || 0 });
+    }
+    allPrices.sort((a, b) => a.ts - b.ts);
+
+    const now = Date.now();
+    return {
+        '1h': allPrices.filter(p => now - p.ts < 3600000).map(p => p.price),
+        '24h': allPrices.filter(p => now - p.ts < 86400000).map(p => p.price),
+        '7d': allPrices.map(p => p.price),
+    };
+}
+
+// ══════════════════════════════════════════════
+// FEATURE 6: IMPROVED SOCIAL SHARING
+// ══════════════════════════════════════════════
+function getShareTrackRecord() {
+    const record = getTrackRecord();
+    const stats = getAccuracyStats();
+    const totalPicks = record.length;
+    const correctPicks = record.filter(r => r.correct).length;
+    return {
+        total: totalPicks,
+        correct: correctPicks,
+        accuracy: totalPicks > 0 ? ((correctPicks / totalPicks) * 100).toFixed(0) : 0,
+        streak: stats.streak || 0,
+    };
+}
+
+// ══════════════════════════════════════════════
+// FEATURE 7: REAL BOT LEADERBOARD
+// ══════════════════════════════════════════════
+function getBotPerformanceForLeague() {
+    const trades = _botTradesCache;
+    if (!trades.length) return null;
+    const totalPnl = trades.reduce((s, t) => s + (t.realized_pnl || t.pnl || 0), 0);
+    const wins = trades.filter(t => (t.realized_pnl || t.pnl || 0) > 0).length;
+    return {
+        name: 'Your Bot',
+        pnl: totalPnl,
+        trades: trades.length,
+        wins,
+        winRate: trades.length > 0 ? ((wins / trades.length) * 100).toFixed(0) : 0,
+    };
+}
+
+// ══════════════════════════════════════════════
+// FEATURE 8: CUSTOM ALERTS ENGINE
+// ══════════════════════════════════════════════
+function getCustomAlertRules() {
+    try { return JSON.parse(localStorage.getItem('sygnal-custom-alerts') || '[]'); }
+    catch { return []; }
+}
+
+function saveCustomAlertRules(rules) {
+    localStorage.setItem('sygnal-custom-alerts', JSON.stringify(rules));
+}
+
+function addCustomAlertRule() {
+    const condition = document.getElementById('alert-condition')?.value;
+    const threshold = parseFloat(document.getElementById('alert-threshold')?.value) || 0;
+    const category = document.getElementById('alert-category')?.value || 'all';
+
+    const rules = getCustomAlertRules();
+    rules.push({ id: Date.now(), condition, threshold, category, enabled: true, created: new Date().toISOString() });
+    saveCustomAlertRules(rules);
+    renderAlertRules();
+    showToast('Alert rule added');
+}
+
+function removeAlertRule(id) {
+    const rules = getCustomAlertRules().filter(r => r.id !== id);
+    saveCustomAlertRules(rules);
+    renderAlertRules();
+}
+
+function toggleAlertRule(id) {
+    const rules = getCustomAlertRules();
+    const rule = rules.find(r => r.id === id);
+    if (rule) rule.enabled = !rule.enabled;
+    saveCustomAlertRules(rules);
+    renderAlertRules();
+}
+
+function renderAlertRules() {
+    const el = document.getElementById('custom-alert-rules');
+    if (!el) return;
+    const rules = getCustomAlertRules();
+
+    if (!rules.length) {
+        el.innerHTML = '<p style="color:var(--text-dim);font-size:13px;">No alert rules yet. Create one above.</p>';
+        return;
+    }
+
+    el.innerHTML = rules.map(r => {
+        const condLabel = {
+            'score-above': `Score > ${r.threshold}`,
+            'score-below': `Score < ${r.threshold}`,
+            'price-above': `YES > ${r.threshold}¢`,
+            'price-below': `YES < ${r.threshold}¢`,
+            'change-up': `+${r.threshold}¢ move`,
+            'change-down': `-${r.threshold}¢ drop`,
+            'signal-buy': 'Signal: BUY YES',
+            'signal-sell': 'Signal: BUY NO',
+        }[r.condition] || r.condition;
+        const catLabel = r.category === 'all' ? 'All Markets' : r.category;
+        return `<div class="alert-rule ${r.enabled ? 'active' : 'disabled'}">
+            <div class="alert-rule-info">
+                <span class="alert-rule-cond">${condLabel}</span>
+                <span class="alert-rule-cat">${catLabel}</span>
+            </div>
+            <div class="alert-rule-actions">
+                <button class="alert-rule-toggle" onclick="toggleAlertRule(${r.id})">${r.enabled ? 'ON' : 'OFF'}</button>
+                <button class="alert-rule-delete" onclick="removeAlertRule(${r.id})">✕</button>
+            </div>
+        </div>`;
+    }).join('');
+}
+
+function evaluateCustomAlertRules() {
+    if (!notificationsEnabled) return;
+    const rules = getCustomAlertRules().filter(r => r.enabled);
+    if (!rules.length) return;
+
+    for (const card of allMarketCards) {
+        const m = card.market;
+        const score = calcSygnalScore(m, 0);
+        const sig = getSygnalSignal(m.ticker);
+        const change = getMarketChange(m.ticker);
+        const cat = categorize(m.question || m.title || '');
+
+        for (const rule of rules) {
+            if (rule.category !== 'all' && cat !== rule.category) continue;
+
+            let triggered = false;
+            if (rule.condition === 'score-above' && score > rule.threshold) triggered = true;
+            if (rule.condition === 'score-below' && score < rule.threshold) triggered = true;
+            if (rule.condition === 'price-above' && m.yes > rule.threshold) triggered = true;
+            if (rule.condition === 'price-below' && m.yes < rule.threshold) triggered = true;
+            if (rule.condition === 'change-up' && change >= rule.threshold) triggered = true;
+            if (rule.condition === 'change-down' && change <= -rule.threshold) triggered = true;
+            if (rule.condition === 'signal-buy' && sig.signal === 'BUY YES') triggered = true;
+            if (rule.condition === 'signal-sell' && sig.signal === 'BUY NO') triggered = true;
+
+            if (triggered) {
+                sendNotification(
+                    `Alert: ${shortenTitle(m.question, 40)}`,
+                    `Rule matched — YES ${m.yes}¢, Score ${score}`,
+                    'sygnal-rule-' + rule.id + '-' + m.ticker
+                );
+            }
+        }
+    }
+}
+
+// ══════════════════════════════════════════════
+// FEATURE 9: MARKET COMPARISON TOOL
+// ══════════════════════════════════════════════
+function buildComparePanel() {
+    const el = document.getElementById('compare-grid');
+    if (!el) return;
+
+    // Find markets that exist on both platforms using cross-platform map
+    const pairs = [];
+    const seen = new Set();
+    for (const card of allMarketCards) {
+        const m = card.market;
+        if (seen.has(m.ticker)) continue;
+
+        // Find matching market on other platform
+        const q = (m.question || m.title || '').toLowerCase();
+        const match = allMarketCards.find(c => {
+            if (c.market.ticker === m.ticker) return false;
+            if (c.platform === card.platform) return false;
+            const q2 = (c.market.question || c.market.title || '').toLowerCase();
+            return q2 === q || (q.length > 20 && q2.includes(q.substring(0, 20)));
+        });
+
+        if (match) {
+            seen.add(m.ticker);
+            seen.add(match.market.ticker);
+            const kalshiM = card.platform === 'kalshi' ? m : match.market;
+            const polyM = card.platform === 'poly' ? m : match.market;
+            const spread = Math.abs((kalshiM.yes || 0) - (polyM.yes || 0));
+            pairs.push({ question: m.question || m.title, kalshi: kalshiM, poly: polyM, spread });
+        }
+    }
+
+    // Also use the cross-platform map
+    if (_crossPlatformMap) {
+        for (const [ticker, xp] of Object.entries(_crossPlatformMap)) {
+            if (seen.has(ticker)) continue;
+            const card = allMarketCards.find(c => c.market.ticker === ticker);
+            if (!card) continue;
+            seen.add(ticker);
+            pairs.push({
+                question: card.market.question || card.market.title,
+                kalshi: card.platform === 'kalshi' ? card.market : { yes: xp.otherYes, no: 100 - xp.otherYes, volume: '—' },
+                poly: card.platform === 'poly' ? card.market : { yes: xp.otherYes, no: 100 - xp.otherYes, volume: '—' },
+                spread: Math.abs(xp.priceDiff || 0)
+            });
+        }
+    }
+
+    pairs.sort((a, b) => b.spread - a.spread);
+
+    if (!pairs.length) {
+        el.innerHTML = '<p style="color:var(--text-dim);font-size:14px;">No cross-platform markets found. Markets must exist on both Kalshi and Polymarket to compare.</p>';
+        return;
+    }
+
+    el.innerHTML = pairs.map(p => {
+        const spreadColor = p.spread >= 5 ? 'var(--green)' : p.spread >= 2 ? 'var(--gold)' : 'var(--text-dim)';
+        const kScore = calcSygnalScore(p.kalshi, 0);
+        const pScore = calcSygnalScore(p.poly, 0);
+        return `<div class="compare-card">
+            <div class="compare-title">${shortenTitle(p.question, 60)}</div>
+            <div class="compare-platforms">
+                <div class="compare-platform kalshi">
+                    <span class="compare-plat-name">KALSHI</span>
+                    <span class="compare-plat-price">YES ${p.kalshi.yes || '?'}¢</span>
+                    <span class="compare-plat-price dim">NO ${p.kalshi.no || '?'}¢</span>
+                    <span class="compare-plat-vol">${typeof p.kalshi.volume === 'string' ? p.kalshi.volume : formatVol(p.kalshi.volume)}</span>
+                </div>
+                <div class="compare-spread">
+                    <span class="compare-spread-val" style="color:${spreadColor}">${p.spread}¢</span>
+                    <span class="compare-spread-label">SPREAD</span>
+                </div>
+                <div class="compare-platform poly">
+                    <span class="compare-plat-name">POLYMARKET</span>
+                    <span class="compare-plat-price">YES ${p.poly.yes || '?'}¢</span>
+                    <span class="compare-plat-price dim">NO ${p.poly.no || '?'}¢</span>
+                    <span class="compare-plat-vol">${typeof p.poly.volume === 'string' ? p.poly.volume : formatVol(p.poly.volume)}</span>
+                </div>
+            </div>
+            ${p.spread >= 3 ? `<div class="compare-arb-badge">⚡ Arbitrage Opportunity — ${p.spread}¢ edge</div>` : ''}
+        </div>`;
+    }).join('');
+}
+
+function formatVol(v) {
+    if (!v) return '—';
+    if (v >= 1e6) return '$' + (v / 1e6).toFixed(1) + 'M';
+    if (v >= 1e3) return '$' + (v / 1e3).toFixed(0) + 'K';
+    return '$' + v;
+}
+
+// ══════════════════════════════════════════════
+// INIT ALL NEW FEATURES
+// ══════════════════════════════════════════════
+setTimeout(() => {
+    loadBotPerformance();
+    buildNewsFeed();
+}, 3000);
+
+// Run alert checks every 2 minutes
+setInterval(() => {
+    checkWatchlistAlerts();
+    evaluateCustomAlertRules();
+}, 120000);
 
 // ── SERVICE WORKER (PWA) ──
 if ('serviceWorker' in navigator) {
