@@ -141,7 +141,8 @@
     --card-shadow: 0 2px 8px rgba(0,0,0,0.3), 0 0 0 1px rgba(255,255,255,0.04);
 }
 
-html { scroll-behavior: smooth; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+html { scroll-behavior: smooth; overflow: hidden; height: 100%; }
+body { overflow-x: hidden; overflow-y: auto; height: 100%; }
 *, *::before, *::after { box-sizing: border-box; }
 canvas { max-width: 100%; }
 
@@ -152,7 +153,6 @@ body {
     line-height: 1.55;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
-    overflow-x: hidden;
     min-height: 100vh;
     letter-spacing: -0.01em;
 }
