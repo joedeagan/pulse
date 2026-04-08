@@ -141,8 +141,8 @@
     --card-shadow: 0 2px 8px rgba(0,0,0,0.3), 0 0 0 1px rgba(255,255,255,0.04);
 }
 
-html { scroll-behavior: smooth; overflow: hidden; height: 100%; }
-body { overflow-x: hidden; overflow-y: auto; height: 100%; }
+html { scroll-behavior: smooth; }
+body { overflow-x: hidden; }
 *, *::before, *::after { box-sizing: border-box; }
 canvas { max-width: 100%; }
 
@@ -206,8 +206,9 @@ nav {
 .nav-links {
     display: flex;
     align-items: center;
-    gap: 8px;
-    flex-shrink: 0;
+    gap: 6px;
+    flex: 1;
+    justify-content: flex-end;
 }
 
 .nav-links > a {
@@ -367,9 +368,9 @@ body.light .nav-more-menu a.active { color: #0066cc; background: rgba(0,102,204,
     font-weight: 800;
     letter-spacing: -1px;
     color: #4dc9ff;
-    margin-bottom: 8px;
-    padding-bottom: 6px;
-    line-height: 1.15;
+    margin-bottom: 4px;
+    padding-bottom: 12px;
+    line-height: 1.2;
     text-shadow: 0 0 30px rgba(0, 136, 255, 0.3), 0 0 60px rgba(0, 136, 255, 0.1);
     animation: hero-enter 1s cubic-bezier(0.16, 1, 0.3, 1) 0.2s both;
 }
