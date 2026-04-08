@@ -1,6 +1,6 @@
 # CUSTOM DOMAIN: To set up a custom domain on Render:
 # 1. Go to render.com → your service → Settings → Custom Domains
-# 2. Add your domain (e.g., pulse.joedeagan.com)
+# 2. Add your domain (e.g., sygnal.joedeagan.com)
 # 3. Add a CNAME record in your DNS pointing to your-service.onrender.com
 # 4. Render handles SSL automatically
 
@@ -44,7 +44,7 @@ if os.path.exists(_env_path):
                 os.environ[_k.strip()] = _v.strip()
 
 SENDGRID_API_KEY = os.environ.get("SENDGRID_API_KEY", "")
-SENDGRID_FROM_EMAIL = os.environ.get("SENDGRID_FROM_EMAIL", "pulse@joedeagan.com")
+SENDGRID_FROM_EMAIL = os.environ.get("SENDGRID_FROM_EMAIL", "sygnal.joedeagan.com")
 
 # WHAT IS FastAPI?
 # It's a Python framework for building web APIs.
@@ -534,7 +534,7 @@ async def generate_newsletter():
     top_markets = all_markets[:5]
     movers = sorted(all_markets, key=lambda x: abs(x.get("yes", 50) - 50), reverse=True)[:5]
 
-    SITE = "https://pulse-api-joed.onrender.com"
+    SITE = "https://sygnal-api-joed.onrender.com"
     date_str = datetime.now().strftime("%B %d, %Y")
 
     # Market rows
@@ -737,7 +737,7 @@ async def get_clicks():
 async def robots():
     from fastapi.responses import PlainTextResponse
     return PlainTextResponse(
-        "User-agent: *\nAllow: /\nSitemap: https://pulse-api-joed.onrender.com/sitemap.xml\n"
+        "User-agent: *\nAllow: /\nSitemap: https://sygnal-api-joed.onrender.com/sitemap.xml\n"
     )
 
 
@@ -746,7 +746,7 @@ async def sitemap():
     from fastapi.responses import Response
     xml = f"""<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-  <url><loc>https://pulse-api-joed.onrender.com/</loc><changefreq>hourly</changefreq><priority>1.0</priority></url>
+  <url><loc>https://sygnal-api-joed.onrender.com/</loc><changefreq>hourly</changefreq><priority>1.0</priority></url>
 </urlset>"""
     return Response(content=xml, media_type="application/xml")
 
@@ -784,7 +784,7 @@ async def get_recap():
     for m in top3:
         sig = "BUY YES" if m["yes"] >= 70 else ("BUY NO" if m["yes"] <= 30 else "WATCH")
         share_text += f"{m['question'][:50]}\nYES {m['yes']}c — {sig}\n\n"
-    share_text += f"{len(all_markets)} markets tracked across Kalshi & Polymarket\nhttps://pulse-api-joed.onrender.com"
+    share_text += f"{len(all_markets)} markets tracked across Kalshi & Polymarket\nhttps://sygnal-api-joed.onrender.com"
 
     return {
         "date": datetime.now().strftime("%B %d, %Y"),
@@ -833,8 +833,8 @@ async def pro_checkout(request: Request):
             mode="subscription",
             line_items=[{"price": STRIPE_PRICE_ID, "quantity": 1}],
             customer_email=email if email else None,
-            success_url="https://pulse-api-joed.onrender.com/?pro=success",
-            cancel_url="https://pulse-api-joed.onrender.com/?pro=cancel",
+            success_url="https://sygnal-api-joed.onrender.com/?pro=success",
+            cancel_url="https://sygnal-api-joed.onrender.com/?pro=cancel",
         )
         return {"url": session.url}
     except Exception as e:
@@ -909,7 +909,7 @@ def save_alerts_history(alerts):
         json.dump(alerts[-200:], f)
 
 
-async def send_push(title, message, url="https://pulse-api-joed.onrender.com", segment="Pro Users"):
+async def send_push(title, message, url="https://sygnal-api-joed.onrender.com", segment="Pro Users"):
     """Send push notification via OneSignal."""
     if not ONESIGNAL_APP_ID or not ONESIGNAL_API_KEY:
         return False
@@ -927,7 +927,7 @@ async def send_push(title, message, url="https://pulse-api-joed.onrender.com", s
                     "headings": {"en": title},
                     "contents": {"en": message},
                     "url": url,
-                    "chrome_web_badge": "https://pulse-api-joed.onrender.com/icon-192.png",
+                    "chrome_web_badge": "https://sygnal-api-joed.onrender.com/icon-192.png",
                 },
                 timeout=10,
             )
@@ -955,7 +955,7 @@ async def autopilot_scan():
         vol = m.get("volume", 0)
         question = m.get("question", "")
         source = m.get("source", "")
-        url = m.get("url", "https://pulse-api-joed.onrender.com")
+        url = m.get("url", "https://sygnal-api-joed.onrender.com")
 
         prev = prev_snapshots.get(ticker, {})
         prev_yes = prev.get("yes", yes)
@@ -1015,7 +1015,7 @@ async def autopilot_scan():
                 "title": f"Arbitrage: {a['diff']}¢ spread",
                 "message": f"{a['topic']} — Kalshi {a['kalshi']['yes']}¢ vs Poly {a['poly']['yes']}¢. {a['direction']}",
                 "ticker": a.get("topic", ""),
-                "url": "https://pulse-api-joed.onrender.com",
+                "url": "https://sygnal-api-joed.onrender.com",
                 "timestamp": now,
             })
 
@@ -1052,7 +1052,7 @@ async def autopilot_scan():
         push_sent = await send_push(
             title=top["title"],
             message=top["message"],
-            url=top.get("url", "https://pulse-api-joed.onrender.com"),
+            url=top.get("url", "https://sygnal-api-joed.onrender.com"),
         )
 
     return {

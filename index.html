@@ -15,8 +15,8 @@
     <meta property="og:type" content="website">
     <meta property="og:title" content="Sygnal Markets — Trade Smarter.">
     <meta property="og:description" content="Real-time prediction market analytics. AI-powered Sygnal Scores, cross-platform arbitrage, and live odds from Kalshi & Polymarket.">
-    <meta property="og:url" content="https://pulse-api-joed.onrender.com">
-    <meta property="og:image" content="https://pulse-api-joed.onrender.com/og-image.png">
+    <meta property="og:url" content="https://sygnal-api-joed.onrender.com">
+    <meta property="og:image" content="https://sygnal-api-joed.onrender.com/og-image.png">
     <meta property="og:image:width" content="1200">
     <meta property="og:image:height" content="630">
     <meta property="og:site_name" content="SYGNAL">
@@ -25,7 +25,7 @@
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:title" content="Sygnal Markets — Trade Smarter.">
     <meta name="twitter:description" content="Real-time prediction market analytics. AI-powered Sygnal Scores, cross-platform arbitrage, and live odds from Kalshi & Polymarket.">
-    <meta name="twitter:image" content="https://pulse-api-joed.onrender.com/og-image.png">
+    <meta name="twitter:image" content="https://sygnal-api-joed.onrender.com/og-image.png">
 
     <!-- JSON-LD Structured Data -->
     <script type="application/ld+json">
@@ -34,7 +34,7 @@
         "@type": "WebApplication",
         "name": "Sygnal Markets",
         "description": "Cross-platform prediction market analytics. Real-time odds from Kalshi & Polymarket with AI-powered Sygnal Scores.",
-        "url": "https://pulse-api-joed.onrender.com",
+        "url": "https://sygnal-api-joed.onrender.com",
         "applicationCategory": "FinanceApplication",
         "operatingSystem": "Web",
         "offers": {
@@ -64,13 +64,13 @@
     <link rel="manifest" href="/manifest.json">
     <link rel="icon" type="image/png" href="/icon-192.png">
     <link rel="apple-touch-icon" href="/icon-192.png">
-    <link rel="canonical" href="https://pulse-api-joed.onrender.com">
+    <link rel="canonical" href="https://sygnal-api-joed.onrender.com">
 </head>
 <body>
 
     <!-- Landing Page -->
     <section id="landing" class="landing" style="display:none;">
-    <script>if(!localStorage.getItem('pulse-seen-landing'))document.getElementById('landing').style.display='flex';</script>
+    <script>if(!localStorage.getItem('sygnal-seen-landing'))document.getElementById('landing').style.display='flex';</script>
         <div class="landing-content">
             <div class="landing-badge">CROSS-PLATFORM PREDICTION MARKET ANALYTICS</div>
             <h1 class="landing-title">SYGNAL</h1>
@@ -104,7 +104,7 @@
             <p class="landing-note">Free forever. No signup required.</p>
             <script>
             function requestPushAndEnter() {
-                localStorage.setItem('pulse-seen-landing','1');
+                localStorage.setItem('sygnal-seen-landing','1');
                 // Show notification permission overlay
                 if ('Notification' in window && Notification.permission === 'default') {
                     document.getElementById('push-overlay').style.display = 'flex';
@@ -221,8 +221,8 @@
     </section>
 
     <!-- Sygnal Score Explainer -->
-    <div class="pulse-explainer" id="pulse-explainer">
-        <div class="pulse-explainer-card">
+    <div class="sygnal-explainer" id="sygnal-explainer">
+        <div class="sygnal-explainer-card">
             <div class="explainer-top">
                 <div class="explainer-intro">
                     <h3>What is the Sygnal Score?</h3>
@@ -236,37 +236,37 @@
                     <span class="demo-score-tag" style="color:#00d68f;">BUY YES</span>
                 </div>
             </div>
-            <div class="pulse-factors">
-                <div class="pulse-factor">
-                    <span class="pulse-factor-icon">📊</span>
+            <div class="sygnal-factors">
+                <div class="sygnal-factor">
+                    <span class="sygnal-factor-icon">📊</span>
                     <div>
                         <strong>Price Position (0–20 pts)</strong>
                         <span>Markets at 25¢ or 75¢ score highest — clear lean with room to profit. Dead markets near 0¢ or 100¢ score zero.</span>
                     </div>
                 </div>
-                <div class="pulse-factor">
-                    <span class="pulse-factor-icon">💰</span>
+                <div class="sygnal-factor">
+                    <span class="sygnal-factor-icon">💰</span>
                     <div>
                         <strong>Volume (0–20 pts)</strong>
                         <span>More money flowing = more reliable price. Low volume markets can have misleading prices.</span>
                     </div>
                 </div>
-                <div class="pulse-factor">
-                    <span class="pulse-factor-icon">📈</span>
+                <div class="sygnal-factor">
+                    <span class="sygnal-factor-icon">📈</span>
                     <div>
                         <strong>Momentum (0–20 pts)</strong>
                         <span>How fast is the price moving? Big swings mean something is happening right now.</span>
                     </div>
                 </div>
-                <div class="pulse-factor">
-                    <span class="pulse-factor-icon">🔀</span>
+                <div class="sygnal-factor">
+                    <span class="sygnal-factor-icon">🔀</span>
                     <div>
                         <strong>Cross-Platform Edge (0–20 pts)</strong>
                         <span>Only SYGNAL sees both Kalshi &amp; Polymarket. When platforms disagree on price, that's your edge.</span>
                     </div>
                 </div>
-                <div class="pulse-factor">
-                    <span class="pulse-factor-icon">💧</span>
+                <div class="sygnal-factor">
+                    <span class="sygnal-factor-icon">💧</span>
                     <div>
                         <strong>Liquidity (0–19 pts)</strong>
                         <span>Can you actually buy and sell at this price? High liquidity = easy trades, no slippage.</span>
@@ -274,20 +274,20 @@
                 </div>
             </div>
             <div class="explainer-bottom">
-                <div class="pulse-scale">
-                    <div class="pulse-scale-block">
+                <div class="sygnal-scale">
+                    <div class="sygnal-scale-block">
                         <div class="scale-bar" style="background:#ff3b5c;"></div>
-                        <span class="pulse-scale-item" style="color:#ff3b5c;">0–33</span>
+                        <span class="sygnal-scale-item" style="color:#ff3b5c;">0–33</span>
                         <span class="scale-desc">SKIP — Low activity, not worth trading</span>
                     </div>
-                    <div class="pulse-scale-block">
+                    <div class="sygnal-scale-block">
                         <div class="scale-bar" style="background:#f0b000;"></div>
-                        <span class="pulse-scale-item" style="color:#f0b000;">34–66</span>
+                        <span class="sygnal-scale-item" style="color:#f0b000;">34–66</span>
                         <span class="scale-desc">WATCH — Some activity, keep an eye on it</span>
                     </div>
-                    <div class="pulse-scale-block">
+                    <div class="sygnal-scale-block">
                         <div class="scale-bar" style="background:#00d68f;"></div>
-                        <span class="pulse-scale-item" style="color:#00d68f;">67–99</span>
+                        <span class="sygnal-scale-item" style="color:#00d68f;">67–99</span>
                         <span class="scale-desc">TRADE — Active, good price, things are moving</span>
                     </div>
                 </div>
@@ -306,7 +306,7 @@
                     </div>
                 </div>
             </div>
-            <button class="pulse-dismiss" onclick="document.getElementById('pulse-explainer').style.display='none'; localStorage.setItem('pulse-explainer-dismissed','true');">Got it, show me the markets</button>
+            <button class="sygnal-dismiss" onclick="document.getElementById('sygnal-explainer').style.display='none'; localStorage.setItem('sygnal-explainer-dismissed','true');">Got it, show me the markets</button>
         </div>
     </div>
 
@@ -353,7 +353,7 @@
                     </button>
                     <div class="custom-select-menu" id="sort-menu">
                         <div class="custom-select-option active" data-value="default" onclick="selectSort(this)">Default</div>
-                        <div class="custom-select-option" data-value="pulse-desc" onclick="selectSort(this)">Sygnal Score</div>
+                        <div class="custom-select-option" data-value="sygnal-desc" onclick="selectSort(this)">Sygnal Score</div>
                         <div class="custom-select-option" data-value="volume-desc" onclick="selectSort(this)">Most Volume</div>
                         <div class="custom-select-option" data-value="volume-asc" onclick="selectSort(this)">Least Volume</div>
                         <div class="custom-select-option" data-value="yes-desc" onclick="selectSort(this)">Highest YES</div>
@@ -383,7 +383,7 @@
             <canvas id="detail-chart" width="600" height="200"></canvas>
             <div id="detail-stats"></div>
             <div id="detail-actions"></div>
-            <div id="detail-pulse-history"></div>
+            <div id="detail-sygnal-history"></div>
             <div id="detail-paper-trade"></div>
             <div id="detail-alert-section"></div>
         </div>
@@ -523,16 +523,16 @@
     </section>
 
     <!-- Sygnal AI Chat Widget -->
-    <div id="pulse-chat-btn" onclick="togglePulseChat()">
+    <div id="sygnal-chat-btn" onclick="toggleSygnalChat()">
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
     </div>
-    <div id="pulse-chat" style="display:none;">
+    <div id="sygnal-chat" style="display:none;">
         <div class="chat-header">
             <div class="chat-header-left">
                 <span class="chat-dot"></span>
                 <span class="chat-title">Sygnal AI</span>
             </div>
-            <button class="chat-close" onclick="togglePulseChat()">&times;</button>
+            <button class="chat-close" onclick="toggleSygnalChat()">&times;</button>
         </div>
         <div class="chat-messages" id="chat-messages">
             <div class="chat-msg bot">Hey! I'm Sygnal AI. Ask me about any market, trade signals, or the Kalshi bot. Try: "best trades right now" or "how is the bot doing?"</div>

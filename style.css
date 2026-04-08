@@ -1013,8 +1013,8 @@ body.light .refresh-countdown { color: #8890a0; }
 body.light .mobile-nav { background: rgba(255,255,255,0.95); border-top-color: rgba(0,0,0,0.08); }
 body.light .mobile-nav-item { color: #8890a0; }
 body.light .mobile-nav-item.active { color: #0066cc; }
-body.light .card-pulse-label { color: #8890a0; }
-body.light .card-pulse-score { filter: brightness(0.75) saturate(0.85); }
+body.light .card-sygnal-label { color: #8890a0; }
+body.light .card-sygnal-score { filter: brightness(0.75) saturate(0.85); }
 body.light .card-signal { filter: brightness(0.8) saturate(0.9); }
 body.light .market-card { box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
 body.light .market-card:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
@@ -1169,8 +1169,8 @@ body.light .buy-no:hover { background: #e53e3e; color: #fff; }
     white-space: nowrap;
 }
 
-/* Detail page Pulse Score */
-.detail-pulse-row {
+/* Detail page Sygnal Score */
+.detail-sygnal-row {
     display: flex;
     align-items: center;
     gap: 16px;
@@ -1181,7 +1181,7 @@ body.light .buy-no:hover { background: #e53e3e; color: #fff; }
     border: 1px solid var(--border);
 }
 
-.detail-pulse-score {
+.detail-sygnal-score {
     width: 74px;
     height: 74px;
     border-radius: 50%;
@@ -1193,13 +1193,13 @@ body.light .buy-no:hover { background: #e53e3e; color: #fff; }
     flex-shrink: 0;
 }
 
-.detail-pulse-num {
+.detail-sygnal-num {
     font-size: 24px;
     font-weight: 800;
     line-height: 1;
 }
 
-.detail-pulse-label {
+.detail-sygnal-label {
     font-size: 7px;
     letter-spacing: 1.5px;
     color: var(--text-dim);
@@ -1207,7 +1207,7 @@ body.light .buy-no:hover { background: #e53e3e; color: #fff; }
     margin-top: 3px;
 }
 
-.detail-pulse-info {
+.detail-sygnal-info {
     font-size: 14px;
     color: var(--text-mid);
 }
@@ -1484,8 +1484,8 @@ body.light .buy-no:hover { background: #e53e3e; color: #fff; }
     margin-left: 4px;
 }
 
-/* ── PULSE SCORE ── */
-.pulse-score {
+/* ── SYGNAL SCORE ── */
+.sygnal-score {
     font-size: 12px;
     font-weight: 800;
     font-family: var(--font);
@@ -1518,8 +1518,8 @@ body.light .buy-no:hover { background: #e53e3e; color: #fff; }
     font-size: 12px !important;
 }
 
-/* ── PULSE SCORE EXPLAINER — full-width banner ── */
-.pulse-explainer {
+/* ── SYGNAL SCORE EXPLAINER — full-width banner ── */
+.sygnal-explainer {
     width: 100vw;
     margin-left: calc(-50vw + 50%);
     padding: 0;
@@ -1527,7 +1527,7 @@ body.light .buy-no:hover { background: #e53e3e; color: #fff; }
     z-index: 1;
 }
 
-.pulse-explainer-card {
+.sygnal-explainer-card {
     background: linear-gradient(135deg, rgba(0, 136, 255, 0.08) 0%, rgba(0, 214, 143, 0.04) 50%, rgba(139, 92, 246, 0.06) 100%);
     border-top: 1px solid rgba(0, 136, 255, 0.15);
     border-bottom: 1px solid rgba(0, 136, 255, 0.15);
@@ -1609,7 +1609,7 @@ body.light .buy-no:hover { background: #e53e3e; color: #fff; }
 }
 
 /* Factors row */
-.pulse-factors {
+.sygnal-factors {
     display: flex;
     flex-direction: row;
     gap: 12px;
@@ -1618,7 +1618,7 @@ body.light .buy-no:hover { background: #e53e3e; color: #fff; }
     margin: 0 auto 24px;
 }
 
-.pulse-factor {
+.sygnal-factor {
     display: flex;
     align-items: flex-start;
     gap: 14px;
@@ -1630,24 +1630,24 @@ body.light .buy-no:hover { background: #e53e3e; color: #fff; }
     transition: background 0.2s;
 }
 
-.pulse-factor:hover {
+.sygnal-factor:hover {
     background: rgba(255, 255, 255, 0.07);
 }
 
-.pulse-factor-icon {
+.sygnal-factor-icon {
     font-size: 24px;
     flex-shrink: 0;
     margin-top: 2px;
 }
 
-.pulse-factor strong {
+.sygnal-factor strong {
     display: block;
     font-size: 15px;
     color: var(--text);
     margin-bottom: 4px;
 }
 
-.pulse-factor span {
+.sygnal-factor span {
     font-size: 13px;
     color: var(--text-dim);
     line-height: 1.5;
@@ -1661,7 +1661,7 @@ body.light .buy-no:hover { background: #e53e3e; color: #fff; }
     margin: 0 auto 24px;
 }
 
-.pulse-scale {
+.sygnal-scale {
     flex: 1;
     display: flex;
     flex-direction: column;
@@ -1672,7 +1672,7 @@ body.light .buy-no:hover { background: #e53e3e; color: #fff; }
     border: 1px solid rgba(255, 255, 255, 0.04);
 }
 
-.pulse-scale-block {
+.sygnal-scale-block {
     display: flex;
     align-items: center;
     gap: 12px;
@@ -1685,7 +1685,7 @@ body.light .buy-no:hover { background: #e53e3e; color: #fff; }
     flex-shrink: 0;
 }
 
-.pulse-scale-item {
+.sygnal-scale-item {
     font-size: 14px;
     font-weight: 800;
     letter-spacing: 1px;
@@ -1726,7 +1726,7 @@ body.light .buy-no:hover { background: #e53e3e; color: #fff; }
 }
 
 /* Dismiss button */
-.pulse-dismiss {
+.sygnal-dismiss {
     background: var(--accent);
     color: #fff;
     border: none;
@@ -1739,7 +1739,7 @@ body.light .buy-no:hover { background: #e53e3e; color: #fff; }
     transition: all 0.2s;
 }
 
-.pulse-dismiss:hover {
+.sygnal-dismiss:hover {
     background: #0077dd;
     transform: translateY(-1px);
 }
@@ -2217,11 +2217,11 @@ body.light .buy-no:hover { background: #e53e3e; color: #fff; }
     .portfolio-chart-section canvas {
         height: 120px;
     }
-    /* Pulse explainer mobile */
-    .pulse-explainer-card {
+    /* Sygnal explainer mobile */
+    .sygnal-explainer-card {
         padding: 24px 16px;
     }
-    .pulse-factors {
+    .sygnal-factors {
         flex-direction: column;
     }
     .explainer-top {
@@ -2235,7 +2235,7 @@ body.light .buy-no:hover { background: #e53e3e; color: #fff; }
     .explainer-bottom {
         flex-direction: column;
     }
-    .pulse-scale {
+    .sygnal-scale {
         flex-direction: column;
         gap: 8px;
     }
@@ -2263,11 +2263,11 @@ body.light .buy-no:hover { background: #e53e3e; color: #fff; }
     }
 }
 
-/* ── PULSE RING ── */
-.pulse-ring { flex-shrink: 0; }
+/* ── SYGNAL RING ── */
+.sygnal-ring { flex-shrink: 0; }
 
-/* ── CARD PULSE SCORE — footer bar at bottom of card ── */
-.card-pulse-footer {
+/* ── CARD SYGNAL SCORE — footer bar at bottom of card ── */
+.card-sygnal-footer {
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -2298,7 +2298,7 @@ body.light .buy-no:hover { background: #e53e3e; color: #fff; }
     transform: translateY(-1px);
 }
 
-.card-pulse-label {
+.card-sygnal-label {
     font-size: 9px;
     font-weight: 700;
     letter-spacing: 2px;
@@ -2306,7 +2306,7 @@ body.light .buy-no:hover { background: #e53e3e; color: #fff; }
     font-family: var(--font);
 }
 
-.card-pulse-score {
+.card-sygnal-score {
     font-size: 20px;
     font-weight: 800;
     font-family: var(--font);
@@ -2337,26 +2337,26 @@ body.light .buy-no:hover { background: #e53e3e; color: #fff; }
     color: var(--text-mid);
     text-align: right;
 }
-.pulse-history-section {
+.sygnal-history-section {
     margin-top: 12px;
     padding: 12px;
     background: rgba(255,255,255,0.02);
     border: 1px solid var(--border);
     border-radius: 10px;
 }
-.pulse-history-section h4 {
+.sygnal-history-section h4 {
     font-size: 13px;
     font-weight: 700;
     color: var(--text);
     margin-bottom: 8px;
 }
-#pulse-history-chart {
+#sygnal-history-chart {
     width: 100%;
     height: 80px;
     display: block;
     border-radius: 6px;
 }
-.pulse-history-stats {
+.sygnal-history-stats {
     display: flex;
     gap: 16px;
     justify-content: center;
@@ -2364,7 +2364,7 @@ body.light .buy-no:hover { background: #e53e3e; color: #fff; }
     font-size: 11px;
     color: var(--text-dim);
 }
-.pulse-history-stats b {
+.sygnal-history-stats b {
     font-weight: 700;
 }
 
@@ -2776,12 +2776,12 @@ body.light .buy-no:hover { background: #e53e3e; color: #fff; }
     color: var(--text);
 }
 
-/* ── PULSE DISMISS — positioned for full-width banner ── */
-.pulse-dismiss {
+/* ── SYGNAL DISMISS — positioned for full-width banner ── */
+.sygnal-dismiss {
     margin-top: 4px;
 }
 
-/* ── PULSE LEAGUES ── */
+/* ── SYGNAL LEAGUES ── */
 .league-header-row { display: flex; align-items: center; gap: 12px; margin-bottom: 4px; }
 .league-week-badge { font-size: 11px; font-weight: 700; letter-spacing: 1.5px; color: var(--accent); background: rgba(0,136,255,0.1); padding: 4px 10px; border-radius: 6px; }
 .league-stats-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 24px; }
@@ -2827,7 +2827,7 @@ body.light .buy-no:hover { background: #e53e3e; color: #fff; }
     border-radius: 20px;
 }
 
-/* ── PULSE AUTOPILOT ── */
+/* ── SYGNAL AUTOPILOT ── */
 .autopilot-panel {
     position: fixed;
     top: 60px;
@@ -2865,7 +2865,7 @@ body.light .buy-no:hover { background: #e53e3e; color: #fff; }
     .autopilot-panel { right: 8px; left: 8px; width: auto; top: 50px; }
 }
 
-/* ── PULSE PRO MODAL ── */
+/* ── SYGNAL PRO MODAL ── */
 .pro-modal {
     position: fixed;
     top: 0; left: 0; right: 0; bottom: 0;
@@ -2900,8 +2900,8 @@ body.light .buy-no:hover { background: #e53e3e; color: #fff; }
 }
 .pro-btn:hover { opacity: 0.9; }
 
-/* ── PULSE AI CHAT WIDGET ── */
-#pulse-chat-btn {
+/* ── SYGNAL AI CHAT WIDGET ── */
+#sygnal-chat-btn {
     position: fixed;
     bottom: 24px;
     right: 24px;
@@ -2917,12 +2917,12 @@ body.light .buy-no:hover { background: #e53e3e; color: #fff; }
     z-index: 9000;
     transition: transform 0.2s, box-shadow 0.2s;
 }
-#pulse-chat-btn:hover {
+#sygnal-chat-btn:hover {
     transform: scale(1.08);
     box-shadow: 0 6px 28px rgba(0,136,255,0.4);
 }
 
-#pulse-chat {
+#sygnal-chat {
     position: fixed;
     bottom: 92px;
     right: 24px;
@@ -2955,9 +2955,9 @@ body.light .buy-no:hover { background: #e53e3e; color: #fff; }
     height: 8px;
     border-radius: 50%;
     background: var(--green);
-    animation: chat-pulse 2s ease-in-out infinite;
+    animation: chat-blink 2s ease-in-out infinite;
 }
-@keyframes chat-pulse {
+@keyframes chat-blink {
     0%, 100% { opacity: 1; }
     50% { opacity: 0.4; }
 }
@@ -3076,7 +3076,7 @@ body.light .buy-no:hover { background: #e53e3e; color: #fff; }
     height: 8px;
     border-radius: 50%;
     background: var(--green);
-    animation: chat-pulse 2s ease-in-out infinite;
+    animation: chat-blink 2s ease-in-out infinite;
 }
 .feed-close {
     margin-left: auto;
@@ -3135,13 +3135,13 @@ body.light .buy-no:hover { background: #e53e3e; color: #fff; }
 
 /* Mobile adjustments */
 @media (max-width: 768px) {
-    #pulse-chat {
+    #sygnal-chat {
         right: 8px;
         left: 8px;
         width: auto;
         bottom: 80px;
     }
-    #pulse-chat-btn {
+    #sygnal-chat-btn {
         bottom: 72px;
         right: 16px;
         width: 48px;
