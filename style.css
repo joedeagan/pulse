@@ -2299,9 +2299,9 @@ body.light .buy-no:hover { background: #e53e3e; color: #fff; }
 }
 
 .card-pulse-label {
-    font-size: 13px;
-    font-weight: 800;
-    letter-spacing: 3px;
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 2px;
     color: var(--text-dim);
     font-family: var(--font);
 }
