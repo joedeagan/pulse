@@ -1,6 +1,6 @@
 # CUSTOM DOMAIN: To set up a custom domain on Render:
 # 1. Go to render.com → your service → Settings → Custom Domains
-# 2. Add your domain (e.g., pulse.joedeagan.com)
+# 2. Add your domain (e.g., sygnal.joedeagan.com)
 # 3. Add a CNAME record in your DNS pointing to your-service.onrender.com
 # 4. Render handles SSL automatically
 
@@ -44,7 +44,7 @@ if os.path.exists(_env_path):
                 os.environ[_k.strip()] = _v.strip()
 
 SENDGRID_API_KEY = os.environ.get("SENDGRID_API_KEY", "")
-SENDGRID_FROM_EMAIL = os.environ.get("SENDGRID_FROM_EMAIL", "pulse@joedeagan.com")
+SENDGRID_FROM_EMAIL = os.environ.get("SENDGRID_FROM_EMAIL", "sygnal.joedeagan.com")
 
 # WHAT IS FastAPI?
 # It's a Python framework for building web APIs.
@@ -340,6 +340,51 @@ async def get_bot():
                 "scans": status.get("scan_count", 0),
                 "trades_today": status.get("trades_today", 0),
             }
+    except Exception as e:
+        return {"error": str(e)}
+
+
+# ─── BOT CONFIG (GET + UPDATE) ───
+BOT_URL = "https://web-production-c8a5b.up.railway.app"
+
+@app.get("/api/bot/config")
+async def get_bot_config():
+    """Fetch current bot configuration."""
+    try:
+        async with httpx.AsyncClient() as client:
+            resp = await client.get(f"{BOT_URL}/api/bot/config", timeout=10)
+            return resp.json()
+    except Exception as e:
+        return {"error": str(e)}
+
+@app.post("/api/bot/config")
+async def update_bot_config(request: Request):
+    """Update bot configuration parameters."""
+    try:
+        body = await request.json()
+        async with httpx.AsyncClient() as client:
+            resp = await client.post(f"{BOT_URL}/api/bot/config", json=body, timeout=10)
+            return resp.json()
+    except Exception as e:
+        return {"error": str(e)}
+
+@app.get("/api/bot/signals")
+async def get_bot_signals():
+    """Fetch latest bot signals."""
+    try:
+        async with httpx.AsyncClient() as client:
+            resp = await client.get(f"{BOT_URL}/api/bot/signals", timeout=10)
+            return resp.json()
+    except Exception as e:
+        return {"error": str(e)}
+
+@app.get("/api/bot/trades")
+async def get_bot_trades(limit: int = 20):
+    """Fetch recent bot trades."""
+    try:
+        async with httpx.AsyncClient() as client:
+            resp = await client.get(f"{BOT_URL}/api/bot/trades?limit={limit}", timeout=10)
+            return resp.json()
     except Exception as e:
         return {"error": str(e)}
 

@@ -14,7 +14,7 @@ const API_BASE = window.location.hostname === 'localhost' || window.location.hos
 // ── AFFILIATE LINKS ──
 const AFFILIATE = {
     kalshi: { base: 'https://kalshi.com/markets/', param: '?referral=9b5a413c-b37a-47a3-bbb3-f96c9286719f' },
-    poly:   { base: 'https://polymarket.com/event/', param: '?utm_source=pulse&utm_medium=referral' },
+    poly:   { base: 'https://polymarket.com/event/', param: '?utm_source=sygnal&utm_medium=referral' },
 };
 function getAffiliateUrl(market) {
     if (market.source === 'kalshi') {
@@ -27,12 +27,30 @@ function getAffiliateUrl(market) {
     return AFFILIATE.poly.base + (market.ticker || '') + AFFILIATE.poly.param;
 }
 function trackAffiliateClick(platform) {
-    const clicks = JSON.parse(localStorage.getItem('pulse-affiliate-clicks') || '{}');
+    const clicks = JSON.parse(localStorage.getItem('sygnal-affiliate-clicks') || '{}');
     clicks[platform] = (clicks[platform] || 0) + 1;
     clicks.total = (clicks.total || 0) + 1;
-    localStorage.setItem('pulse-affiliate-clicks', JSON.stringify(clicks));
+    localStorage.setItem('sygnal-affiliate-clicks', JSON.stringify(clicks));
     fetch((API_BASE || '') + '/api/clicks', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ platform }) }).catch(() => {});
 }
+
+// ── LOCALSTORAGE MIGRATION (pulse- → sygnal-) ──
+// Migrate existing users' data so nothing is lost
+(function migratePulseKeys() {
+    const keyMap = [
+        'seen-landing', 'affiliate-clicks', 'watchlist', 'market-cache',
+        'snapshots', 'track-record', 'theme', 'portfolio', 'notifications',
+        'prices', 'prev-scores', 'price-alerts', 'portfolio-history',
+        'leagues', 'pro', 'last-visit', 'explainer-dismissed'
+    ];
+    for (const k of keyMap) {
+        const old = localStorage.getItem('pulse-' + k);
+        if (old !== null && localStorage.getItem('sygnal-' + k) === null) {
+            localStorage.setItem('sygnal-' + k, old);
+            localStorage.removeItem('pulse-' + k);
+        }
+    }
+})();
 
 // ── TAB NAVIGATION ──
 function switchTab(tab, btn) {
@@ -54,7 +72,7 @@ function switchTab(tab, btn) {
     const filtersEl = document.getElementById('filters');
     const marketsEl = document.getElementById('markets');
     const briefEl = document.getElementById('ai-brief');
-    const explainerEl = document.getElementById('pulse-explainer');
+    const explainerEl = document.getElementById('sygnal-explainer');
     const signupEl = document.getElementById('email-signup');
     const botEl = document.getElementById('bot-panel');
     const portfolioEl = document.getElementById('portfolio-panel');
@@ -63,14 +81,20 @@ function switchTab(tab, btn) {
     const trendingEl = document.getElementById('trending-panel');
     const leaguesEl = document.getElementById('leagues-panel');
 
-    const marketsView = [heroEl, statsEl, filtersEl, marketsEl, briefEl, explainerEl, signupEl];
+    const compareEl = document.getElementById('compare-panel');
+    const alertsEl = document.getElementById('alerts-panel');
+    const newsFeedEl = document.getElementById('news-feed');
+
+    const marketsView = [heroEl, statsEl, filtersEl, marketsEl, briefEl, explainerEl, signupEl, newsFeedEl];
     const botView = [botEl];
     const portfolioView = [portfolioEl];
     const arbView = [arbEl];
     const corrView = [corrEl];
     const trendingView = [trendingEl];
     const leaguesView = [leaguesEl];
-    const allSections = [...marketsView, ...botView, ...portfolioView, ...arbView, ...corrView, ...trendingView, ...leaguesView];
+    const compareView = [compareEl];
+    const alertsView = [alertsEl];
+    const allSections = [...marketsView, ...botView, ...portfolioView, ...arbView, ...corrView, ...trendingView, ...leaguesView, ...compareView, ...alertsView];
 
     // Hide everything
     allSections.forEach(el => { if (el) el.classList.add('view-hidden'); });
@@ -84,6 +108,8 @@ function switchTab(tab, btn) {
     else if (tab === 'trending') { visible = trendingView; buildTrendingPanel(); }
     else if (tab === 'correlations') { visible = corrView; }
     else if (tab === 'leagues') { visible = leaguesView; buildLeaguePanel(); }
+    else if (tab === 'compare') { visible = compareView; buildComparePanel(); }
+    else if (tab === 'alerts') { visible = alertsView; renderAlertRules(); }
 
     visible.forEach(el => { if (el) el.classList.remove('view-hidden'); });
 }
@@ -91,7 +117,7 @@ function switchTab(tab, btn) {
 // ── WATCHLIST ──
 function getWatchlist() {
     try {
-        return JSON.parse(localStorage.getItem('pulse-watchlist') || '[]');
+        return JSON.parse(localStorage.getItem('sygnal-watchlist') || '[]');
     } catch { return []; }
 }
 
@@ -106,7 +132,7 @@ function toggleWatchlist(ticker, btn) {
         btn.classList.add('starred');
         btn.textContent = '\u2605';
     }
-    localStorage.setItem('pulse-watchlist', JSON.stringify(wl));
+    localStorage.setItem('sygnal-watchlist', JSON.stringify(wl));
 }
 
 function isStarred(ticker) {
@@ -190,7 +216,7 @@ async function loadMarkets() {
 
 function getCachedMarkets() {
     try {
-        const raw = localStorage.getItem('pulse-market-cache');
+        const raw = localStorage.getItem('sygnal-market-cache');
         if (!raw) return null;
         const data = JSON.parse(raw);
         // Cache is valid for 30 minutes
@@ -201,7 +227,7 @@ function getCachedMarkets() {
 
 function cacheMarkets(kalshi, polymarket) {
     try {
-        localStorage.setItem('pulse-market-cache', JSON.stringify({ kalshi, polymarket, ts: Date.now() }));
+        localStorage.setItem('sygnal-market-cache', JSON.stringify({ kalshi, polymarket, ts: Date.now() }));
     } catch {}
 }
 
@@ -213,10 +239,10 @@ function renderMarkets(kalshiMarkets, polyMarkets) {
     savePriceSnapshot(allMkts);
 
     // Compute Sygnal Scores for ALL markets at once (percentile-based)
-    computeAllPulseScores(allMkts);
+    computeAllSygnalScores(allMkts);
 
     // Check for Sygnal Score spikes
-    checkPulseScoreSpikes(allMkts);
+    checkSygnalScoreSpikes(allMkts);
 
     grid.innerHTML = '';
     allMarketCards = [];  // Reset for filtering
@@ -244,7 +270,7 @@ function renderMarkets(kalshiMarkets, polyMarkets) {
     for (const m of kalshiMarkets) {
         m.source = 'kalshi';
         const change = getMarketChange(m.ticker);
-        allCards.push({ market: m, platform: 'kalshi', change, score: calcPulseScore(m, change) });
+        allCards.push({ market: m, platform: 'kalshi', change, score: calcSygnalScore(m, change) });
     }
 
     // Add Polymarket markets (flatten groups — show top market from each group)
@@ -258,11 +284,11 @@ function renderMarkets(kalshiMarkets, polyMarkets) {
             topMarket._groupTitle = item.groupTitle;
             topMarket._groupCount = item.markets.length;
             const change = getMarketChange(topMarket.ticker);
-            allCards.push({ market: topMarket, platform: 'poly', change, score: calcPulseScore(topMarket, change) });
+            allCards.push({ market: topMarket, platform: 'poly', change, score: calcSygnalScore(topMarket, change) });
         } else {
             item.source = 'poly';
             const change = getMarketChange(item.ticker);
-            allCards.push({ market: item, platform: 'poly', change, score: calcPulseScore(item, change) });
+            allCards.push({ market: item, platform: 'poly', change, score: calcSygnalScore(item, change) });
         }
     }
 
@@ -475,10 +501,10 @@ function shortenTitle(t) {
 }
 
 // ── SYGNAL RING SVG HELPER ──
-function makePulseRing(score, size) {
+function makeSygnalRing(score, size) {
     size = size || 28;
     const color = score >= 70 ? '#00d68f' : score >= 40 ? '#f0b000' : '#ff3b5c';
-    return `<svg class="pulse-ring" width="${size}" height="${size}" viewBox="0 0 36 36">
+    return `<svg class="sygnal-ring" width="${size}" height="${size}" viewBox="0 0 36 36">
         <circle cx="18" cy="18" r="15" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="3"/>
         <circle cx="18" cy="18" r="15" fill="none" stroke="${color}" stroke-width="3"
             stroke-dasharray="${score * 0.94} 100" stroke-dashoffset="0"
@@ -512,9 +538,9 @@ function createMarketCard(market, platform, priceChange) {
     }
 
     // Sygnal Score — combines price confidence + volume strength + momentum
-    const pulseScore = calcPulseScore(market, priceChange);
-    const pulseColor = pulseScore >= 67 ? '#00d68f' : pulseScore >= 34 ? '#f0b000' : '#ff3b5c';
-    const pulseLabel = pulseScore >= 67 ? 'TRADE' : pulseScore >= 34 ? 'WATCH' : 'SKIP';
+    const sygnalScore = calcSygnalScore(market, priceChange);
+    const sygnalColor = sygnalScore >= 67 ? '#00d68f' : sygnalScore >= 34 ? '#f0b000' : '#ff3b5c';
+    const sygnalLabel = sygnalScore >= 67 ? 'TRADE' : sygnalScore >= 34 ? 'WATCH' : 'SKIP';
 
     const badge = platform === 'kalshi'
         ? '<span class="badge kalshi-badge">KALSHI</span>'
@@ -550,16 +576,16 @@ function createMarketCard(market, platform, priceChange) {
     card.appendChild(sparkDiv);
 
     // Sygnal Score footer + signal badge
-    const pulseFooter = document.createElement('div');
-    pulseFooter.className = 'card-pulse-footer';
-    const sig = getPulseSignal(market.ticker);
+    const sygnalFooter = document.createElement('div');
+    sygnalFooter.className = 'card-sygnal-footer';
+    const sig = getSygnalSignal(market.ticker);
     let sigColor, sigBg;
     if (sig.signal.includes('YES')) { sigColor = '#00d68f'; sigBg = 'rgba(0,214,143,0.12)'; }
     else if (sig.signal.includes('NO')) { sigColor = '#ff3b5c'; sigBg = 'rgba(255,59,92,0.12)'; }
     else { sigColor = '#f0b000'; sigBg = 'rgba(240,176,0,0.10)'; }
     const signalHtml = `<span class="card-signal" style="color:${sigColor};background:${sigBg};">${sig.signal}</span>`;
-    pulseFooter.innerHTML = `${signalHtml}<span class="card-pulse-label">SYGNAL</span><span class="card-pulse-score" style="color:${pulseColor};">${pulseScore}</span>`;
-    card.appendChild(pulseFooter);
+    sygnalFooter.innerHTML = `${signalHtml}<span class="card-sygnal-label">SYGNAL</span><span class="card-sygnal-score" style="color:${sygnalColor};">${sygnalScore}</span>`;
+    card.appendChild(sygnalFooter);
 
     // Affiliate trade button
     const tradeBtn = document.createElement('a');
@@ -608,8 +634,8 @@ function createMarketCard(market, platform, priceChange) {
 // ── SYGNAL SCORE ENGINE ──
 // ── SYGNAL SCORE — 5-Factor Cross-Platform Intelligence ──
 // Only SYGNAL can do this: we see BOTH platforms simultaneously
-let _pulseScoreCache = {};
-let _pulseSignalCache = {};
+let _sygnalScoreCache = {};
+let _sygnalSignalCache = {};
 let _crossPlatformMap = {};
 
 function buildCrossPlatformMap(allMarkets) {
@@ -638,9 +664,9 @@ function buildCrossPlatformMap(allMarkets) {
     }
 }
 
-function computeAllPulseScores(allMarkets) {
-    _pulseScoreCache = {};
-    _pulseSignalCache = {};
+function computeAllSygnalScores(allMarkets) {
+    _sygnalScoreCache = {};
+    _sygnalSignalCache = {};
     if (!allMarkets || allMarkets.length === 0) return;
 
     buildCrossPlatformMap(allMarkets);
@@ -682,7 +708,7 @@ function computeAllPulseScores(allMarkets) {
         else if (vol > 0) liqScore = 1;
 
         const total = Math.max(1, Math.min(priceScore + volScore + momentumScore + crossScore + liqScore, 99));
-        _pulseScoreCache[m.ticker] = total;
+        _sygnalScoreCache[m.ticker] = total;
 
         // ── DIRECTIONAL SIGNAL ──
         let signal = 'HOLD';
@@ -704,12 +730,12 @@ function computeAllPulseScores(allMarkets) {
         else if (nC === 1 && yC === 0) signal = 'LEAN NO';
         if (yes <= 5 || yes >= 95) signal = 'HOLD';
 
-        _pulseSignalCache[m.ticker] = { signal, confidence: Math.max(yC, nC), crossEdge: xp ? xp.priceDiff : 0 };
+        _sygnalSignalCache[m.ticker] = { signal, confidence: Math.max(yC, nC), crossEdge: xp ? xp.priceDiff : 0 };
     }
 }
 
-function calcPulseScore(market, priceChange) {
-    if (_pulseScoreCache[market.ticker] !== undefined) return _pulseScoreCache[market.ticker];
+function calcSygnalScore(market, priceChange) {
+    if (_sygnalScoreCache[market.ticker] !== undefined) return _sygnalScoreCache[market.ticker];
     const yes = market.yes || 50, vol = market.volume || 0, change = Math.abs(priceChange || 0);
     let ps = 0;
     if (yes > 3 && yes < 97) { const d = Math.abs(yes-50); ps = Math.round(20*Math.exp(-Math.pow(d-25,2)/450)); }
@@ -721,8 +747,8 @@ function calcPulseScore(market, priceChange) {
     return Math.max(1, Math.min(ps+vs+ms+ls, 99));
 }
 
-function getPulseSignal(ticker) {
-    return _pulseSignalCache[ticker] || { signal: 'HOLD', confidence: 0, crossEdge: 0 };
+function getSygnalSignal(ticker) {
+    return _sygnalSignalCache[ticker] || { signal: 'HOLD', confidence: 0, crossEdge: 0 };
 }
 
 // ── SHARE MARKET ──
@@ -740,7 +766,7 @@ function showToast(msg) {
 
 // ── REAL PRICE HISTORY ──
 function getPriceSnapshots() {
-    try { return JSON.parse(localStorage.getItem('pulse-snapshots') || '{}'); }
+    try { return JSON.parse(localStorage.getItem('sygnal-snapshots') || '{}'); }
     catch { return {}; }
 }
 
@@ -751,15 +777,15 @@ function savePriceSnapshot(allMarkets) {
         if (!m.ticker) continue;
         if (!snapshots[m.ticker]) snapshots[m.ticker] = [];
         const arr = snapshots[m.ticker];
-        const score = _pulseScoreCache[m.ticker] || 0;
-        const sig = _pulseSignalCache[m.ticker]?.signal || 'HOLD';
+        const score = _sygnalScoreCache[m.ticker] || 0;
+        const sig = _sygnalSignalCache[m.ticker]?.signal || 'HOLD';
         const last = arr[arr.length - 1];
         if (!last || last.p !== m.yes || (now - last.t) > 300000) {
             arr.push({ t: now, p: m.yes, s: score, sig });
         }
         if (arr.length > 50) arr.splice(0, arr.length - 50);
     }
-    localStorage.setItem('pulse-snapshots', JSON.stringify(snapshots));
+    localStorage.setItem('sygnal-snapshots', JSON.stringify(snapshots));
 
     // Track signal accuracy
     trackSignalAccuracy(allMarkets);
@@ -798,7 +824,7 @@ function trackSignalAccuracy(allMarkets) {
     // Add new pending signals (only BUY/LEAN, once per ticker per day)
     for (const m of allMarkets) {
         if (!m.ticker) continue;
-        const sig = _pulseSignalCache[m.ticker];
+        const sig = _sygnalSignalCache[m.ticker];
         if (!sig || sig.signal === 'HOLD') continue;
         const alreadyPending = record.pending.some(p => p.ticker === m.ticker && (now - p.time) < 86400000);
         if (alreadyPending) continue;
@@ -806,12 +832,12 @@ function trackSignalAccuracy(allMarkets) {
         // Cap pending at 50
         if (record.pending.length > 50) record.pending.shift();
     }
-    localStorage.setItem('pulse-track-record', JSON.stringify(record));
+    localStorage.setItem('sygnal-track-record', JSON.stringify(record));
 }
 
 function getTrackRecord() {
     try {
-        const raw = localStorage.getItem('pulse-track-record');
+        const raw = localStorage.getItem('sygnal-track-record');
         if (raw) return JSON.parse(raw);
     } catch {}
     return { pending: [], results: [] };
@@ -825,7 +851,7 @@ function getAccuracyStats() {
     return { total: results.length, correct, pct: Math.round((correct / results.length) * 100), pending: record.pending.length };
 }
 
-function getPulseScoreHistory(ticker) {
+function getSygnalScoreHistory(ticker) {
     const snapshots = getPriceSnapshots();
     return (snapshots[ticker] || []).map(s => ({ t: s.t, score: s.s || 0, price: s.p, signal: s.sig || '' }));
 }
@@ -999,7 +1025,7 @@ function analyzeMarket(market) {
         const no = market.no;
         const volume = market.volume || 0;
         const change = getMarketChange(market.ticker) || 0;
-        const pulse = calcPulseScore(market, change);
+        const score = calcSygnalScore(market, change);
         const volFmt = volume >= 1e6 ? '$' + (volume / 1e6).toFixed(1) + 'M' : volume >= 1e3 ? '$' + (volume / 1e3).toFixed(0) + 'K' : '$' + volume;
 
         let sections = [];
@@ -1044,12 +1070,12 @@ function analyzeMarket(market) {
         }
 
         // 4. VERDICT
-        if (pulse >= 67 && Math.abs(change) >= 2) {
+        if (score >= 67 && Math.abs(change) >= 2) {
             verdictClass = 'verdict-yes';
             verdict = side === 'EITHER'
                 ? `GOOD ENTRY — Active market, pick your side`
                 : `BUY ${side} — Strong market activity, momentum is there`;
-        } else if (pulse >= 34) {
+        } else if (score >= 34) {
             verdictClass = 'verdict-hold';
             verdict = `WATCHLIST — Decent market but wait for a clearer signal`;
         } else {
@@ -1182,7 +1208,7 @@ function getSortFn(sort) {
             const bChange = Math.abs(b.market.yes - (prev[b.market.ticker] || b.market.yes));
             return bChange - aChange;
         };
-        case 'pulse-desc': return (a, b) => (calcPulseScore(b.market, 0)) - (calcPulseScore(a.market, 0));
+        case 'sygnal-desc': return (a, b) => (calcSygnalScore(b.market, 0)) - (calcSygnalScore(a.market, 0));
         default: return null;
     }
 }
@@ -1290,7 +1316,7 @@ function toggleTheme() {
     const label = document.getElementById('theme-label');
     if (icon) icon.innerHTML = isLight ? '&#9789;' : '&#9728;';
     if (label) label.textContent = isLight ? 'Dark Mode' : 'Light Mode';
-    localStorage.setItem('pulse-theme', isLight ? 'light' : 'dark');
+    localStorage.setItem('sygnal-theme', isLight ? 'light' : 'dark');
 }
 
 let autoRefreshEnabled = true;
@@ -1310,14 +1336,14 @@ function toggleAutoRefresh() {
 }
 
 function clearWatchlist() {
-    localStorage.removeItem('pulse-watchlist');
+    localStorage.removeItem('sygnal-watchlist');
     loadMarkets();
     const menu = document.getElementById('settings-menu');
     if (menu) menu.classList.remove('open');
 }
 
 // Load saved theme
-if (localStorage.getItem('pulse-theme') === 'light') {
+if (localStorage.getItem('sygnal-theme') === 'light') {
     document.body.classList.add('light');
     const icon = document.getElementById('theme-icon');
     const label = document.getElementById('theme-label');
@@ -1394,7 +1420,7 @@ if (localStorage.getItem('pulse-theme') === 'light') {
     });
 })();
 
-// Hero orb removed — pulse animation lives in nav now
+// Hero orb removed — sygnal animation lives in nav now
 let _heroOrbRAF = null;
 let _heroOrbRunning = false;
 
@@ -1420,7 +1446,7 @@ function initHeroOrb() {
     // Theme-aware colors
     function isLight() { return document.body.classList.contains('light'); }
 
-    // Pulse wave rings expanding from center
+    // Sygnal wave rings expanding from center
     const rings = [0, 0.33, 0.66].map(offset => ({ phase: offset }));
 
     // EKG heartbeat shape
@@ -1493,11 +1519,11 @@ function initHeroOrb() {
             const a = (i / 16) * Math.PI * 2;
             const gap = 0.06;
             const arcLen = (Math.PI * 2 / 16) - gap * 2;
-            const pulse = Math.sin(t * 2 + i * 0.8) * 0.5 + 0.5;
+            const wave = Math.sin(t * 2 + i * 0.8) * 0.5 + 0.5;
             const color = i % 4 === 0 ? green : blue;
             ctx.beginPath();
             ctx.arc(0, 0, 82, a + gap, a + arcLen + gap);
-            ctx.strokeStyle = `rgba(${color}, ${(subtleAlpha + pulse * 0.15)})`;
+            ctx.strokeStyle = `rgba(${color}, ${(subtleAlpha + wave * 0.15)})`;
             ctx.lineWidth = i % 4 === 0 ? 2.5 : 1.5;
             ctx.stroke();
         }
@@ -1548,20 +1574,20 @@ function initHeroOrb() {
         }
 
         // === CENTER GLOW ===
-        const corePulse = Math.sin(t * 2) * 0.15 + 0.85;
-        const halo = ctx.createRadialGradient(cx, cy, 0, cx, cy, 25 * corePulse);
-        halo.addColorStop(0, `rgba(${green}, ${(light ? 0.25 : 0.2) * corePulse})`);
-        halo.addColorStop(0.5, `rgba(${blue}, ${0.08 * corePulse})`);
+        const coreWave = Math.sin(t * 2) * 0.15 + 0.85;
+        const halo = ctx.createRadialGradient(cx, cy, 0, cx, cy, 25 * coreWave);
+        halo.addColorStop(0, `rgba(${green}, ${(light ? 0.25 : 0.2) * coreWave})`);
+        halo.addColorStop(0.5, `rgba(${blue}, ${0.08 * coreWave})`);
         halo.addColorStop(1, `rgba(${blue}, 0)`);
         ctx.fillStyle = halo;
         ctx.beginPath();
-        ctx.arc(cx, cy, 25 * corePulse, 0, Math.PI * 2);
+        ctx.arc(cx, cy, 25 * coreWave, 0, Math.PI * 2);
         ctx.fill();
 
         // Center bright dot
         const coreGrad = ctx.createRadialGradient(cx, cy, 0, cx, cy, 8);
-        coreGrad.addColorStop(0, `rgba(255, 255, 255, ${(light ? 0.9 : 0.85) * corePulse})`);
-        coreGrad.addColorStop(0.4, `rgba(${green}, ${0.5 * corePulse})`);
+        coreGrad.addColorStop(0, `rgba(255, 255, 255, ${(light ? 0.9 : 0.85) * coreWave})`);
+        coreGrad.addColorStop(0.4, `rgba(${green}, ${0.5 * coreWave})`);
         coreGrad.addColorStop(1, `rgba(${green}, 0)`);
         ctx.fillStyle = coreGrad;
         ctx.beginPath();
@@ -1820,6 +1846,140 @@ async function loadBot() {
     }
 }
 
+// ── BOT CONTROLS ──
+let _botPaused = false;
+let _botOrigMaxPos = 12;
+
+async function loadBotConfig() {
+    try {
+        const resp = await fetch(API_BASE + '/api/bot/config');
+        if (!resp.ok) return;
+        const cfg = await resp.json();
+        if (cfg.error) return;
+
+        // Populate sliders with current values
+        const setSlider = (id, val, fmt) => {
+            const el = document.getElementById(id);
+            const valEl = document.getElementById(id + '-val');
+            if (el && val !== undefined) { el.value = val; if (valEl) valEl.textContent = fmt(val); }
+        };
+        setSlider('bot-max-bet', cfg.max_bet_dollars, v => '$' + parseFloat(v).toFixed(2));
+        setSlider('bot-max-pos', cfg.max_positions, v => v);
+        setSlider('bot-min-edge', cfg.min_edge, v => (v * 100).toFixed(0) + '%');
+        setSlider('bot-loss-limit', cfg.daily_loss_limit_cents, v => '$' + (v / 100).toFixed(2));
+        setSlider('bot-max-contracts', cfg.max_contracts_per, v => v);
+
+        _botOrigMaxPos = cfg.max_positions || 12;
+        _botPaused = cfg.max_positions === 0;
+        updatePauseBtn();
+    } catch(e) { console.log('Bot config unavailable'); }
+}
+
+function updatePauseBtn() {
+    const btn = document.getElementById('bot-pause-btn');
+    if (!btn) return;
+    if (_botPaused) {
+        btn.textContent = 'PAUSED — Resume';
+        btn.className = 'bot-toggle-btn paused';
+    } else {
+        btn.textContent = 'RUNNING — Pause';
+        btn.className = 'bot-toggle-btn running';
+    }
+}
+
+async function toggleBotPause() {
+    const btn = document.getElementById('bot-pause-btn');
+    btn.textContent = 'Updating...';
+    try {
+        if (_botPaused) {
+            // Resume: restore original max positions
+            await fetch(API_BASE + '/api/bot/config', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ max_positions: _botOrigMaxPos || 12 })
+            });
+            _botPaused = false;
+        } else {
+            // Pause: set max_positions to 0 (won't open new trades)
+            _botOrigMaxPos = parseInt(document.getElementById('bot-max-pos').value) || 12;
+            await fetch(API_BASE + '/api/bot/config', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ max_positions: 0 })
+            });
+            _botPaused = true;
+        }
+        updatePauseBtn();
+        showBotStatus(_botPaused ? 'Bot paused — no new trades' : 'Bot resumed — trading active', !_botPaused);
+    } catch(e) {
+        showBotStatus('Failed to update bot', false);
+        updatePauseBtn();
+    }
+}
+
+async function saveBotConfig() {
+    const btn = document.getElementById('bot-save-btn');
+    btn.textContent = 'Saving...';
+    const config = {
+        max_bet_dollars: parseFloat(document.getElementById('bot-max-bet').value),
+        max_positions: parseInt(document.getElementById('bot-max-pos').value),
+        min_edge: parseFloat(document.getElementById('bot-min-edge').value),
+        daily_loss_limit_cents: parseInt(document.getElementById('bot-loss-limit').value),
+        max_contracts_per: parseInt(document.getElementById('bot-max-contracts').value),
+    };
+    // If bot is paused, don't override max_positions
+    if (_botPaused) {
+        _botOrigMaxPos = config.max_positions;
+        delete config.max_positions;
+    }
+    try {
+        const resp = await fetch(API_BASE + '/api/bot/config', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(config)
+        });
+        const result = await resp.json();
+        if (result.error) throw new Error(result.error);
+        showBotStatus('Config saved successfully', true);
+    } catch(e) {
+        showBotStatus('Failed: ' + e.message, false);
+    }
+    btn.textContent = 'Save Changes';
+}
+
+function showBotStatus(msg, success) {
+    const el = document.getElementById('bot-config-status');
+    if (!el) return;
+    el.textContent = msg;
+    el.className = 'bot-config-status ' + (success ? 'success' : 'error');
+    setTimeout(() => { el.textContent = ''; el.className = 'bot-config-status'; }, 4000);
+}
+
+async function loadBotSignals() {
+    try {
+        const resp = await fetch(API_BASE + '/api/bot/signals');
+        if (!resp.ok) return;
+        const data = await resp.json();
+        const signals = data.signals || data || [];
+        const section = document.getElementById('bot-signals-section');
+        if (!section || signals.length === 0) return;
+        section.innerHTML = '<h3 style="font-size:13px;color:var(--text-dim);letter-spacing:2px;margin:16px 0 8px;">LATEST SIGNALS</h3>' +
+            signals.slice(0, 10).map(s => {
+                const acted = !s.skip_reason;
+                const color = acted ? 'var(--green)' : 'var(--text-dim)';
+                const badge = acted ? 'ACTED' : (s.skip_reason || 'SKIPPED');
+                return `<div class="bot-signal-row">
+                    <span class="bot-signal-ticker">${decodeTicker(s.ticker || s.market || '?')}</span>
+                    <span style="color:${color};font-size:11px;font-weight:700;">${(s.side || '').toUpperCase()}</span>
+                    <span style="font-size:11px;color:var(--text-dim);">Edge: ${((s.edge || 0) * 100).toFixed(1)}%</span>
+                    <span class="bot-signal-badge ${acted ? 'acted' : 'skipped'}">${badge}</span>
+                </div>`;
+            }).join('');
+    } catch(e) {}
+}
+
+// Load bot config on page load
+setTimeout(() => { loadBotConfig(); loadBotSignals(); }, 2000);
+// Refresh signals every 5 min
+setInterval(loadBotSignals, 300000);
+
 // ── MARKET DETAIL PAGE ──
 let currentDetailMarket = null;
 
@@ -1880,10 +2040,10 @@ function openDetail(market, platform) {
 
     // Actions
     const url = getAffiliateUrl(market);
-    const pulseScore = calcPulseScore(market, getMarketChange(market.ticker));
-    const pulseColor = pulseScore >= 67 ? 'var(--green)' : pulseScore >= 34 ? 'var(--gold)' : 'var(--red)';
-    const pulseLabel = pulseScore >= 67 ? 'TRADE' : pulseScore >= 34 ? 'WATCH' : 'SKIP';
-    const sig = getPulseSignal(market.ticker);
+    const sygnalScore = calcSygnalScore(market, getMarketChange(market.ticker));
+    const sygnalColor = sygnalScore >= 67 ? 'var(--green)' : sygnalScore >= 34 ? 'var(--gold)' : 'var(--red)';
+    const sygnalLabel = sygnalScore >= 67 ? 'TRADE' : sygnalScore >= 34 ? 'WATCH' : 'SKIP';
+    const sig = getSygnalSignal(market.ticker);
     const sigColor = sig.signal.includes('YES') ? 'var(--green)' : sig.signal.includes('NO') ? 'var(--red)' : 'var(--gold)';
     const sigBg = sig.signal.includes('YES') ? 'rgba(0,214,143,0.12)' : sig.signal.includes('NO') ? 'rgba(255,59,92,0.12)' : 'rgba(240,176,0,0.10)';
 
@@ -1913,14 +2073,14 @@ function openDetail(market, platform) {
     else if (volRaw >= 5e4) ls = 10; else if (volRaw >= 1e4) ls = 7; else if (volRaw >= 1e3) ls = 4; else if (volRaw > 0) ls = 1;
 
     document.getElementById('detail-actions').innerHTML = `
-        <div class="detail-pulse-row">
-            <div class="detail-pulse-score" style="border-color:${pulseColor};">
-                <span class="detail-pulse-num" style="color:${pulseColor}">${pulseScore}</span>
-                <span class="detail-pulse-label">SYGNAL</span>
+        <div class="detail-sygnal-row">
+            <div class="detail-sygnal-score" style="border-color:${sygnalColor};">
+                <span class="detail-sygnal-num" style="color:${sygnalColor}">${sygnalScore}</span>
+                <span class="detail-sygnal-label">SYGNAL</span>
             </div>
-            <div class="detail-pulse-info">
+            <div class="detail-sygnal-info">
                 <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
-                    <span style="color:${pulseColor};font-weight:700;">${pulseLabel}</span>
+                    <span style="color:${sygnalColor};font-weight:700;">${sygnalLabel}</span>
                     <span style="color:${sigColor};background:${sigBg};padding:2px 8px;border-radius:4px;font-size:11px;font-weight:700;">${sig.signal}</span>
                 </div>
                 <span style="color:var(--text-dim);font-size:12px;display:block;">5-factor score: Price ${ps} + Vol ${vs} + Momentum ${ms} + Edge ${cs} + Liq ${ls}</span>
@@ -2009,8 +2169,8 @@ function openDetail(market, platform) {
     setTimeout(() => drawDetailChart(canvas, detailChartData), 50);
 
     // Sygnal Score history
-    const scoreHistory = getPulseScoreHistory(market.ticker);
-    const histEl = document.getElementById('detail-pulse-history');
+    const scoreHistory = getSygnalScoreHistory(market.ticker);
+    const histEl = document.getElementById('detail-sygnal-history');
     if (scoreHistory.length >= 3) {
         const scores = scoreHistory.map(h => h.score).filter(s => s > 0);
         if (scores.length >= 3) {
@@ -2020,10 +2180,10 @@ function openDetail(market, platform) {
             const trendIcon = trend > 3 ? '📈' : trend < -3 ? '📉' : '➡️';
             const trendColor = trend > 3 ? 'var(--green)' : trend < -3 ? 'var(--red)' : 'var(--text-dim)';
             histEl.innerHTML = `
-                <div class="pulse-history-section">
+                <div class="sygnal-history-section">
                     <h4>Sygnal Score History</h4>
-                    <canvas id="pulse-history-chart" width="600" height="100"></canvas>
-                    <div class="pulse-history-stats">
+                    <canvas id="sygnal-history-chart" width="600" height="100"></canvas>
+                    <div class="sygnal-history-stats">
                         <span>Low: <b style="color:var(--red)">${minS}</b></span>
                         <span>High: <b style="color:var(--green)">${maxS}</b></span>
                         <span>Trend: <b style="color:${trendColor}">${trendIcon} ${trend > 0 ? '+' : ''}${trend}</b></span>
@@ -2031,7 +2191,7 @@ function openDetail(market, platform) {
                     </div>
                 </div>
             `;
-            setTimeout(() => drawPulseHistoryChart(document.getElementById('pulse-history-chart'), scores), 100);
+            setTimeout(() => drawSygnalHistoryChart(document.getElementById('sygnal-history-chart'), scores), 100);
         } else {
             histEl.innerHTML = '';
         }
@@ -2114,7 +2274,7 @@ function _drawDetailChartBase(canvas, data) {
     return { min, max, range, color };
 }
 
-function drawPulseHistoryChart(canvas, scores) {
+function drawSygnalHistoryChart(canvas, scores) {
     if (!canvas || scores.length < 2) return;
     const ctx = canvas.getContext('2d');
     const dpr = window.devicePixelRatio || 1;
@@ -2284,12 +2444,12 @@ document.getElementById('market-detail')?.addEventListener('click', (e) => {
 
 // ── PAPER PORTFOLIO ──
 function getPaperPortfolio() {
-    try { return JSON.parse(localStorage.getItem('pulse-portfolio') || '{"balance":1000,"trades":[]}'); }
+    try { return JSON.parse(localStorage.getItem('sygnal-portfolio') || '{"balance":1000,"trades":[]}'); }
     catch { return { balance: 1000, trades: [] }; }
 }
 
 function savePaperPortfolio(portfolio) {
-    localStorage.setItem('pulse-portfolio', JSON.stringify(portfolio));
+    localStorage.setItem('sygnal-portfolio', JSON.stringify(portfolio));
 }
 
 function placePaperTrade() {
@@ -2448,9 +2608,9 @@ function generateMarketBrief(kalshiMarkets, polyMarkets) {
 
 
 // ── NOTIFICATIONS ──
-let notificationsEnabled = localStorage.getItem('pulse-notifications') === 'true';
+let notificationsEnabled = localStorage.getItem('sygnal-notifications') === 'true';
 let previousPrices = {};
-try { previousPrices = JSON.parse(localStorage.getItem('pulse-prices') || '{}'); } catch {}
+try { previousPrices = JSON.parse(localStorage.getItem('sygnal-prices') || '{}'); } catch {}
 let previousBotTrades = null;
 
 function updateNotifLabel() {
@@ -2469,7 +2629,7 @@ async function toggleNotifications() {
         const perm = await Notification.requestPermission();
         if (perm === 'granted') {
             notificationsEnabled = true;
-            localStorage.setItem('pulse-notifications', 'true');
+            localStorage.setItem('sygnal-notifications', 'true');
             sendNotification('Sygnal Alerts Enabled', 'You\'ll be notified when watchlisted markets move 5%+ or your bot trades.');
         } else {
             alert('Notifications blocked — enable them in browser settings');
@@ -2477,7 +2637,7 @@ async function toggleNotifications() {
         }
     } else {
         notificationsEnabled = false;
-        localStorage.setItem('pulse-notifications', 'false');
+        localStorage.setItem('sygnal-notifications', 'false');
     }
     updateNotifLabel();
 }
@@ -2541,7 +2701,7 @@ function checkPriceAlerts(kalshiMarkets, polyMarkets) {
 
     // Save current prices
     previousPrices = newPrices;
-    localStorage.setItem('pulse-prices', JSON.stringify(newPrices));
+    localStorage.setItem('sygnal-prices', JSON.stringify(newPrices));
 }
 
 function checkBotAlerts(bot) {
@@ -2643,7 +2803,7 @@ function createGroupCard(group) {
     card.className = 'market-card group-card';
     const topMarkets = group.markets.slice(0, 2);
     const remaining = group.markets.length - 2;
-    const avgScore = Math.round(group.markets.reduce((s,m) => s + calcPulseScore(m, 0), 0) / group.markets.length);
+    const avgScore = Math.round(group.markets.reduce((s,m) => s + calcSygnalScore(m, 0), 0) / group.markets.length);
     const scoreColor = avgScore >= 70 ? '#00d68f' : avgScore >= 40 ? '#f0b000' : '#ff3b5c';
 
     card.innerHTML = `
@@ -2656,9 +2816,9 @@ function createGroupCard(group) {
             ${topMarkets.map(m => `<div class="group-item"><span>${shortenTitle(m.question)}</span><span style="color:${m.yes >= 50 ? '#00d68f' : '#ff3b5c'}">YES ${m.yes}\u00A2</span></div>`).join('')}
         </div>
         <button class="group-toggle" onclick="expandGroup(this, '${group.groupTitle.replace(/'/g, "\\'")}')">${remaining} more markets \u2192</button>
-        <div class="card-pulse-footer">
-            <span class="card-pulse-label">SYGNAL</span>
-            <span class="card-pulse-score" style="color:${scoreColor};">${avgScore}</span>
+        <div class="card-sygnal-footer">
+            <span class="card-sygnal-label">SYGNAL</span>
+            <span class="card-sygnal-score" style="color:${scoreColor};">${avgScore}</span>
         </div>
     `;
     return card;
@@ -2690,31 +2850,31 @@ function expandGroup(btn, groupTitle) {
 }
 
 // ── SYGNAL SCORE SPIKE ALERTS ──
-let _prevPulseScores = {};
-try { _prevPulseScores = JSON.parse(localStorage.getItem('pulse-prev-scores') || '{}'); } catch {}
+let _prevSygnalScores = {};
+try { _prevSygnalScores = JSON.parse(localStorage.getItem('sygnal-prev-scores') || '{}'); } catch {}
 
-function checkPulseScoreSpikes(allMarkets) {
+function checkSygnalScoreSpikes(allMarkets) {
     if (!notificationsEnabled) return;
     const newScores = {};
     for (const m of allMarkets) {
         if (!m.ticker) continue;
-        const score = calcPulseScore(m, 0);
+        const score = calcSygnalScore(m, 0);
         newScores[m.ticker] = score;
 
-        const prev = _prevPulseScores[m.ticker];
+        const prev = _prevSygnalScores[m.ticker];
         if (prev !== undefined) {
             const change = score - prev;
             if (change >= 15) {
                 sendNotification(
                     `\uD83D\uDCCA Sygnal Score Spike: ${shortenTitle(m.question)}`,
                     `Score jumped from ${prev} \u2192 ${score} (+${change})`,
-                    'pulse-spike-' + m.ticker
+                    'sygnal-spike-' + m.ticker
                 );
             }
         }
     }
-    _prevPulseScores = newScores;
-    localStorage.setItem('pulse-prev-scores', JSON.stringify(newScores));
+    _prevSygnalScores = newScores;
+    localStorage.setItem('sygnal-prev-scores', JSON.stringify(newScores));
 }
 
 // ── TRENDING PANEL ──
@@ -2739,10 +2899,10 @@ function buildTrendingPanel() {
 
     // ── Section 2: Sygnal Score Risers ──
     const prevScores = {};
-    try { Object.assign(prevScores, JSON.parse(localStorage.getItem('pulse-prev-scores') || '{}')); } catch {}
+    try { Object.assign(prevScores, JSON.parse(localStorage.getItem('sygnal-prev-scores') || '{}')); } catch {}
     const risers = [];
     for (const {market} of allMarketCards) {
-        const currentScore = calcPulseScore(market, 0);
+        const currentScore = calcSygnalScore(market, 0);
         const prevScore = prevScores[market.ticker];
         if (prevScore !== undefined) {
             const change = currentScore - prevScore;
@@ -2756,20 +2916,20 @@ function buildTrendingPanel() {
         header2.innerHTML = '<span class="trending-section-icon">📈</span> Sygnal Score Rising';
         grid.appendChild(header2);
         for (const t of risers.slice(0, 6)) {
-            grid.appendChild(makeTrendingCard(t.market, t.change, 'pulse'));
+            grid.appendChild(makeTrendingCard(t.market, t.change, 'sygnal'));
         }
     }
 
     // ── Section 3: Top Sygnal Scores (always available) ──
-    const topPulse = allMarketCards
-        .map(c => ({ market: c.market, score: calcPulseScore(c.market, 0) }))
+    const topSygnal = allMarketCards
+        .map(c => ({ market: c.market, score: calcSygnalScore(c.market, 0) }))
         .sort((a, b) => b.score - a.score)
         .slice(0, 6);
     const header3 = document.createElement('div');
     header3.className = 'trending-section-header';
     header3.innerHTML = '<span class="trending-section-icon">⚡</span> Highest Confidence';
     grid.appendChild(header3);
-    for (const t of topPulse) {
+    for (const t of topSygnal) {
         grid.appendChild(makeTrendingCard(t.market, t.score, 'top'));
     }
 
@@ -2799,18 +2959,18 @@ function buildTrendingPanel() {
 function makeTrendingCard(m, value, type) {
     const card = document.createElement('div');
     card.className = 'market-card trending-card';
-    const pulseScore = calcPulseScore(m, 0);
-    const pulseColor = pulseScore >= 67 ? '#00d68f' : pulseScore >= 34 ? '#f0b000' : '#ff3b5c';
+    const sygnalScore = calcSygnalScore(m, 0);
+    const sygnalColor = sygnalScore >= 67 ? '#00d68f' : sygnalScore >= 34 ? '#f0b000' : '#ff3b5c';
 
     let tagHtml = '';
     if (type === 'price') {
         const sign = value >= 0 ? '+' : '';
         const color = value >= 0 ? '#00d68f' : '#ff3b5c';
         tagHtml = `<span class="trending-change" style="color:${color};">${sign}${value}¢</span>`;
-    } else if (type === 'pulse') {
-        tagHtml = `<span class="trending-change" style="color:#00d68f;">+${value} pulse</span>`;
+    } else if (type === 'sygnal') {
+        tagHtml = `<span class="trending-change" style="color:#00d68f;">+${value} sygnal</span>`;
     } else if (type === 'top') {
-        tagHtml = `<span class="trending-change" style="color:${pulseColor};">Score: ${value}</span>`;
+        tagHtml = `<span class="trending-change" style="color:${sygnalColor};">Score: ${value}</span>`;
     } else if (type === 'volume') {
         const fmt = value >= 1e6 ? (value / 1e6).toFixed(1) + 'M' : value >= 1e3 ? (value / 1e3).toFixed(0) + 'K' : value.toFixed(0);
         tagHtml = `<span class="trending-change" style="color:#8b5cf6;">$${fmt}</span>`;
@@ -2829,9 +2989,9 @@ function makeTrendingCard(m, value, type) {
             <span style="color:#333;margin:0 4px;">·</span>
             <span style="color:${m.no >= 50 ? '#00d68f' : '#ff3b5c'};font-weight:600;">NO ${m.no}¢</span>
         </div>
-        <div class="card-pulse-footer">
-            <span class="card-pulse-label">SYGNAL</span>
-            <span class="card-pulse-score" style="color:${pulseColor};">${pulseScore}</span>
+        <div class="card-sygnal-footer">
+            <span class="card-sygnal-label">SYGNAL</span>
+            <span class="card-sygnal-score" style="color:${sygnalColor};">${sygnalScore}</span>
         </div>
     `;
 
@@ -2855,12 +3015,12 @@ loadBot();
 
 // ── PRICE ALERT THRESHOLDS (Feature 4) ──
 function getPriceAlerts() {
-    try { return JSON.parse(localStorage.getItem('pulse-price-alerts') || '[]'); }
+    try { return JSON.parse(localStorage.getItem('sygnal-price-alerts') || '[]'); }
     catch { return []; }
 }
 
 function savePriceAlerts(alerts) {
-    localStorage.setItem('pulse-price-alerts', JSON.stringify(alerts));
+    localStorage.setItem('sygnal-price-alerts', JSON.stringify(alerts));
 }
 
 function setPriceAlert() {
@@ -2933,7 +3093,7 @@ function checkCustomAlerts(allMarkets) {
 
 // ── PORTFOLIO P&L CHART (Feature 5) ──
 function getPortfolioHistory() {
-    try { return JSON.parse(localStorage.getItem('pulse-portfolio-history') || '[]'); }
+    try { return JSON.parse(localStorage.getItem('sygnal-portfolio-history') || '[]'); }
     catch { return []; }
 }
 
@@ -2960,7 +3120,7 @@ function recordPortfolioSnapshot() {
 
     // Keep last 100 snapshots
     if (history.length > 100) history.splice(0, history.length - 100);
-    localStorage.setItem('pulse-portfolio-history', JSON.stringify(history));
+    localStorage.setItem('sygnal-portfolio-history', JSON.stringify(history));
 }
 
 function drawPortfolioChart() {
@@ -3360,7 +3520,7 @@ function generatePickCard(market) {
     ctx.fillText(`NO ${market.no}¢`, noX, priceY);
 
     // Sygnal Score circle
-    const ps = calcPulseScore(market, getMarketChange(market.ticker));
+    const ps = calcSygnalScore(market, getMarketChange(market.ticker));
     const psColor = ps >= 67 ? '#00d68f' : ps >= 34 ? '#f0b000' : '#ff3b5c';
     const scoreX = W - 60, scoreY2 = priceY - 10;
     ctx.beginPath(); ctx.arc(scoreX, scoreY2, 34, 0, Math.PI * 2);
@@ -3375,7 +3535,7 @@ function generatePickCard(market) {
     ctx.textAlign = 'left';
 
     // Signal badge
-    const sig = getPulseSignal(market.ticker);
+    const sig = getSygnalSignal(market.ticker);
     const sigY = priceY + 20;
     let sigCol = '#f0b000';
     if (sig.signal.includes('YES')) sigCol = '#00d68f';
@@ -3414,8 +3574,8 @@ function roundRect(ctx, x, y, w, h, r, fill, stroke) {
 
 function showSharePopup(market) {
     const canvas = generatePickCard(market);
-    const ps = calcPulseScore(market, 0);
-    const sig = getPulseSignal(market.ticker);
+    const ps = calcSygnalScore(market, 0);
+    const sig = getSygnalSignal(market.ticker);
     const text = `${market.question}\n\nYES ${market.yes}¢ · NO ${market.no}¢\nSygnal Score: ${ps}/99 — ${sig.signal}\n\nsygnalmarkets.com`;
     const twitterUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}`;
 
@@ -3440,7 +3600,7 @@ function showSharePopup(market) {
         canvas.toBlob(blob => {
             const a = document.createElement('a');
             a.href = URL.createObjectURL(blob);
-            a.download = 'pulse-pick.png';
+            a.download = 'sygnal-pick.png';
             a.click(); URL.revokeObjectURL(a.href);
             showToast('Image downloaded!');
         });
@@ -3456,7 +3616,7 @@ function showSharePopup(market) {
 
 // ── EMBED WIDGET (Feature 9) ──
 function showEmbedCode(market) {
-    const ps = calcPulseScore(market, 0);
+    const ps = calcSygnalScore(market, 0);
     const psColor = ps >= 70 ? '#00d68f' : ps >= 40 ? '#f0b000' : '#ff3b5c';
     const code = `<div style="background:#0d0d15;border:1px solid rgba(255,255,255,0.06);border-radius:12px;padding:16px;font-family:system-ui;max-width:320px;color:#e8e8ed;">
   <div style="font-size:9px;letter-spacing:1.5px;color:#5a5a6e;margin-bottom:8px;">SYGNAL MARKET</div>
@@ -3487,7 +3647,7 @@ function showEmbedCode(market) {
 
 // ── MARKET INSIGHTS (Feature 3) ──
 function getMarketInsights(market) {
-    const ps = calcPulseScore(market, 0);
+    const ps = calcSygnalScore(market, 0);
     const cat = market.category || categorize(market.question);
     const vol = market.volume || 0;
     const change = getMarketChange(market.ticker);
@@ -3525,24 +3685,24 @@ async function submitSignup() {
     statusEl.textContent = 'Subscribing...';
     try {
         // Subscribe via Beehiiv
-        const resp = await fetch('https://api.beehiiv.com/v2/publications/pub_pulsemarkets/subscriptions', {
+        const resp = await fetch('https://api.beehiiv.com/v2/publications/pub_sygnalmarkets/subscriptions', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email, utm_source: 'pulse-dashboard' }),
+            body: JSON.stringify({ email, utm_source: 'sygnal-dashboard' }),
         });
         if (resp.ok || resp.status === 409) {
             statusEl.textContent = '✓ Subscribed! Check your email to confirm.';
             statusEl.style.color = '#00d68f';
         } else {
             // Fallback: open Beehiiv subscribe page
-            window.open(`https://pulsemarkets.beehiiv.com/subscribe?email=${encodeURIComponent(email)}`, '_blank');
+            window.open(`https://sygnalmarkets.beehiiv.com/subscribe?email=${encodeURIComponent(email)}`, '_blank');
             statusEl.textContent = '✓ Redirecting to confirm subscription...';
             statusEl.style.color = '#00d68f';
         }
         document.getElementById('signup-email').value = '';
     } catch {
         // Fallback: open Beehiiv subscribe page directly
-        window.open(`https://pulsemarkets.beehiiv.com/subscribe?email=${encodeURIComponent(email)}`, '_blank');
+        window.open(`https://sygnalmarkets.beehiiv.com/subscribe?email=${encodeURIComponent(email)}`, '_blank');
         statusEl.textContent = '✓ Redirecting to confirm subscription...';
         statusEl.style.color = '#00d68f';
         document.getElementById('signup-email').value = '';
@@ -3557,7 +3717,7 @@ function calculateAccuracy() {
     const history = getPriceSnapshots();
     let correct = 0, total = 0;
     for (const {market} of allMarketCards) {
-        const ps = calcPulseScore(market, 0);
+        const ps = calcSygnalScore(market, 0);
         const h = history[market.ticker] || [];
         if (h.length < 3) continue;
         const priceDir = h[h.length-1].p > h[0].p ? 'up' : 'down';
@@ -3573,9 +3733,9 @@ function showRecapBanner() {
     const banner = document.getElementById('recap-banner');
     if (!banner) return;
 
-    const lastVisit = localStorage.getItem('pulse-last-visit');
+    const lastVisit = localStorage.getItem('sygnal-last-visit');
     const now = Date.now();
-    localStorage.setItem('pulse-last-visit', now);
+    localStorage.setItem('sygnal-last-visit', now);
 
     // Only show if user has been away 1+ hours
     if (!lastVisit || (now - parseInt(lastVisit)) < 3600000) return;
@@ -3649,8 +3809,8 @@ loadMarkets = async function() {
 };
 
 // ── SYGNAL SCORE EXPLAINER ──
-if (localStorage.getItem('pulse-explainer-dismissed') === 'true') {
-    const expl = document.getElementById('pulse-explainer');
+if (localStorage.getItem('sygnal-explainer-dismissed') === 'true') {
+    const expl = document.getElementById('sygnal-explainer');
     if (expl) expl.style.display = 'none';
 }
 
@@ -3680,9 +3840,9 @@ document.addEventListener('keydown', (e) => {
 
 
 // ── SYGNAL AI CHAT WIDGET ──
-function togglePulseChat() {
-    const chat = document.getElementById('pulse-chat');
-    const btn = document.getElementById('pulse-chat-btn');
+function toggleSygnalChat() {
+    const chat = document.getElementById('sygnal-chat');
+    const btn = document.getElementById('sygnal-chat-btn');
     if (chat.style.display === 'none') {
         chat.style.display = 'flex';
         btn.style.display = 'none';
@@ -3722,7 +3882,7 @@ function processChatQuery(query) {
     // Best trades / what to trade
     if (q.includes('best trade') || q.includes('what should i') || q.includes('top market') || q.includes('what to trade')) {
         const topCards = allMarketCards
-            .map(c => ({ m: c.market, score: calcPulseScore(c.market, 0), sig: getPulseSignal(c.market.ticker) }))
+            .map(c => ({ m: c.market, score: calcSygnalScore(c.market, 0), sig: getSygnalSignal(c.market.ticker) }))
             .filter(c => c.sig.signal !== 'HOLD')
             .sort((a, b) => b.score - a.score)
             .slice(0, 3);
@@ -3732,7 +3892,7 @@ function processChatQuery(query) {
             const sigColor = c.sig.signal.includes('YES') ? '#00d68f' : '#ff3b5c';
             const sigBg = c.sig.signal.includes('YES') ? 'rgba(0,214,143,0.15)' : 'rgba(255,59,92,0.15)';
             html += `<b>${c.m.question}</b><br>`;
-            html += `YES ${c.m.yes}¢ · Pulse ${c.score} · <span class="chat-signal" style="color:${sigColor};background:${sigBg};">${c.sig.signal}</span><br><br>`;
+            html += `YES ${c.m.yes}¢ · Sygnal ${c.score} · <span class="chat-signal" style="color:${sigColor};background:${sigBg};">${c.sig.signal}</span><br><br>`;
         }
         return html;
     }
@@ -3749,8 +3909,8 @@ function processChatQuery(query) {
         return `Found <b>${Math.round(xpCount)}</b> cross-platform matches. Switch to the <b>Arbitrage</b> tab to see price differences between Kalshi and Polymarket.`;
     }
 
-    // Pulse score explanation
-    if (q.includes('sygnal score') || q.includes('how does scoring') || q.includes('what is pulse')) {
+    // Sygnal score explanation
+    if (q.includes('sygnal score') || q.includes('how does scoring') || q.includes('what is sygnal')) {
         return "The Sygnal Score (0-99) rates how tradeable a market is using 5 factors:<br><br>" +
             "<b>Price Position (0-20)</b> — best at 25¢/75¢<br>" +
             "<b>Volume (0-20)</b> — more trading = reliable<br>" +
@@ -3781,7 +3941,7 @@ function processChatQuery(query) {
     // Market count / overview
     if (q.includes('how many') || q.includes('market count') || q.includes('overview')) {
         const total = allMarketCards.length;
-        const signals = allMarketCards.filter(c => getPulseSignal(c.market.ticker).signal !== 'HOLD').length;
+        const signals = allMarketCards.filter(c => getSygnalSignal(c.market.ticker).signal !== 'HOLD').length;
         return `Tracking <b>${total}</b> live markets across Kalshi & Polymarket. <b>${signals}</b> have active BUY/LEAN signals right now.`;
     }
 
@@ -3789,8 +3949,8 @@ function processChatQuery(query) {
     const found = allMarketCards.find(c => c.market.question.toLowerCase().includes(q.split(' ').slice(0, 3).join(' ')));
     if (found) {
         const m = found.market;
-        const score = calcPulseScore(m, 0);
-        const sig = getPulseSignal(m.ticker);
+        const score = calcSygnalScore(m, 0);
+        const sig = getSygnalSignal(m.ticker);
         const sigColor = sig.signal.includes('YES') ? '#00d68f' : sig.signal.includes('NO') ? '#ff3b5c' : '#f0b000';
         const sigBg = sig.signal.includes('YES') ? 'rgba(0,214,143,0.15)' : sig.signal.includes('NO') ? 'rgba(255,59,92,0.15)' : 'rgba(240,176,0,0.12)';
         return `<b>${m.question}</b><br>YES ${m.yes}¢ · NO ${m.no}¢<br>` +
@@ -3807,7 +3967,7 @@ function searchMarketChat(query, category) {
             const cat = (c.market.category || categorize(c.market.question)).toLowerCase();
             return cat.includes(category);
         })
-        .map(c => ({ m: c.market, score: calcPulseScore(c.market, 0), sig: getPulseSignal(c.market.ticker) }))
+        .map(c => ({ m: c.market, score: calcSygnalScore(c.market, 0), sig: getSygnalSignal(c.market.ticker) }))
         .sort((a, b) => b.score - a.score)
         .slice(0, 3);
 
@@ -3816,7 +3976,7 @@ function searchMarketChat(query, category) {
     for (const c of matches) {
         const sigColor = c.sig.signal.includes('YES') ? '#00d68f' : c.sig.signal.includes('NO') ? '#ff3b5c' : '#f0b000';
         const sigBg = c.sig.signal.includes('YES') ? 'rgba(0,214,143,0.15)' : c.sig.signal.includes('NO') ? 'rgba(255,59,92,0.15)' : 'rgba(240,176,0,0.12)';
-        html += `<b>${c.m.question}</b><br>YES ${c.m.yes}¢ · Pulse ${c.score} · <span class="chat-signal" style="color:${sigColor};background:${sigBg};">${c.sig.signal}</span><br><br>`;
+        html += `<b>${c.m.question}</b><br>YES ${c.m.yes}¢ · Sygnal ${c.score} · <span class="chat-signal" style="color:${sigColor};background:${sigBg};">${c.sig.signal}</span><br><br>`;
     }
     return html;
 }
@@ -3919,11 +4079,11 @@ function getISOWeek(d) {
 }
 
 function getLeagueData() {
-    try { return JSON.parse(localStorage.getItem('pulse-leagues') || '{}'); }
+    try { return JSON.parse(localStorage.getItem('sygnal-leagues') || '{}'); }
     catch { return {}; }
 }
 function saveLeagueData(data) {
-    localStorage.setItem('pulse-leagues', JSON.stringify(data));
+    localStorage.setItem('sygnal-leagues', JSON.stringify(data));
 }
 
 function initLeagueWeek() {
@@ -3983,7 +4143,7 @@ function generateBotCompetitors(weekKey) {
 
     return [
         { name: 'SignalTrader_42', ret: rand(-8, 18), badge: '#0088ff' },
-        { name: 'PulseWhale', ret: rand(-5, 25), badge: '#8b5cf6' },
+        { name: 'SygnalWhale', ret: rand(-5, 25), badge: '#8b5cf6' },
         { name: 'MarketBot_AI', ret: rand(-12, 15), badge: '#00d68f' },
         { name: 'NightOwlBets', ret: rand(-10, 12), badge: '#f0b000' },
         { name: 'ArbHunter', ret: rand(-6, 20), badge: '#ff3b5c' },
@@ -4159,12 +4319,12 @@ function shareRecap() {
 
 // ── SYGNAL PRO ──
 function isPro() {
-    return localStorage.getItem('pulse-pro') === 'true';
+    return localStorage.getItem('sygnal-pro') === 'true';
 }
 
 function exportSignalHistory() {
     if (!isPro()) { showProUpsell('Signal History Export'); return; }
-    const snapshots = JSON.parse(localStorage.getItem('pulse-snapshots') || '{}');
+    const snapshots = JSON.parse(localStorage.getItem('sygnal-snapshots') || '{}');
     let csv = 'Ticker,Timestamp,Price,Score,Signal\n';
     for (const [ticker, entries] of Object.entries(snapshots)) {
         for (const e of entries) {
@@ -4174,7 +4334,7 @@ function exportSignalHistory() {
     const blob = new Blob([csv], { type: 'text/csv' });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
-    a.download = `pulse-signals-${new Date().toISOString().split('T')[0]}.csv`;
+    a.download = `sygnal-signals-${new Date().toISOString().split('T')[0]}.csv`;
     a.click();
     URL.revokeObjectURL(a.href);
     showToast('Signal history exported!');
@@ -4221,7 +4381,7 @@ async function startProCheckout() {
 
 // Check for pro=success in URL
 if (window.location.search.includes('pro=success')) {
-    localStorage.setItem('pulse-pro', 'true');
+    localStorage.setItem('sygnal-pro', 'true');
     showToast('Welcome to Sygnal Pro!');
     history.replaceState({}, '', '/');
 }
@@ -4292,6 +4452,510 @@ async function triggerAutopilotScan() {
 
 // Load alerts on page load
 loadAutopilotAlerts();
+
+// ══════════════════════════════════════════════
+// FEATURE 1: PERFORMANCE DASHBOARD
+// ══════════════════════════════════════════════
+let _botTradesCache = [];
+let _tradeHistoryOffset = 0;
+
+async function loadBotPerformance() {
+    try {
+        const resp = await fetch(API_BASE + '/api/bot/trades?limit=100');
+        if (!resp.ok) return;
+        const data = await resp.json();
+        _botTradesCache = data.trades || data || [];
+        renderPerfStats();
+        drawEquityChart();
+        renderTradeHistory(_botTradesCache);
+    } catch(e) { console.log('Bot perf unavailable'); }
+}
+
+function renderPerfStats() {
+    const trades = _botTradesCache;
+    if (!trades.length) return;
+    const wins = trades.filter(t => (t.realized_pnl || t.pnl || 0) > 0).length;
+    const losses = trades.filter(t => (t.realized_pnl || t.pnl || 0) < 0).length;
+    const totalPnl = trades.reduce((s, t) => s + (t.realized_pnl || t.pnl || 0), 0);
+    const winRate = trades.length > 0 ? ((wins / trades.length) * 100).toFixed(0) : 0;
+    const avgWin = wins > 0 ? (trades.filter(t => (t.realized_pnl || t.pnl || 0) > 0).reduce((s, t) => s + (t.realized_pnl || t.pnl || 0), 0) / wins).toFixed(2) : '0.00';
+    const avgLoss = losses > 0 ? (trades.filter(t => (t.realized_pnl || t.pnl || 0) < 0).reduce((s, t) => s + Math.abs(t.realized_pnl || t.pnl || 0), 0) / losses).toFixed(2) : '0.00';
+
+    const el = document.getElementById('perf-stats-row');
+    if (!el) return;
+    el.innerHTML = `
+        <div class="perf-stat"><span class="perf-stat-val ${totalPnl >= 0 ? 'positive' : 'negative'}">${totalPnl >= 0 ? '+' : ''}$${totalPnl.toFixed(2)}</span><span class="perf-stat-label">Total P&L</span></div>
+        <div class="perf-stat"><span class="perf-stat-val">${winRate}%</span><span class="perf-stat-label">Win Rate</span></div>
+        <div class="perf-stat"><span class="perf-stat-val">${trades.length}</span><span class="perf-stat-label">Total Trades</span></div>
+        <div class="perf-stat"><span class="perf-stat-val positive">$${avgWin}</span><span class="perf-stat-label">Avg Win</span></div>
+        <div class="perf-stat"><span class="perf-stat-val negative">$${avgLoss}</span><span class="perf-stat-label">Avg Loss</span></div>
+        <div class="perf-stat"><span class="perf-stat-val">${wins}W / ${losses}L</span><span class="perf-stat-label">Record</span></div>
+    `;
+}
+
+function drawEquityChart() {
+    const canvas = document.getElementById('equity-chart');
+    if (!canvas || !_botTradesCache.length) return;
+    const ctx = canvas.getContext('2d');
+    const w = canvas.width, h = canvas.height;
+    ctx.clearRect(0, 0, w, h);
+
+    // Build cumulative P&L curve
+    const trades = [..._botTradesCache].reverse();
+    let cumPnl = 0;
+    const points = [0];
+    for (const t of trades) {
+        cumPnl += (t.realized_pnl || t.pnl || 0);
+        points.push(cumPnl);
+    }
+
+    const min = Math.min(...points);
+    const max = Math.max(...points);
+    const range = max - min || 1;
+    const pad = 20;
+
+    // Grid lines
+    ctx.strokeStyle = 'rgba(255,255,255,0.05)';
+    ctx.lineWidth = 1;
+    for (let i = 0; i < 5; i++) {
+        const y = pad + (i / 4) * (h - pad * 2);
+        ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke();
+    }
+
+    // Zero line
+    const zeroY = h - pad - ((0 - min) / range) * (h - pad * 2);
+    ctx.strokeStyle = 'rgba(255,255,255,0.2)';
+    ctx.setLineDash([4, 4]);
+    ctx.beginPath(); ctx.moveTo(0, zeroY); ctx.lineTo(w, zeroY); ctx.stroke();
+    ctx.setLineDash([]);
+
+    // Equity curve
+    const trending = points[points.length - 1] >= 0;
+    const color = trending ? '0, 214, 143' : '255, 59, 92';
+    ctx.beginPath();
+    for (let i = 0; i < points.length; i++) {
+        const x = (i / (points.length - 1)) * w;
+        const y = h - pad - ((points[i] - min) / range) * (h - pad * 2);
+        if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    }
+    ctx.strokeStyle = `rgba(${color}, 0.9)`;
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    // Fill
+    const lastX = w, lastY = h - pad - ((points[points.length - 1] - min) / range) * (h - pad * 2);
+    ctx.lineTo(lastX, h);
+    ctx.lineTo(0, h);
+    ctx.closePath();
+    const grad = ctx.createLinearGradient(0, 0, 0, h);
+    grad.addColorStop(0, `rgba(${color}, 0.15)`);
+    grad.addColorStop(1, `rgba(${color}, 0)`);
+    ctx.fillStyle = grad;
+    ctx.fill();
+}
+
+// ══════════════════════════════════════════════
+// FEATURE 2: NEWS FEED
+// ══════════════════════════════════════════════
+function buildNewsFeed() {
+    const container = document.getElementById('news-feed-content');
+    if (!container || !allMarketCards.length) return;
+
+    // Generate contextual news items from market data
+    const newsItems = [];
+    const movers = allMarketCards.filter(c => Math.abs(getMarketChange(c.market.ticker)) >= 3).slice(0, 5);
+    for (const c of movers) {
+        const ch = getMarketChange(c.market.ticker);
+        const dir = ch > 0 ? 'surges' : 'drops';
+        newsItems.push({
+            title: `${shortenTitle(c.market.question, 60)} ${dir} ${Math.abs(ch).toFixed(0)}¢`,
+            tag: categorize(c.market.question || c.market.title || ''),
+            time: 'Live',
+            color: ch > 0 ? 'var(--green)' : 'var(--red)',
+            ticker: c.market.ticker
+        });
+    }
+
+    // High score markets
+    const highScore = allMarketCards.filter(c => calcSygnalScore(c.market, 0) >= 80).slice(0, 3);
+    for (const c of highScore) {
+        newsItems.push({
+            title: `${shortenTitle(c.market.question, 60)} hits Sygnal Score ${calcSygnalScore(c.market, 0)}`,
+            tag: 'signal',
+            time: 'Now',
+            color: 'var(--green)',
+            ticker: c.market.ticker
+        });
+    }
+
+    // Arbitrage opportunities
+    const arbs = findArbitrage ? findArbitrage(lastKalshiMarkets || [], lastPolyMarkets || []) : [];
+    for (const arb of arbs.slice(0, 3)) {
+        newsItems.push({
+            title: `Arbitrage: ${shortenTitle(arb.question || arb.title || '?', 50)} — ${arb.spread || arb.diff || '?'}¢ spread`,
+            tag: 'arbitrage',
+            time: 'Live',
+            color: 'var(--accent)'
+        });
+    }
+
+    if (!newsItems.length) {
+        container.innerHTML = '<p style="color:var(--text-dim);font-size:13px;">No notable market activity right now.</p>';
+        return;
+    }
+
+    container.innerHTML = newsItems.map(n => `
+        <div class="news-item" ${n.ticker ? `onclick="openDetail(allMarketCards.find(c=>c.market.ticker==='${n.ticker}')?.market)" style="cursor:pointer;"` : ''}>
+            <span class="news-tag" style="color:${n.color}">${n.tag.toUpperCase()}</span>
+            <span class="news-title">${n.title}</span>
+            <span class="news-time">${n.time}</span>
+        </div>
+    `).join('');
+}
+
+// ══════════════════════════════════════════════
+// FEATURE 3: WATCHLIST TARGET PRICE NOTIFICATIONS
+// ══════════════════════════════════════════════
+function checkWatchlistAlerts() {
+    if (!notificationsEnabled) return;
+    const wl = getWatchlist();
+    const targets = JSON.parse(localStorage.getItem('sygnal-watchlist-targets') || '{}');
+
+    for (const ticker of wl) {
+        const card = allMarketCards.find(c => c.market.ticker === ticker);
+        if (!card) continue;
+        const target = targets[ticker];
+        if (!target) continue;
+
+        const price = card.market.yes;
+        if (target.direction === 'above' && price >= target.value) {
+            sendNotification(`${shortenTitle(card.market.question, 40)} hit ${price}¢`, `Target: above ${target.value}¢`, 'sygnal-wl-' + ticker);
+            delete targets[ticker];
+        } else if (target.direction === 'below' && price <= target.value) {
+            sendNotification(`${shortenTitle(card.market.question, 40)} dropped to ${price}¢`, `Target: below ${target.value}¢`, 'sygnal-wl-' + ticker);
+            delete targets[ticker];
+        }
+    }
+    localStorage.setItem('sygnal-watchlist-targets', JSON.stringify(targets));
+}
+
+// ══════════════════════════════════════════════
+// FEATURE 4: BOT TRADE HISTORY
+// ══════════════════════════════════════════════
+let _tradeHistFilter = 'all';
+
+function renderTradeHistory(trades) {
+    const el = document.getElementById('trade-history-table');
+    if (!el) return;
+
+    let filtered = trades;
+    if (_tradeHistFilter === 'wins') filtered = trades.filter(t => (t.realized_pnl || t.pnl || 0) > 0);
+    if (_tradeHistFilter === 'losses') filtered = trades.filter(t => (t.realized_pnl || t.pnl || 0) < 0);
+
+    if (!filtered.length) {
+        el.innerHTML = '<p style="color:var(--text-dim);font-size:13px;padding:12px;">No trades found.</p>';
+        return;
+    }
+
+    el.innerHTML = filtered.slice(0, 20 + _tradeHistoryOffset).map(t => {
+        const pnl = t.realized_pnl || t.pnl || 0;
+        const pnlClass = pnl > 0 ? 'positive' : pnl < 0 ? 'negative' : '';
+        const pnlStr = pnl >= 0 ? '+$' + pnl.toFixed(2) : '-$' + Math.abs(pnl).toFixed(2);
+        const side = (t.side || '').toUpperCase();
+        const title = t.title || decodeTicker(t.ticker || '?');
+        const price = t.price ? (t.price * 100).toFixed(0) + '¢' : t.avg_price ? t.avg_price.toFixed(0) + '¢' : '—';
+        const time = t.created_at || t.timestamp || '';
+        const timeStr = time ? new Date(time).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
+        return `<div class="trade-hist-row">
+            <span class="trade-hist-side ${side.toLowerCase()}">${side}</span>
+            <span class="trade-hist-title">${shortenTitle(title, 40)}</span>
+            <span class="trade-hist-price">${price}</span>
+            <span class="trade-hist-pnl ${pnlClass}">${pnlStr}</span>
+            <span class="trade-hist-time">${timeStr}</span>
+        </div>`;
+    }).join('');
+}
+
+function filterTradeHistory(filter, btn) {
+    _tradeHistFilter = filter;
+    _tradeHistoryOffset = 0;
+    document.querySelectorAll('.trade-hist-filters .chip').forEach(c => c.classList.remove('active'));
+    if (btn) btn.classList.add('active');
+    renderTradeHistory(_botTradesCache);
+}
+
+function loadMoreTrades() {
+    _tradeHistoryOffset += 20;
+    renderTradeHistory(_botTradesCache);
+}
+
+// ══════════════════════════════════════════════
+// FEATURE 5: MULTI-TIMEFRAME CHARTS
+// ══════════════════════════════════════════════
+function getMultiTimeframeData(ticker) {
+    const snapshots = JSON.parse(localStorage.getItem('sygnal-snapshots') || '{}');
+    const allPrices = [];
+    for (const [ts, markets] of Object.entries(snapshots)) {
+        const m = (markets || []).find(x => x.ticker === ticker);
+        if (m) allPrices.push({ ts: parseInt(ts), price: m.yes || m.price || 0 });
+    }
+    allPrices.sort((a, b) => a.ts - b.ts);
+
+    const now = Date.now();
+    return {
+        '1h': allPrices.filter(p => now - p.ts < 3600000).map(p => p.price),
+        '24h': allPrices.filter(p => now - p.ts < 86400000).map(p => p.price),
+        '7d': allPrices.map(p => p.price),
+    };
+}
+
+// ══════════════════════════════════════════════
+// FEATURE 6: IMPROVED SOCIAL SHARING
+// ══════════════════════════════════════════════
+function getShareTrackRecord() {
+    const record = getTrackRecord();
+    const stats = getAccuracyStats();
+    const totalPicks = record.length;
+    const correctPicks = record.filter(r => r.correct).length;
+    return {
+        total: totalPicks,
+        correct: correctPicks,
+        accuracy: totalPicks > 0 ? ((correctPicks / totalPicks) * 100).toFixed(0) : 0,
+        streak: stats.streak || 0,
+    };
+}
+
+// ══════════════════════════════════════════════
+// FEATURE 7: REAL BOT LEADERBOARD
+// ══════════════════════════════════════════════
+function getBotPerformanceForLeague() {
+    const trades = _botTradesCache;
+    if (!trades.length) return null;
+    const totalPnl = trades.reduce((s, t) => s + (t.realized_pnl || t.pnl || 0), 0);
+    const wins = trades.filter(t => (t.realized_pnl || t.pnl || 0) > 0).length;
+    return {
+        name: 'Your Bot',
+        pnl: totalPnl,
+        trades: trades.length,
+        wins,
+        winRate: trades.length > 0 ? ((wins / trades.length) * 100).toFixed(0) : 0,
+    };
+}
+
+// ══════════════════════════════════════════════
+// FEATURE 8: CUSTOM ALERTS ENGINE
+// ══════════════════════════════════════════════
+function getCustomAlertRules() {
+    try { return JSON.parse(localStorage.getItem('sygnal-custom-alerts') || '[]'); }
+    catch { return []; }
+}
+
+function saveCustomAlertRules(rules) {
+    localStorage.setItem('sygnal-custom-alerts', JSON.stringify(rules));
+}
+
+function addCustomAlertRule() {
+    const condition = document.getElementById('alert-condition')?.value;
+    const threshold = parseFloat(document.getElementById('alert-threshold')?.value) || 0;
+    const category = document.getElementById('alert-category')?.value || 'all';
+
+    const rules = getCustomAlertRules();
+    rules.push({ id: Date.now(), condition, threshold, category, enabled: true, created: new Date().toISOString() });
+    saveCustomAlertRules(rules);
+    renderAlertRules();
+    showToast('Alert rule added');
+}
+
+function removeAlertRule(id) {
+    const rules = getCustomAlertRules().filter(r => r.id !== id);
+    saveCustomAlertRules(rules);
+    renderAlertRules();
+}
+
+function toggleAlertRule(id) {
+    const rules = getCustomAlertRules();
+    const rule = rules.find(r => r.id === id);
+    if (rule) rule.enabled = !rule.enabled;
+    saveCustomAlertRules(rules);
+    renderAlertRules();
+}
+
+function renderAlertRules() {
+    const el = document.getElementById('custom-alert-rules');
+    if (!el) return;
+    const rules = getCustomAlertRules();
+
+    if (!rules.length) {
+        el.innerHTML = '<p style="color:var(--text-dim);font-size:13px;">No alert rules yet. Create one above.</p>';
+        return;
+    }
+
+    el.innerHTML = rules.map(r => {
+        const condLabel = {
+            'score-above': `Score > ${r.threshold}`,
+            'score-below': `Score < ${r.threshold}`,
+            'price-above': `YES > ${r.threshold}¢`,
+            'price-below': `YES < ${r.threshold}¢`,
+            'change-up': `+${r.threshold}¢ move`,
+            'change-down': `-${r.threshold}¢ drop`,
+            'signal-buy': 'Signal: BUY YES',
+            'signal-sell': 'Signal: BUY NO',
+        }[r.condition] || r.condition;
+        const catLabel = r.category === 'all' ? 'All Markets' : r.category;
+        return `<div class="alert-rule ${r.enabled ? 'active' : 'disabled'}">
+            <div class="alert-rule-info">
+                <span class="alert-rule-cond">${condLabel}</span>
+                <span class="alert-rule-cat">${catLabel}</span>
+            </div>
+            <div class="alert-rule-actions">
+                <button class="alert-rule-toggle" onclick="toggleAlertRule(${r.id})">${r.enabled ? 'ON' : 'OFF'}</button>
+                <button class="alert-rule-delete" onclick="removeAlertRule(${r.id})">✕</button>
+            </div>
+        </div>`;
+    }).join('');
+}
+
+function evaluateCustomAlertRules() {
+    if (!notificationsEnabled) return;
+    const rules = getCustomAlertRules().filter(r => r.enabled);
+    if (!rules.length) return;
+
+    for (const card of allMarketCards) {
+        const m = card.market;
+        const score = calcSygnalScore(m, 0);
+        const sig = getSygnalSignal(m.ticker);
+        const change = getMarketChange(m.ticker);
+        const cat = categorize(m.question || m.title || '');
+
+        for (const rule of rules) {
+            if (rule.category !== 'all' && cat !== rule.category) continue;
+
+            let triggered = false;
+            if (rule.condition === 'score-above' && score > rule.threshold) triggered = true;
+            if (rule.condition === 'score-below' && score < rule.threshold) triggered = true;
+            if (rule.condition === 'price-above' && m.yes > rule.threshold) triggered = true;
+            if (rule.condition === 'price-below' && m.yes < rule.threshold) triggered = true;
+            if (rule.condition === 'change-up' && change >= rule.threshold) triggered = true;
+            if (rule.condition === 'change-down' && change <= -rule.threshold) triggered = true;
+            if (rule.condition === 'signal-buy' && sig.signal === 'BUY YES') triggered = true;
+            if (rule.condition === 'signal-sell' && sig.signal === 'BUY NO') triggered = true;
+
+            if (triggered) {
+                sendNotification(
+                    `Alert: ${shortenTitle(m.question, 40)}`,
+                    `Rule matched — YES ${m.yes}¢, Score ${score}`,
+                    'sygnal-rule-' + rule.id + '-' + m.ticker
+                );
+            }
+        }
+    }
+}
+
+// ══════════════════════════════════════════════
+// FEATURE 9: MARKET COMPARISON TOOL
+// ══════════════════════════════════════════════
+function buildComparePanel() {
+    const el = document.getElementById('compare-grid');
+    if (!el) return;
+
+    // Find markets that exist on both platforms using cross-platform map
+    const pairs = [];
+    const seen = new Set();
+    for (const card of allMarketCards) {
+        const m = card.market;
+        if (seen.has(m.ticker)) continue;
+
+        // Find matching market on other platform
+        const q = (m.question || m.title || '').toLowerCase();
+        const match = allMarketCards.find(c => {
+            if (c.market.ticker === m.ticker) return false;
+            if (c.platform === card.platform) return false;
+            const q2 = (c.market.question || c.market.title || '').toLowerCase();
+            return q2 === q || (q.length > 20 && q2.includes(q.substring(0, 20)));
+        });
+
+        if (match) {
+            seen.add(m.ticker);
+            seen.add(match.market.ticker);
+            const kalshiM = card.platform === 'kalshi' ? m : match.market;
+            const polyM = card.platform === 'poly' ? m : match.market;
+            const spread = Math.abs((kalshiM.yes || 0) - (polyM.yes || 0));
+            pairs.push({ question: m.question || m.title, kalshi: kalshiM, poly: polyM, spread });
+        }
+    }
+
+    // Also use the cross-platform map
+    if (_crossPlatformMap) {
+        for (const [ticker, xp] of Object.entries(_crossPlatformMap)) {
+            if (seen.has(ticker)) continue;
+            const card = allMarketCards.find(c => c.market.ticker === ticker);
+            if (!card) continue;
+            seen.add(ticker);
+            pairs.push({
+                question: card.market.question || card.market.title,
+                kalshi: card.platform === 'kalshi' ? card.market : { yes: xp.otherYes, no: 100 - xp.otherYes, volume: '—' },
+                poly: card.platform === 'poly' ? card.market : { yes: xp.otherYes, no: 100 - xp.otherYes, volume: '—' },
+                spread: Math.abs(xp.priceDiff || 0)
+            });
+        }
+    }
+
+    pairs.sort((a, b) => b.spread - a.spread);
+
+    if (!pairs.length) {
+        el.innerHTML = '<p style="color:var(--text-dim);font-size:14px;">No cross-platform markets found. Markets must exist on both Kalshi and Polymarket to compare.</p>';
+        return;
+    }
+
+    el.innerHTML = pairs.map(p => {
+        const spreadColor = p.spread >= 5 ? 'var(--green)' : p.spread >= 2 ? 'var(--gold)' : 'var(--text-dim)';
+        const kScore = calcSygnalScore(p.kalshi, 0);
+        const pScore = calcSygnalScore(p.poly, 0);
+        return `<div class="compare-card">
+            <div class="compare-title">${shortenTitle(p.question, 60)}</div>
+            <div class="compare-platforms">
+                <div class="compare-platform kalshi">
+                    <span class="compare-plat-name">KALSHI</span>
+                    <span class="compare-plat-price">YES ${p.kalshi.yes || '?'}¢</span>
+                    <span class="compare-plat-price dim">NO ${p.kalshi.no || '?'}¢</span>
+                    <span class="compare-plat-vol">${typeof p.kalshi.volume === 'string' ? p.kalshi.volume : formatVol(p.kalshi.volume)}</span>
+                </div>
+                <div class="compare-spread">
+                    <span class="compare-spread-val" style="color:${spreadColor}">${p.spread}¢</span>
+                    <span class="compare-spread-label">SPREAD</span>
+                </div>
+                <div class="compare-platform poly">
+                    <span class="compare-plat-name">POLYMARKET</span>
+                    <span class="compare-plat-price">YES ${p.poly.yes || '?'}¢</span>
+                    <span class="compare-plat-price dim">NO ${p.poly.no || '?'}¢</span>
+                    <span class="compare-plat-vol">${typeof p.poly.volume === 'string' ? p.poly.volume : formatVol(p.poly.volume)}</span>
+                </div>
+            </div>
+            ${p.spread >= 3 ? `<div class="compare-arb-badge">⚡ Arbitrage Opportunity — ${p.spread}¢ edge</div>` : ''}
+        </div>`;
+    }).join('');
+}
+
+function formatVol(v) {
+    if (!v) return '—';
+    if (v >= 1e6) return '$' + (v / 1e6).toFixed(1) + 'M';
+    if (v >= 1e3) return '$' + (v / 1e3).toFixed(0) + 'K';
+    return '$' + v;
+}
+
+// ══════════════════════════════════════════════
+// INIT ALL NEW FEATURES
+// ══════════════════════════════════════════════
+setTimeout(() => {
+    loadBotPerformance();
+    buildNewsFeed();
+}, 3000);
+
+// Run alert checks every 2 minutes
+setInterval(() => {
+    checkWatchlistAlerts();
+    evaluateCustomAlertRules();
+}, 120000);
 
 // ── SERVICE WORKER (PWA) ──
 if ('serviceWorker' in navigator) {
