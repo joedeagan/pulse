@@ -520,6 +520,57 @@
             </div>
         </div>
         <div id="bot-positions"></div>
+
+        <!-- Bot Controls -->
+        <div class="bot-controls">
+            <h3 class="bot-controls-title">BOT CONTROLS</h3>
+            <div class="bot-control-row">
+                <div class="bot-control-item">
+                    <label>Status</label>
+                    <button class="bot-toggle-btn" id="bot-pause-btn" onclick="toggleBotPause()">Loading...</button>
+                </div>
+                <div class="bot-control-item">
+                    <label>Max Bet</label>
+                    <div class="bot-slider-row">
+                        <input type="range" id="bot-max-bet" min="0.05" max="5.00" step="0.05" value="1.50" oninput="document.getElementById('bot-max-bet-val').textContent='$'+parseFloat(this.value).toFixed(2)">
+                        <span id="bot-max-bet-val" class="bot-slider-val">$1.50</span>
+                    </div>
+                </div>
+                <div class="bot-control-item">
+                    <label>Max Positions</label>
+                    <div class="bot-slider-row">
+                        <input type="range" id="bot-max-pos" min="1" max="30" step="1" value="12" oninput="document.getElementById('bot-max-pos-val').textContent=this.value">
+                        <span id="bot-max-pos-val" class="bot-slider-val">12</span>
+                    </div>
+                </div>
+                <div class="bot-control-item">
+                    <label>Min Edge</label>
+                    <div class="bot-slider-row">
+                        <input type="range" id="bot-min-edge" min="0.01" max="0.20" step="0.01" value="0.04" oninput="document.getElementById('bot-min-edge-val').textContent=(this.value*100).toFixed(0)+'%'">
+                        <span id="bot-min-edge-val" class="bot-slider-val">4%</span>
+                    </div>
+                </div>
+                <div class="bot-control-item">
+                    <label>Daily Loss Limit</label>
+                    <div class="bot-slider-row">
+                        <input type="range" id="bot-loss-limit" min="10" max="500" step="10" value="100" oninput="document.getElementById('bot-loss-limit-val').textContent='$'+(this.value/100).toFixed(2)">
+                        <span id="bot-loss-limit-val" class="bot-slider-val">$1.00</span>
+                    </div>
+                </div>
+                <div class="bot-control-item">
+                    <label>Contracts/Market</label>
+                    <div class="bot-slider-row">
+                        <input type="range" id="bot-max-contracts" min="1" max="20" step="1" value="5" oninput="document.getElementById('bot-max-contracts-val').textContent=this.value">
+                        <span id="bot-max-contracts-val" class="bot-slider-val">5</span>
+                    </div>
+                </div>
+            </div>
+            <button class="bot-save-btn" id="bot-save-btn" onclick="saveBotConfig()">Save Changes</button>
+            <div id="bot-config-status" class="bot-config-status"></div>
+        </div>
+
+        <!-- Bot Signals -->
+        <div id="bot-signals-section"></div>
     </section>
 
     <!-- Sygnal AI Chat Widget -->

@@ -1838,6 +1838,140 @@ async function loadBot() {
     }
 }
 
+// ── BOT CONTROLS ──
+let _botPaused = false;
+let _botOrigMaxPos = 12;
+
+async function loadBotConfig() {
+    try {
+        const resp = await fetch(API_BASE + '/api/bot/config');
+        if (!resp.ok) return;
+        const cfg = await resp.json();
+        if (cfg.error) return;
+
+        // Populate sliders with current values
+        const setSlider = (id, val, fmt) => {
+            const el = document.getElementById(id);
+            const valEl = document.getElementById(id + '-val');
+            if (el && val !== undefined) { el.value = val; if (valEl) valEl.textContent = fmt(val); }
+        };
+        setSlider('bot-max-bet', cfg.max_bet_dollars, v => '$' + parseFloat(v).toFixed(2));
+        setSlider('bot-max-pos', cfg.max_positions, v => v);
+        setSlider('bot-min-edge', cfg.min_edge, v => (v * 100).toFixed(0) + '%');
+        setSlider('bot-loss-limit', cfg.daily_loss_limit_cents, v => '$' + (v / 100).toFixed(2));
+        setSlider('bot-max-contracts', cfg.max_contracts_per, v => v);
+
+        _botOrigMaxPos = cfg.max_positions || 12;
+        _botPaused = cfg.max_positions === 0;
+        updatePauseBtn();
+    } catch(e) { console.log('Bot config unavailable'); }
+}
+
+function updatePauseBtn() {
+    const btn = document.getElementById('bot-pause-btn');
+    if (!btn) return;
+    if (_botPaused) {
+        btn.textContent = 'PAUSED — Resume';
+        btn.className = 'bot-toggle-btn paused';
+    } else {
+        btn.textContent = 'RUNNING — Pause';
+        btn.className = 'bot-toggle-btn running';
+    }
+}
+
+async function toggleBotPause() {
+    const btn = document.getElementById('bot-pause-btn');
+    btn.textContent = 'Updating...';
+    try {
+        if (_botPaused) {
+            // Resume: restore original max positions
+            await fetch(API_BASE + '/api/bot/config', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ max_positions: _botOrigMaxPos || 12 })
+            });
+            _botPaused = false;
+        } else {
+            // Pause: set max_positions to 0 (won't open new trades)
+            _botOrigMaxPos = parseInt(document.getElementById('bot-max-pos').value) || 12;
+            await fetch(API_BASE + '/api/bot/config', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ max_positions: 0 })
+            });
+            _botPaused = true;
+        }
+        updatePauseBtn();
+        showBotStatus(_botPaused ? 'Bot paused — no new trades' : 'Bot resumed — trading active', !_botPaused);
+    } catch(e) {
+        showBotStatus('Failed to update bot', false);
+        updatePauseBtn();
+    }
+}
+
+async function saveBotConfig() {
+    const btn = document.getElementById('bot-save-btn');
+    btn.textContent = 'Saving...';
+    const config = {
+        max_bet_dollars: parseFloat(document.getElementById('bot-max-bet').value),
+        max_positions: parseInt(document.getElementById('bot-max-pos').value),
+        min_edge: parseFloat(document.getElementById('bot-min-edge').value),
+        daily_loss_limit_cents: parseInt(document.getElementById('bot-loss-limit').value),
+        max_contracts_per: parseInt(document.getElementById('bot-max-contracts').value),
+    };
+    // If bot is paused, don't override max_positions
+    if (_botPaused) {
+        _botOrigMaxPos = config.max_positions;
+        delete config.max_positions;
+    }
+    try {
+        const resp = await fetch(API_BASE + '/api/bot/config', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(config)
+        });
+        const result = await resp.json();
+        if (result.error) throw new Error(result.error);
+        showBotStatus('Config saved successfully', true);
+    } catch(e) {
+        showBotStatus('Failed: ' + e.message, false);
+    }
+    btn.textContent = 'Save Changes';
+}
+
+function showBotStatus(msg, success) {
+    const el = document.getElementById('bot-config-status');
+    if (!el) return;
+    el.textContent = msg;
+    el.className = 'bot-config-status ' + (success ? 'success' : 'error');
+    setTimeout(() => { el.textContent = ''; el.className = 'bot-config-status'; }, 4000);
+}
+
+async function loadBotSignals() {
+    try {
+        const resp = await fetch(API_BASE + '/api/bot/signals');
+        if (!resp.ok) return;
+        const data = await resp.json();
+        const signals = data.signals || data || [];
+        const section = document.getElementById('bot-signals-section');
+        if (!section || signals.length === 0) return;
+        section.innerHTML = '<h3 style="font-size:13px;color:var(--text-dim);letter-spacing:2px;margin:16px 0 8px;">LATEST SIGNALS</h3>' +
+            signals.slice(0, 10).map(s => {
+                const acted = !s.skip_reason;
+                const color = acted ? 'var(--green)' : 'var(--text-dim)';
+                const badge = acted ? 'ACTED' : (s.skip_reason || 'SKIPPED');
+                return `<div class="bot-signal-row">
+                    <span class="bot-signal-ticker">${decodeTicker(s.ticker || s.market || '?')}</span>
+                    <span style="color:${color};font-size:11px;font-weight:700;">${(s.side || '').toUpperCase()}</span>
+                    <span style="font-size:11px;color:var(--text-dim);">Edge: ${((s.edge || 0) * 100).toFixed(1)}%</span>
+                    <span class="bot-signal-badge ${acted ? 'acted' : 'skipped'}">${badge}</span>
+                </div>`;
+            }).join('');
+    } catch(e) {}
+}
+
+// Load bot config on page load
+setTimeout(() => { loadBotConfig(); loadBotSignals(); }, 2000);
+// Refresh signals every 5 min
+setInterval(loadBotSignals, 300000);
+
 // ── MARKET DETAIL PAGE ──
 let currentDetailMarket = null;
 

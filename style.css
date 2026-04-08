@@ -3154,3 +3154,176 @@ body.light .buy-no:hover { background: #e53e3e; color: #fff; }
         bottom: 72px;
     }
 }
+
+/* ── BOT CONTROLS ── */
+.bot-controls {
+    margin-top: 24px;
+    padding: 20px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+}
+.bot-controls-title {
+    font-size: 13px;
+    letter-spacing: 2px;
+    color: var(--text-dim);
+    margin-bottom: 16px;
+}
+.bot-control-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 16px;
+    margin-bottom: 16px;
+}
+.bot-control-item {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+.bot-control-item label {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-dim);
+    letter-spacing: 1px;
+    text-transform: uppercase;
+}
+.bot-slider-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+.bot-slider-row input[type="range"] {
+    flex: 1;
+    height: 4px;
+    -webkit-appearance: none;
+    appearance: none;
+    background: var(--border);
+    border-radius: 2px;
+    outline: none;
+}
+.bot-slider-row input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: var(--accent);
+    cursor: pointer;
+    border: 2px solid var(--bg);
+    box-shadow: 0 2px 6px rgba(0,136,255,0.3);
+}
+.bot-slider-val {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--text);
+    min-width: 48px;
+    text-align: right;
+    font-family: var(--font);
+}
+.bot-toggle-btn {
+    padding: 10px 20px;
+    border-radius: 8px;
+    border: 1px solid;
+    font-family: var(--font);
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+.bot-toggle-btn.running {
+    background: rgba(0, 214, 143, 0.1);
+    border-color: rgba(0, 214, 143, 0.3);
+    color: var(--green);
+}
+.bot-toggle-btn.running:hover {
+    background: rgba(0, 214, 143, 0.2);
+}
+.bot-toggle-btn.paused {
+    background: rgba(255, 59, 92, 0.1);
+    border-color: rgba(255, 59, 92, 0.3);
+    color: var(--red);
+}
+.bot-toggle-btn.paused:hover {
+    background: rgba(255, 59, 92, 0.2);
+}
+.bot-save-btn {
+    width: 100%;
+    padding: 12px;
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    font-family: var(--font);
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+.bot-save-btn:hover {
+    opacity: 0.9;
+    transform: translateY(-1px);
+}
+.bot-config-status {
+    text-align: center;
+    font-size: 13px;
+    font-weight: 600;
+    margin-top: 8px;
+    min-height: 20px;
+}
+.bot-config-status.success { color: var(--green); }
+.bot-config-status.error { color: var(--red); }
+
+/* Bot Signals */
+.bot-signal-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 12px;
+    background: rgba(255,255,255,0.02);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    margin-bottom: 4px;
+    font-size: 12px;
+}
+.bot-signal-ticker {
+    flex: 1;
+    color: var(--text);
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.bot-signal-badge {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    padding: 2px 8px;
+    border-radius: 4px;
+}
+.bot-signal-badge.acted {
+    color: var(--green);
+    background: rgba(0, 214, 143, 0.1);
+}
+.bot-signal-badge.skipped {
+    color: var(--text-dim);
+    background: rgba(255,255,255,0.04);
+}
+
+/* ── iPad / Tablet Fix ── */
+@media (min-width: 601px) and (max-width: 1024px) {
+    body { font-size: 14px; }
+    .market-grid { grid-template-columns: repeat(2, 1fr); }
+    nav { padding: 10px 16px; }
+    .hero h1 { font-size: 36px; }
+    .hero .tagline { font-size: 13px; letter-spacing: 4px; }
+    .hero p { font-size: 13px; max-width: 90%; }
+    .stats-bar { gap: 12px; padding: 10px 16px; }
+    .sygnal-explainer-card { padding: 28px 20px; }
+    .sygnal-factors { flex-direction: column; }
+    .explainer-top { gap: 24px; }
+    .explainer-bottom { flex-direction: column; }
+    .bot-control-row { grid-template-columns: repeat(2, 1fr); }
+    .league-stats-row { grid-template-columns: repeat(2, 1fr); }
+    section { padding: 0 16px; }
+    #filters { padding: 0 16px; }
+}

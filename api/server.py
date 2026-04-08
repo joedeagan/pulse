@@ -344,6 +344,51 @@ async def get_bot():
         return {"error": str(e)}
 
 
+# ─── BOT CONFIG (GET + UPDATE) ───
+BOT_URL = "https://web-production-c8a5b.up.railway.app"
+
+@app.get("/api/bot/config")
+async def get_bot_config():
+    """Fetch current bot configuration."""
+    try:
+        async with httpx.AsyncClient() as client:
+            resp = await client.get(f"{BOT_URL}/api/bot/config", timeout=10)
+            return resp.json()
+    except Exception as e:
+        return {"error": str(e)}
+
+@app.post("/api/bot/config")
+async def update_bot_config(request: Request):
+    """Update bot configuration parameters."""
+    try:
+        body = await request.json()
+        async with httpx.AsyncClient() as client:
+            resp = await client.post(f"{BOT_URL}/api/bot/config", json=body, timeout=10)
+            return resp.json()
+    except Exception as e:
+        return {"error": str(e)}
+
+@app.get("/api/bot/signals")
+async def get_bot_signals():
+    """Fetch latest bot signals."""
+    try:
+        async with httpx.AsyncClient() as client:
+            resp = await client.get(f"{BOT_URL}/api/bot/signals", timeout=10)
+            return resp.json()
+    except Exception as e:
+        return {"error": str(e)}
+
+@app.get("/api/bot/trades")
+async def get_bot_trades(limit: int = 20):
+    """Fetch recent bot trades."""
+    try:
+        async with httpx.AsyncClient() as client:
+            resp = await client.get(f"{BOT_URL}/api/bot/trades?limit={limit}", timeout=10)
+            return resp.json()
+    except Exception as e:
+        return {"error": str(e)}
+
+
 # ─── HELPER FUNCTIONS ───
 
 def categorize(title):
