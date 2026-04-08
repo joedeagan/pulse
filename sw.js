@@ -29,7 +29,10 @@ self.addEventListener('activate', (e) => {
 
 // Fetch — network first, fall back to cache
 self.addEventListener('fetch', (e) => {
-    // Don't cache API calls
+    // Don't cache API calls — skip external URLs entirely (let browser handle)
+    if (e.request.url.includes('/api/') && !e.request.url.startsWith(self.location.origin)) {
+        return; // Don't intercept external API calls (Railway bot, etc)
+    }
     if (e.request.url.includes('/api/')) {
         e.respondWith(fetch(e.request).catch(() => new Response('{"error":"offline"}', {
             headers: { 'Content-Type': 'application/json' }
