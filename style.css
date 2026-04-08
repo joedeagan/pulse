@@ -3,7 +3,7 @@
    Premium fintech design system
    ============================================ */
 
-@import url('https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@700&display=swap');
 
 /* ── LANDING PAGE ── */
 .landing {
@@ -33,9 +33,9 @@
     margin-bottom: 24px;
 }
 .landing-title {
-    font-family: var(--font);
+    font-family: 'Space Grotesk', var(--font);
     font-size: 56px;
-    font-weight: 800;
+    font-weight: 700;
     letter-spacing: -1px;
     color: var(--text);
     margin-bottom: 8px;
@@ -160,9 +160,9 @@ body {
 /* ── NAVIGATION ── */
 nav {
     display: flex;
-    justify-content: space-between;
     align-items: center;
-    padding: 0 28px;
+    padding: 0 20px;
+    gap: 16px;
     height: 60px;
     background: rgba(10, 10, 18, 0.95);
     backdrop-filter: blur(24px);
@@ -364,8 +364,9 @@ body.light .nav-more-menu a.active { color: #0066cc; background: rgba(0,102,204,
 }
 
 .hero h1 {
+    font-family: 'Space Grotesk', var(--font);
     font-size: 56px;
-    font-weight: 800;
+    font-weight: 700;
     letter-spacing: -1px;
     color: #4dc9ff;
     margin-bottom: 8px;
