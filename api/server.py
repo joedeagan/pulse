@@ -5,7 +5,7 @@
 # 4. Render handles SSL automatically
 
 """
-PULSE Backend Server
+Sygnal Backend Server
 ====================
 This is your first backend. It does 3 things:
 
@@ -51,7 +51,7 @@ SENDGRID_FROM_EMAIL = os.environ.get("SENDGRID_FROM_EMAIL", "pulse@joedeagan.com
 # You define "endpoints" (URLs) and what data they return.
 # It's what Jarvis uses too.
 
-app = FastAPI(title="PULSE API")
+app = FastAPI(title="Sygnal Markets API")
 
 # WHAT IS CORS MIDDLEWARE?
 # This tells the server "allow any website to call my API."
@@ -591,7 +591,7 @@ async def generate_newsletter():
 
 <!-- Logo + Title -->
 <tr><td style="padding:0 0 20px;text-align:center;">
-<span style="font-size:28px;font-weight:800;color:#0066cc;letter-spacing:2px;">PULSE</span>
+<span style="font-size:28px;font-weight:800;color:#0066cc;letter-spacing:2px;">Sygnal</span>
 <br><span style="font-size:13px;color:#888;">{date_str} &middot; {len(all_markets)} markets tracked</span>
 </td></tr>
 
@@ -628,7 +628,7 @@ async def generate_newsletter():
 <!-- CTA -->
 <table width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding:28px 0 8px;">
 <table cellpadding="0" cellspacing="0"><tr><td bgcolor="#0066cc" style="padding:12px 32px;">
-<a href="{SITE}" style="color:#fff;text-decoration:none;font-size:14px;font-weight:700;">Open PULSE &#8594;</a>
+<a href="{SITE}" style="color:#fff;text-decoration:none;font-size:14px;font-weight:700;">Open Sygnal &#8594;</a>
 </td></tr></table>
 </td></tr></table>
 
@@ -636,7 +636,7 @@ async def generate_newsletter():
 
 <!-- Footer -->
 <tr><td style="padding:20px 0;text-align:center;">
-<span style="font-size:11px;color:#888;">You subscribed to PULSE Market Digest.</span><br>
+<span style="font-size:11px;color:#888;">You subscribed to Sygnal Market Digest.</span><br>
 <a href="{SITE}" style="font-size:11px;color:#0066cc;">Unsubscribe</a>
 </td></tr>
 
@@ -682,9 +682,9 @@ async def send_newsletter():
     for sub in subs:
         try:
             message = Mail(
-                from_email=(SENDGRID_FROM_EMAIL, "PULSE Markets"),
+                from_email=(SENDGRID_FROM_EMAIL, "Sygnal Markets"),
                 to_emails=sub["email"],
-                subject=f"PULSE Weekly Market Digest — {datetime.now().strftime('%B %d, %Y')}",
+                subject=f"Sygnal Weekly Market Digest — {datetime.now().strftime('%B %d, %Y')}",
                 html_content=html_content,
             )
             sg.send(message)
@@ -780,7 +780,7 @@ async def get_recap():
 
     # Generate shareable text
     top3 = interesting[:3]
-    share_text = f"PULSE Weekly Recap\n\n"
+    share_text = f"Sygnal Weekly Recap\n\n"
     for m in top3:
         sig = "BUY YES" if m["yes"] >= 70 else ("BUY NO" if m["yes"] <= 30 else "WATCH")
         share_text += f"{m['question'][:50]}\nYES {m['yes']}c — {sig}\n\n"
@@ -801,7 +801,7 @@ async def get_recap():
     }
 
 
-# ─── PULSE PRO ───
+# ─── Sygnal PRO ───
 
 STRIPE_PRICE_ID = os.environ.get("STRIPE_PRICE_ID", "")
 STRIPE_SECRET_KEY = os.environ.get("STRIPE_SECRET_KEY", "")
@@ -818,7 +818,7 @@ def load_pro_users():
 
 @app.post("/api/pro/checkout")
 async def pro_checkout(request: Request):
-    """Create a Stripe Checkout session for PULSE Pro."""
+    """Create a Stripe Checkout session for Sygnal Pro."""
     if not STRIPE_SECRET_KEY:
         return JSONResponse({"error": "Stripe not configured yet"}, status_code=500)
 
@@ -874,7 +874,7 @@ async def check_pro(email: str = ""):
     return {"pro": email.lower() in [p.lower() for p in pros]}
 
 
-# ─── PULSE AUTOPILOT (Smart Alerts Scanner) ───
+# ─── Sygnal AUTOPILOT (Smart Alerts Scanner) ───
 
 ONESIGNAL_APP_ID = os.environ.get("ONESIGNAL_APP_ID", "")
 ONESIGNAL_API_KEY = os.environ.get("ONESIGNAL_API_KEY", "")

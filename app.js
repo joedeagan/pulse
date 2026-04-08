@@ -1,5 +1,5 @@
 // ============================================
-// PULSE — app.js
+// SYGNAL — app.js
 // Lesson 3: Cross-platform comparison
 // ============================================
 
@@ -474,7 +474,7 @@ function shortenTitle(t) {
     return t;
 }
 
-// ── PULSE RING SVG HELPER ──
+// ── SYGNAL RING SVG HELPER ──
 function makePulseRing(score, size) {
     size = size || 28;
     const color = score >= 70 ? '#00d68f' : score >= 40 ? '#f0b000' : '#ff3b5c';
@@ -558,7 +558,7 @@ function createMarketCard(market, platform, priceChange) {
     else if (sig.signal.includes('NO')) { sigColor = '#ff3b5c'; sigBg = 'rgba(255,59,92,0.12)'; }
     else { sigColor = '#f0b000'; sigBg = 'rgba(240,176,0,0.10)'; }
     const signalHtml = `<span class="card-signal" style="color:${sigColor};background:${sigBg};">${sig.signal}</span>`;
-    pulseFooter.innerHTML = `${signalHtml}<span class="card-pulse-label">PULSE</span><span class="card-pulse-score" style="color:${pulseColor};">${pulseScore}</span>`;
+    pulseFooter.innerHTML = `${signalHtml}<span class="card-pulse-label">SYGNAL</span><span class="card-pulse-score" style="color:${pulseColor};">${pulseScore}</span>`;
     card.appendChild(pulseFooter);
 
     // Affiliate trade button
@@ -604,10 +604,10 @@ function createMarketCard(market, platform, priceChange) {
     return card;
 }
 
-// ── PULSE SCORE — confidence rating ──
-// ── PULSE SCORE ENGINE ──
-// ── PULSE SCORE — 5-Factor Cross-Platform Intelligence ──
-// Only PULSE can do this: we see BOTH platforms simultaneously
+// ── SYGNAL SCORE — confidence rating ──
+// ── SYGNAL SCORE ENGINE ──
+// ── SYGNAL SCORE — 5-Factor Cross-Platform Intelligence ──
+// Only SYGNAL can do this: we see BOTH platforms simultaneously
 let _pulseScoreCache = {};
 let _pulseSignalCache = {};
 let _crossPlatformMap = {};
@@ -666,7 +666,7 @@ function computeAllPulseScores(allMarkets) {
         // 3. MOMENTUM (0-20): Price velocity
         const momentumScore = Math.round(20 * Math.min(absChange / 8, 1));
 
-        // 4. CROSS-PLATFORM EDGE (0-20): Price gap between platforms — PULSE exclusive
+        // 4. CROSS-PLATFORM EDGE (0-20): Price gap between platforms — SYGNAL exclusive
         let crossScore = 0;
         const xp = _crossPlatformMap[m.ticker];
         if (xp) crossScore = Math.round(20 * Math.min(xp.priceDiff / 10, 1));
@@ -1326,7 +1326,7 @@ if (localStorage.getItem('pulse-theme') === 'light') {
 }
 
 
-// ── NAV PULSE LOGO — mini heartbeat animation ──
+// ── NAV SYGNAL LOGO — mini heartbeat animation ──
 (function() {
     const c = document.getElementById('nav-orb');
     if (!c) return;
@@ -1493,7 +1493,7 @@ function initHeroOrb() {
         ctx.lineWidth = 1;
         ctx.stroke();
 
-        // === PULSE RINGS expanding outward ===
+        // === SYGNAL RINGS expanding outward ===
         for (const ring of rings) {
             const phase = (t * 0.5 + ring.phase) % 1;
             const r = 10 + phase * 85;
@@ -1938,7 +1938,7 @@ function openDetail(market, platform) {
         <div class="detail-pulse-row">
             <div class="detail-pulse-score" style="border-color:${pulseColor};">
                 <span class="detail-pulse-num" style="color:${pulseColor}">${pulseScore}</span>
-                <span class="detail-pulse-label">PULSE</span>
+                <span class="detail-pulse-label">SYGNAL</span>
             </div>
             <div class="detail-pulse-info">
                 <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
@@ -2492,7 +2492,7 @@ async function toggleNotifications() {
         if (perm === 'granted') {
             notificationsEnabled = true;
             localStorage.setItem('pulse-notifications', 'true');
-            sendNotification('PULSE Alerts Enabled', 'You\'ll be notified when watchlisted markets move 5%+ or your bot trades.');
+            sendNotification('Sygnal Alerts Enabled', 'You\'ll be notified when watchlisted markets move 5%+ or your bot trades.');
         } else {
             alert('Notifications blocked — enable them in browser settings');
             return;
@@ -2679,7 +2679,7 @@ function createGroupCard(group) {
         </div>
         <button class="group-toggle" onclick="expandGroup(this, '${group.groupTitle.replace(/'/g, "\\'")}')">${remaining} more markets \u2192</button>
         <div class="card-pulse-footer">
-            <span class="card-pulse-label">PULSE</span>
+            <span class="card-pulse-label">SYGNAL</span>
             <span class="card-pulse-score" style="color:${scoreColor};">${avgScore}</span>
         </div>
     `;
@@ -2711,7 +2711,7 @@ function expandGroup(btn, groupTitle) {
     }
 }
 
-// ── PULSE SCORE SPIKE ALERTS ──
+// ── SYGNAL SCORE SPIKE ALERTS ──
 let _prevPulseScores = {};
 try { _prevPulseScores = JSON.parse(localStorage.getItem('pulse-prev-scores') || '{}'); } catch {}
 
@@ -2852,7 +2852,7 @@ function makeTrendingCard(m, value, type) {
             <span style="color:${m.no >= 50 ? '#00d68f' : '#ff3b5c'};font-weight:600;">NO ${m.no}¢</span>
         </div>
         <div class="card-pulse-footer">
-            <span class="card-pulse-label">PULSE</span>
+            <span class="card-pulse-label">SYGNAL</span>
             <span class="card-pulse-score" style="color:${pulseColor};">${pulseScore}</span>
         </div>
     `;
@@ -3349,7 +3349,7 @@ function generatePickCard(market) {
     ctx.strokeStyle = accentGrad; ctx.lineWidth = 2;
     ctx.beginPath(); ctx.moveTo(24, 1); ctx.lineTo(W - 24, 1); ctx.stroke();
 
-    // "PULSE" header
+    // "SYGNAL" header
     ctx.fillStyle = '#0088ff'; ctx.font = '800 12px system-ui';
     ctx.fillText('P U L S E', 28, 36);
 
@@ -3393,7 +3393,7 @@ function generatePickCard(market) {
     ctx.fillStyle = psColor; ctx.font = '800 26px system-ui'; ctx.textAlign = 'center';
     ctx.fillText(ps, scoreX, scoreY2 + 9);
     ctx.fillStyle = '#55556a'; ctx.font = '700 8px system-ui';
-    ctx.fillText('PULSE', scoreX, scoreY2 + 24);
+    ctx.fillText('SYGNAL', scoreX, scoreY2 + 24);
     ctx.textAlign = 'left';
 
     // Signal badge
@@ -3481,17 +3481,17 @@ function showEmbedCode(market) {
     const ps = calcPulseScore(market, 0);
     const psColor = ps >= 70 ? '#00d68f' : ps >= 40 ? '#f0b000' : '#ff3b5c';
     const code = `<div style="background:#0d0d15;border:1px solid rgba(255,255,255,0.06);border-radius:12px;padding:16px;font-family:system-ui;max-width:320px;color:#e8e8ed;">
-  <div style="font-size:9px;letter-spacing:1.5px;color:#5a5a6e;margin-bottom:8px;">PULSE MARKET</div>
+  <div style="font-size:9px;letter-spacing:1.5px;color:#5a5a6e;margin-bottom:8px;">SYGNAL MARKET</div>
   <div style="font-size:14px;font-weight:500;margin-bottom:12px;">${market.question}</div>
   <div style="display:flex;gap:12px;margin-bottom:8px;">
     <span style="color:${market.yes >= 50 ? '#00d68f' : '#ff3b5c'};font-weight:600;">YES ${market.yes}\u00A2</span>
     <span style="color:${market.no >= 50 ? '#00d68f' : '#ff3b5c'};font-weight:600;">NO ${market.no}\u00A2</span>
   </div>
   <div style="display:flex;justify-content:space-between;border-top:1px solid rgba(255,255,255,0.06);padding-top:8px;">
-    <span style="font-size:11px;color:#5a5a6e;letter-spacing:2px;font-weight:700;">PULSE</span>
+    <span style="font-size:11px;color:#5a5a6e;letter-spacing:2px;font-weight:700;">SYGNAL</span>
     <span style="font-size:18px;font-weight:800;color:${psColor};">${ps}</span>
   </div>
-  <a href="${market.url || 'https://pulse-api-joed.onrender.com'}" target="_blank" style="font-size:11px;color:#0088ff;text-decoration:none;display:block;margin-top:8px;">View on PULSE \u2192</a>
+  <a href="${market.url || 'https://pulse-api-joed.onrender.com'}" target="_blank" style="font-size:11px;color:#0088ff;text-decoration:none;display:block;margin-top:8px;">View on Sygnal \u2192</a>
 </div>`;
 
     const popup = document.createElement('div');
@@ -3670,7 +3670,7 @@ loadMarkets = async function() {
     }
 };
 
-// ── PULSE SCORE EXPLAINER ──
+// ── SYGNAL SCORE EXPLAINER ──
 if (localStorage.getItem('pulse-explainer-dismissed') === 'true') {
     const expl = document.getElementById('pulse-explainer');
     if (expl) expl.style.display = 'none';
@@ -3701,7 +3701,7 @@ document.addEventListener('keydown', (e) => {
 });
 
 
-// ── PULSE AI CHAT WIDGET ──
+// ── SYGNAL AI CHAT WIDGET ──
 function togglePulseChat() {
     const chat = document.getElementById('pulse-chat');
     const btn = document.getElementById('pulse-chat-btn');
@@ -3930,7 +3930,7 @@ async function loadBotFeed() {
 loadBotFeed();
 setInterval(loadBotFeed, 120000);
 
-// ── PULSE LEAGUES ──
+// ── SYGNAL LEAGUES ──
 function getISOWeek(d) {
     const date = new Date(d.getTime());
     date.setHours(0, 0, 0, 0);
@@ -4171,15 +4171,15 @@ async function loadWeeklyRecap() {
 }
 
 function shareRecap() {
-    const text = window._recapShareText || 'Check out PULSE — cross-platform prediction market analytics\nhttps://pulse-api-joed.onrender.com';
+    const text = window._recapShareText || 'Check out Sygnal Markets — cross-platform prediction market analytics\nhttps://pulse-api-joed.onrender.com';
     if (navigator.share) {
-        navigator.share({ title: 'PULSE Weekly Recap', text }).catch(() => {});
+        navigator.share({ title: 'Sygnal Weekly Recap', text }).catch(() => {});
     } else if (navigator.clipboard) {
         navigator.clipboard.writeText(text).then(() => showToast('Recap copied!'));
     }
 }
 
-// ── PULSE PRO ──
+// ── SYGNAL PRO ──
 function isPro() {
     return localStorage.getItem('pulse-pro') === 'true';
 }
@@ -4210,7 +4210,7 @@ function showProUpsell(feature) {
     modal.className = 'pro-modal';
     modal.innerHTML = `
         <div class="pro-modal-content">
-            <div style="font-size:10px;letter-spacing:3px;color:var(--accent);font-weight:700;margin-bottom:8px;">PULSE PRO</div>
+            <div style="font-size:10px;letter-spacing:3px;color:var(--accent);font-weight:700;margin-bottom:8px;">SYGNAL PRO</div>
             <h3 style="margin:0 0 8px;font-size:18px;color:var(--text);">${feature || 'Unlock Premium Features'}</h3>
             <p style="color:var(--text-dim);font-size:13px;margin:0 0 16px;line-height:1.5;">Get access to AI Analysis, Signal History Export, Custom Push Alerts, and Priority Data Refresh.</p>
             <div style="font-size:24px;font-weight:800;color:var(--text);margin-bottom:16px;">$9.99<span style="font-size:13px;color:var(--text-dim);font-weight:400;">/month</span></div>
@@ -4244,11 +4244,11 @@ async function startProCheckout() {
 // Check for pro=success in URL
 if (window.location.search.includes('pro=success')) {
     localStorage.setItem('pulse-pro', 'true');
-    showToast('Welcome to PULSE Pro!');
+    showToast('Welcome to Sygnal Pro!');
     history.replaceState({}, '', '/');
 }
 
-// ── PULSE AUTOPILOT ──
+// ── SYGNAL AUTOPILOT ──
 async function loadAutopilotAlerts() {
     try {
         const resp = await fetch((API_BASE || '') + '/api/autopilot/alerts?limit=10');
@@ -4283,7 +4283,7 @@ function showAutopilotPanel() {
     panel.innerHTML = `
         <div class="autopilot-header">
             <div>
-                <span style="font-size:10px;letter-spacing:2px;color:var(--accent);font-weight:700;">PULSE AUTOPILOT</span>
+                <span style="font-size:10px;letter-spacing:2px;color:var(--accent);font-weight:700;">SYGNAL AUTOPILOT</span>
                 ${isPro() ? '<span style="font-size:9px;color:#00d68f;margin-left:8px;font-weight:700;">PRO</span>' : '<span style="font-size:9px;color:#f0b000;margin-left:8px;font-weight:700;">FREE (delayed)</span>'}
             </div>
             <button onclick="this.closest('.autopilot-panel').remove()" style="background:none;border:none;color:var(--text-dim);font-size:18px;cursor:pointer;">×</button>
