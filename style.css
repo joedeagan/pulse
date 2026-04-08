@@ -318,7 +318,8 @@ body.light .nav-more-menu a.active { color: #0066cc; background: rgba(0,102,204,
     padding: 9px 18px;
     flex: 1;
     min-width: 180px;
-    max-width: 600px;
+    max-width: 520px;
+    margin: 0 auto;
     transition: all 0.25s;
 }
 
@@ -386,6 +387,7 @@ body.light .nav-more-menu a.active { color: #0066cc; background: rgba(0,102,204,
     color: var(--accent);
     letter-spacing: 5px;
     text-transform: uppercase;
+    text-align: center;
     margin-bottom: 12px;
 }
 
