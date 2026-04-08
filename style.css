@@ -301,15 +301,10 @@ nav {
     font-size: 56px;
     font-weight: 800;
     letter-spacing: -1px;
-    background: linear-gradient(135deg, #fff 0%, #4dc9ff 30%, #0088ff 60%, #00d68f 100%);
-    background-size: 200% 200%;
-    animation: hero-enter 1s cubic-bezier(0.16, 1, 0.3, 1) 0.2s both, title-shimmer 4s ease-in-out infinite;
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
+    color: #4dc9ff;
     margin-bottom: 8px;
-    filter: drop-shadow(0 0 30px rgba(0, 136, 255, 0.3)) drop-shadow(0 0 60px rgba(0, 136, 255, 0.1));
-    text-shadow: none;
+    text-shadow: 0 0 30px rgba(0, 136, 255, 0.3), 0 0 60px rgba(0, 136, 255, 0.1);
+    animation: hero-enter 1s cubic-bezier(0.16, 1, 0.3, 1) 0.2s both;
 }
 
 @keyframes title-shimmer {
@@ -989,11 +984,8 @@ body.light .stat-value { color: #1a1a2e; }
 body.light .bot-stat-value { color: #1a1a2e; }
 body.light section h2 { color: #1a1a2e; }
 body.light .hero h1 {
-    background: linear-gradient(135deg, #1a1a2e 0%, #0066cc 50%, #00b374 100%);
-    -webkit-background-clip: text;
-    background-clip: text;
-    -webkit-text-fill-color: transparent;
-    filter: none;
+    color: #0066cc;
+    text-shadow: none;
 }
 body.light .hero .tagline { color: #0066cc; }
 body.light .hero p { color: #8890a0; }
