@@ -245,6 +245,77 @@ nav {
     background: var(--accent-glow);
 }
 
+/* ── NAV MORE DROPDOWN ── */
+.nav-more {
+    position: relative;
+}
+.nav-more-btn {
+    color: var(--text-dim);
+    background: none;
+    border: 1px solid rgba(255,255,255,0.08);
+    font-size: 12.5px;
+    font-weight: 500;
+    padding: 7px 12px;
+    border-radius: 10px;
+    cursor: pointer;
+    font-family: var(--font);
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+.nav-more-btn:hover { color: var(--text); background: rgba(255,255,255,0.04); }
+.nav-more-btn.active { color: var(--accent); background: var(--accent-glow); border-color: rgba(0,136,255,0.2); }
+
+.hamburger-icon {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    width: 16px;
+    height: 14px;
+    justify-content: center;
+}
+.hamburger-icon span {
+    display: block;
+    width: 100%;
+    height: 2px;
+    background: currentColor;
+    border-radius: 1px;
+}
+
+.nav-more-menu {
+    display: none;
+    position: absolute;
+    top: calc(100% + 8px);
+    right: 0;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 6px;
+    min-width: 160px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+    z-index: 200;
+}
+.nav-more-menu.open { display: flex; flex-direction: column; }
+.nav-more-menu a {
+    color: var(--text-dim);
+    text-decoration: none;
+    font-size: 13px;
+    font-weight: 500;
+    padding: 10px 14px;
+    border-radius: 8px;
+    transition: all 0.15s;
+}
+.nav-more-menu a:hover { color: var(--text); background: rgba(255,255,255,0.05); }
+.nav-more-menu a.active { color: var(--accent); background: var(--accent-glow); }
+body.light .nav-more-btn { color: #8890a0; border-color: rgba(0,0,0,0.1); }
+body.light .nav-more-btn:hover { color: #1a1a2e; background: rgba(0,0,0,0.04); }
+body.light .nav-more-btn.active { color: #0066cc; background: rgba(0,102,204,0.08); }
+body.light .nav-more-menu { background: #fff; border-color: rgba(0,0,0,0.1); box-shadow: 0 8px 32px rgba(0,0,0,0.12); }
+body.light .nav-more-menu a { color: #5a6070; }
+body.light .nav-more-menu a:hover { color: #1a1a2e; background: rgba(0,0,0,0.04); }
+body.light .nav-more-menu a.active { color: #0066cc; background: rgba(0,102,204,0.08); }
+
 /* Nav search bar — centered */
 .nav-search {
     display: flex;

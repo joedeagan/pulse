@@ -52,11 +52,40 @@ function trackAffiliateClick(platform) {
     }
 })();
 
+// ── NAV MORE DROPDOWN ──
+function toggleNavMore(e) {
+    e.stopPropagation();
+    const menu = document.getElementById('nav-more-menu');
+    menu.classList.toggle('open');
+    // Close on outside click
+    if (menu.classList.contains('open')) {
+        setTimeout(() => document.addEventListener('click', closeNavMore, { once: true }), 10);
+    }
+}
+function closeNavMore() {
+    document.getElementById('nav-more-menu')?.classList.remove('open');
+}
+function switchTabFromMore(tab, btn) {
+    closeNavMore();
+    // Highlight the More button when a sub-item is active
+    document.querySelectorAll('.nav-links > a').forEach(a => a.classList.remove('active'));
+    document.querySelector('.nav-more-btn')?.classList.add('active');
+    document.querySelectorAll('.nav-more-menu a').forEach(a => a.classList.remove('active'));
+    if (btn) btn.classList.add('active');
+    switchTab(tab, null);
+}
+
 // ── TAB NAVIGATION ──
 function switchTab(tab, btn) {
     // Update active nav link
-    document.querySelectorAll('.nav-links a').forEach(a => a.classList.remove('active'));
+    document.querySelectorAll('.nav-links > a').forEach(a => a.classList.remove('active'));
     if (btn) btn.classList.add('active');
+    // If switching to a main tab, deactivate More
+    const mainTabs = ['markets', 'trending', 'bot', 'portfolio'];
+    if (mainTabs.includes(tab)) {
+        document.querySelector('.nav-more-btn')?.classList.remove('active');
+        document.querySelectorAll('.nav-more-menu a').forEach(a => a.classList.remove('active'));
+    }
 
     // Update mobile nav active states
     document.querySelectorAll('.mobile-nav-item').forEach(a => a.classList.remove('active'));
