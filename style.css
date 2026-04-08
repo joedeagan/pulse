@@ -36,7 +36,7 @@
     font-family: var(--font);
     font-size: 56px;
     font-weight: 800;
-    letter-spacing: 3px;
+    letter-spacing: -1px;
     color: var(--text);
     margin-bottom: 8px;
 }
@@ -298,9 +298,9 @@ nav {
 }
 
 .hero h1 {
-    font-size: 48px;
+    font-size: 56px;
     font-weight: 800;
-    letter-spacing: 4px;
+    letter-spacing: -1px;
     background: linear-gradient(135deg, #fff 0%, #4dc9ff 30%, #0088ff 60%, #00d68f 100%);
     background-size: 200% 200%;
     animation: hero-enter 1s cubic-bezier(0.16, 1, 0.3, 1) 0.2s both, title-shimmer 4s ease-in-out infinite;
@@ -318,10 +318,10 @@ nav {
 }
 
 .tagline {
-    font-size: 17px;
+    font-size: 15px;
     font-weight: 600;
     color: var(--accent);
-    letter-spacing: 8px;
+    letter-spacing: 5px;
     text-transform: uppercase;
     margin-bottom: 12px;
 }
@@ -1182,8 +1182,8 @@ body.light .buy-no:hover { background: #e53e3e; color: #fff; }
 }
 
 .detail-pulse-score {
-    width: 64px;
-    height: 64px;
+    width: 74px;
+    height: 74px;
     border-radius: 50%;
     border: 3px solid;
     display: flex;
@@ -1194,17 +1194,17 @@ body.light .buy-no:hover { background: #e53e3e; color: #fff; }
 }
 
 .detail-pulse-num {
-    font-size: 22px;
+    font-size: 24px;
     font-weight: 800;
     line-height: 1;
 }
 
 .detail-pulse-label {
-    font-size: 8px;
-    letter-spacing: 2px;
+    font-size: 7px;
+    letter-spacing: 1.5px;
     color: var(--text-dim);
     font-weight: 700;
-    margin-top: 2px;
+    margin-top: 3px;
 }
 
 .detail-pulse-info {
