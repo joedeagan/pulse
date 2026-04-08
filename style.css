@@ -367,11 +367,12 @@ body.light .nav-more-menu a.active { color: #0066cc; background: rgba(0,102,204,
     font-weight: 800;
     letter-spacing: -1px;
     color: #4dc9ff;
-    margin-bottom: 4px;
-    padding-bottom: 12px;
-    line-height: 1.2;
-    text-shadow: 0 0 30px rgba(0, 136, 255, 0.3), 0 0 60px rgba(0, 136, 255, 0.1);
+    margin-bottom: 8px;
+    padding: 0;
+    line-height: 1.3;
+    text-shadow: 0 0 40px rgba(0, 136, 255, 0.25);
     animation: hero-enter 1s cubic-bezier(0.16, 1, 0.3, 1) 0.2s both;
+    overflow: visible;
 }
 
 @keyframes title-shimmer {
@@ -2153,7 +2154,8 @@ body.light .buy-no:hover { background: #e53e3e; color: #fff; }
     }
     .hero h1 {
         font-size: 28px;
-        letter-spacing: 3px;
+        letter-spacing: -0.5px;
+        line-height: 1.3;
     }
     .tagline {
         font-size: 12px;
