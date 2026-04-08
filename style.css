@@ -39,6 +39,8 @@
     letter-spacing: -1px;
     color: var(--text);
     margin-bottom: 8px;
+    padding-bottom: 6px;
+    line-height: 1.15;
 }
 .landing-subtitle {
     font-family: var(--font);
@@ -189,6 +191,7 @@ nav {
     font-weight: 700;
     letter-spacing: 1.5px;
     color: #fff;
+    line-height: 1.2;
 }
 
 .logo-tag {
@@ -370,6 +373,8 @@ body.light .nav-more-menu a.active { color: #0066cc; background: rgba(0,102,204,
     -webkit-text-fill-color: transparent;
     background-clip: text;
     margin-bottom: 8px;
+    padding-bottom: 6px;
+    line-height: 1.15;
     filter: drop-shadow(0 0 30px rgba(0, 136, 255, 0.3)) drop-shadow(0 0 60px rgba(0, 136, 255, 0.1));
     text-shadow: none;
 }
