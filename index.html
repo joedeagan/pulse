@@ -60,7 +60,7 @@
         });
     </script>
 
-    <link rel="stylesheet" href="style.css?v=14">
+    <link rel="stylesheet" href="style.css?v=15">
     <link rel="manifest" href="/manifest.json">
     <link rel="icon" type="image/png" href="/icon-192.png">
     <link rel="apple-touch-icon" href="/icon-192.png">
@@ -70,7 +70,7 @@
 
     <!-- Landing Page -->
     <section id="landing" class="landing" style="display:none;">
-    <script>if(!localStorage.getItem('pulse-seen-landing'))document.getElementById('landing').style.display='flex';</script>
+    <script>if(!localStorage.getItem('sygnal-seen-landing'))document.getElementById('landing').style.display='flex';</script>
         <div class="landing-content">
             <div class="landing-badge">CROSS-PLATFORM PREDICTION MARKET ANALYTICS</div>
             <h1 class="landing-title">SYGNAL</h1>
@@ -104,7 +104,7 @@
             <p class="landing-note">Free forever. No signup required.</p>
             <script>
             function requestPushAndEnter() {
-                localStorage.setItem('pulse-seen-landing','1');
+                localStorage.setItem('sygnal-seen-landing','1');
                 // Show notification permission overlay
                 if ('Notification' in window && Notification.permission === 'default') {
                     document.getElementById('push-overlay').style.display = 'flex';
@@ -152,34 +152,22 @@
             <input type="text" id="search-input" placeholder="Search markets..." oninput="filterMarkets()">
         </div>
         <div class="nav-links">
-            <a href="#" class="active" onclick="switchTab('markets', this); return false;">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3h18v18H3z"/><path d="M3 9h18"/><path d="M9 3v18"/></svg>
-                Markets
-            </a>
-            <a href="#" onclick="switchTab('trending', this); return false;">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
-                Trending
-            </a>
-            <a href="#" onclick="switchTab('bot', this); return false;">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="10" rx="2"/><circle cx="12" cy="5" r="2"/><path d="M12 7v4"/><line x1="8" y1="16" x2="8" y2="16"/><line x1="16" y1="16" x2="16" y2="16"/></svg>
-                Bot
-            </a>
-            <a href="#" onclick="switchTab('portfolio', this); return false;">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12V7H5a2 2 0 010-4h14v4"/><path d="M3 5v14a2 2 0 002 2h16v-5"/><path d="M18 12a2 2 0 100 4 2 2 0 000-4z"/></svg>
-                Portfolio
-            </a>
-            <a href="#" onclick="switchTab('arbitrage', this); return false;">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 3v3a2 2 0 01-2 2H3"/><path d="M21 8h-3a2 2 0 01-2-2V3"/><path d="M3 16h3a2 2 0 012 2v3"/><path d="M16 21v-3a2 2 0 012-2h3"/></svg>
-                Arbitrage
-            </a>
-            <a href="#" onclick="switchTab('leagues', this); return false;">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9H4.5a2.5 2.5 0 010-5C7 4 7 7 7 7"/><path d="M18 9h1.5a2.5 2.5 0 000-5C17 4 17 7 17 7"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0012 0V2Z"/></svg>
-                Leagues
-            </a>
-            <a href="#" onclick="switchTab('correlations', this); return false;">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><circle cx="5" cy="5" r="2"/><circle cx="19" cy="5" r="2"/><circle cx="5" cy="19" r="2"/><circle cx="19" cy="19" r="2"/><line x1="9.5" y1="9.5" x2="6.5" y2="6.5"/><line x1="14.5" y1="9.5" x2="17.5" y2="6.5"/><line x1="9.5" y1="14.5" x2="6.5" y2="17.5"/><line x1="14.5" y1="14.5" x2="17.5" y2="17.5"/></svg>
-                Correlations
-            </a>
+            <a href="#" class="active" onclick="switchTab('markets', this); return false;">Markets</a>
+            <a href="#" onclick="switchTab('trending', this); return false;">Trending</a>
+            <a href="#" onclick="switchTab('bot', this); return false;">Bot</a>
+            <a href="#" onclick="switchTab('portfolio', this); return false;">Portfolio</a>
+            <div class="nav-more">
+                <button class="nav-more-btn" onclick="toggleNavMore(event)">
+                    <span class="hamburger-icon"><span></span><span></span><span></span></span>
+                </button>
+                <div class="nav-more-menu" id="nav-more-menu">
+                    <a href="#" onclick="switchTabFromMore('arbitrage', this); return false;">Arbitrage</a>
+                    <a href="#" onclick="switchTabFromMore('leagues', this); return false;">Leagues</a>
+                    <a href="#" onclick="switchTabFromMore('correlations', this); return false;">Correlations</a>
+                    <a href="#" onclick="switchTabFromMore('compare', this); return false;">Compare</a>
+                    <a href="#" onclick="switchTabFromMore('alerts', this); return false;">Alerts</a>
+                </div>
+            </div>
         </div>
         <div class="settings-dropdown">
             <button class="settings-btn" onclick="toggleSettings()">
@@ -221,8 +209,8 @@
     </section>
 
     <!-- Sygnal Score Explainer -->
-    <div class="pulse-explainer" id="pulse-explainer">
-        <div class="pulse-explainer-card">
+    <div class="sygnal-explainer" id="sygnal-explainer">
+        <div class="sygnal-explainer-card">
             <div class="explainer-top">
                 <div class="explainer-intro">
                     <h3>What is the Sygnal Score?</h3>
@@ -236,37 +224,37 @@
                     <span class="demo-score-tag" style="color:#00d68f;">BUY YES</span>
                 </div>
             </div>
-            <div class="pulse-factors">
-                <div class="pulse-factor">
-                    <span class="pulse-factor-icon">📊</span>
+            <div class="sygnal-factors">
+                <div class="sygnal-factor">
+                    <span class="sygnal-factor-icon">📊</span>
                     <div>
                         <strong>Price Position (0–20 pts)</strong>
                         <span>Markets at 25¢ or 75¢ score highest — clear lean with room to profit. Dead markets near 0¢ or 100¢ score zero.</span>
                     </div>
                 </div>
-                <div class="pulse-factor">
-                    <span class="pulse-factor-icon">💰</span>
+                <div class="sygnal-factor">
+                    <span class="sygnal-factor-icon">💰</span>
                     <div>
                         <strong>Volume (0–20 pts)</strong>
                         <span>More money flowing = more reliable price. Low volume markets can have misleading prices.</span>
                     </div>
                 </div>
-                <div class="pulse-factor">
-                    <span class="pulse-factor-icon">📈</span>
+                <div class="sygnal-factor">
+                    <span class="sygnal-factor-icon">📈</span>
                     <div>
                         <strong>Momentum (0–20 pts)</strong>
                         <span>How fast is the price moving? Big swings mean something is happening right now.</span>
                     </div>
                 </div>
-                <div class="pulse-factor">
-                    <span class="pulse-factor-icon">🔀</span>
+                <div class="sygnal-factor">
+                    <span class="sygnal-factor-icon">🔀</span>
                     <div>
                         <strong>Cross-Platform Edge (0–20 pts)</strong>
                         <span>Only SYGNAL sees both Kalshi &amp; Polymarket. When platforms disagree on price, that's your edge.</span>
                     </div>
                 </div>
-                <div class="pulse-factor">
-                    <span class="pulse-factor-icon">💧</span>
+                <div class="sygnal-factor">
+                    <span class="sygnal-factor-icon">💧</span>
                     <div>
                         <strong>Liquidity (0–19 pts)</strong>
                         <span>Can you actually buy and sell at this price? High liquidity = easy trades, no slippage.</span>
@@ -274,20 +262,20 @@
                 </div>
             </div>
             <div class="explainer-bottom">
-                <div class="pulse-scale">
-                    <div class="pulse-scale-block">
+                <div class="sygnal-scale">
+                    <div class="sygnal-scale-block">
                         <div class="scale-bar" style="background:#ff3b5c;"></div>
-                        <span class="pulse-scale-item" style="color:#ff3b5c;">0–33</span>
+                        <span class="sygnal-scale-item" style="color:#ff3b5c;">0–33</span>
                         <span class="scale-desc">SKIP — Low activity, not worth trading</span>
                     </div>
-                    <div class="pulse-scale-block">
+                    <div class="sygnal-scale-block">
                         <div class="scale-bar" style="background:#f0b000;"></div>
-                        <span class="pulse-scale-item" style="color:#f0b000;">34–66</span>
+                        <span class="sygnal-scale-item" style="color:#f0b000;">34–66</span>
                         <span class="scale-desc">WATCH — Some activity, keep an eye on it</span>
                     </div>
-                    <div class="pulse-scale-block">
+                    <div class="sygnal-scale-block">
                         <div class="scale-bar" style="background:#00d68f;"></div>
-                        <span class="pulse-scale-item" style="color:#00d68f;">67–99</span>
+                        <span class="sygnal-scale-item" style="color:#00d68f;">67–99</span>
                         <span class="scale-desc">TRADE — Active, good price, things are moving</span>
                     </div>
                 </div>
@@ -306,7 +294,7 @@
                     </div>
                 </div>
             </div>
-            <button class="pulse-dismiss" onclick="document.getElementById('pulse-explainer').style.display='none'; localStorage.setItem('pulse-explainer-dismissed','true');">Got it, show me the markets</button>
+            <button class="sygnal-dismiss" onclick="document.getElementById('sygnal-explainer').style.display='none'; localStorage.setItem('sygnal-explainer-dismissed','true');">Got it, show me the markets</button>
         </div>
     </div>
 
@@ -353,7 +341,7 @@
                     </button>
                     <div class="custom-select-menu" id="sort-menu">
                         <div class="custom-select-option active" data-value="default" onclick="selectSort(this)">Default</div>
-                        <div class="custom-select-option" data-value="pulse-desc" onclick="selectSort(this)">Sygnal Score</div>
+                        <div class="custom-select-option" data-value="sygnal-desc" onclick="selectSort(this)">Sygnal Score</div>
                         <div class="custom-select-option" data-value="volume-desc" onclick="selectSort(this)">Most Volume</div>
                         <div class="custom-select-option" data-value="volume-asc" onclick="selectSort(this)">Least Volume</div>
                         <div class="custom-select-option" data-value="yes-desc" onclick="selectSort(this)">Highest YES</div>
@@ -373,6 +361,12 @@
         </div>
     </section>
 
+    <!-- News Feed -->
+    <section id="news-feed" style="display:none;">
+        <h3 style="font-size:13px;color:var(--text-dim);letter-spacing:2px;margin-bottom:12px;">MARKET NEWS</h3>
+        <div id="news-feed-content" class="news-feed-grid"></div>
+    </section>
+
     <!-- Market Detail Overlay -->
     <div id="market-detail" style="display:none;">
         <div id="market-detail-content">
@@ -383,7 +377,7 @@
             <canvas id="detail-chart" width="600" height="200"></canvas>
             <div id="detail-stats"></div>
             <div id="detail-actions"></div>
-            <div id="detail-pulse-history"></div>
+            <div id="detail-sygnal-history"></div>
             <div id="detail-paper-trade"></div>
             <div id="detail-alert-section"></div>
         </div>
@@ -520,19 +514,129 @@
             </div>
         </div>
         <div id="bot-positions"></div>
+
+        <!-- Bot Controls -->
+        <div class="bot-controls">
+            <h3 class="bot-controls-title">BOT CONTROLS</h3>
+            <div class="bot-control-row">
+                <div class="bot-control-item">
+                    <label>Status</label>
+                    <button class="bot-toggle-btn" id="bot-pause-btn" onclick="toggleBotPause()">Loading...</button>
+                </div>
+                <div class="bot-control-item">
+                    <label>Max Bet</label>
+                    <div class="bot-slider-row">
+                        <input type="range" id="bot-max-bet" min="0.05" max="5.00" step="0.05" value="1.50" oninput="document.getElementById('bot-max-bet-val').textContent='$'+parseFloat(this.value).toFixed(2)">
+                        <span id="bot-max-bet-val" class="bot-slider-val">$1.50</span>
+                    </div>
+                </div>
+                <div class="bot-control-item">
+                    <label>Max Positions</label>
+                    <div class="bot-slider-row">
+                        <input type="range" id="bot-max-pos" min="1" max="30" step="1" value="12" oninput="document.getElementById('bot-max-pos-val').textContent=this.value">
+                        <span id="bot-max-pos-val" class="bot-slider-val">12</span>
+                    </div>
+                </div>
+                <div class="bot-control-item">
+                    <label>Min Edge</label>
+                    <div class="bot-slider-row">
+                        <input type="range" id="bot-min-edge" min="0.01" max="0.20" step="0.01" value="0.04" oninput="document.getElementById('bot-min-edge-val').textContent=(this.value*100).toFixed(0)+'%'">
+                        <span id="bot-min-edge-val" class="bot-slider-val">4%</span>
+                    </div>
+                </div>
+                <div class="bot-control-item">
+                    <label>Daily Loss Limit</label>
+                    <div class="bot-slider-row">
+                        <input type="range" id="bot-loss-limit" min="10" max="500" step="10" value="100" oninput="document.getElementById('bot-loss-limit-val').textContent='$'+(this.value/100).toFixed(2)">
+                        <span id="bot-loss-limit-val" class="bot-slider-val">$1.00</span>
+                    </div>
+                </div>
+                <div class="bot-control-item">
+                    <label>Contracts/Market</label>
+                    <div class="bot-slider-row">
+                        <input type="range" id="bot-max-contracts" min="1" max="20" step="1" value="5" oninput="document.getElementById('bot-max-contracts-val').textContent=this.value">
+                        <span id="bot-max-contracts-val" class="bot-slider-val">5</span>
+                    </div>
+                </div>
+            </div>
+            <button class="bot-save-btn" id="bot-save-btn" onclick="saveBotConfig()">Save Changes</button>
+            <div id="bot-config-status" class="bot-config-status"></div>
+        </div>
+
+        <!-- Bot Signals -->
+        <div id="bot-signals-section"></div>
+
+        <!-- Performance Dashboard -->
+        <div class="bot-perf-dashboard">
+            <h3 class="bot-controls-title">PERFORMANCE</h3>
+            <div class="perf-stats-row" id="perf-stats-row"></div>
+            <canvas id="equity-chart" width="800" height="160"></canvas>
+        </div>
+
+        <!-- Trade History -->
+        <div class="bot-trade-history">
+            <div class="trade-hist-header">
+                <h3 class="bot-controls-title">TRADE HISTORY</h3>
+                <div class="trade-hist-filters">
+                    <button class="chip active" onclick="filterTradeHistory('all', this)">All</button>
+                    <button class="chip" onclick="filterTradeHistory('wins', this)">Wins</button>
+                    <button class="chip" onclick="filterTradeHistory('losses', this)">Losses</button>
+                </div>
+            </div>
+            <div id="trade-history-table"></div>
+            <button class="bot-save-btn" style="margin-top:12px;background:var(--bg-card);color:var(--accent);border:1px solid var(--border);" onclick="loadMoreTrades()">Load More</button>
+        </div>
+    </section>
+
+    <!-- Market Comparison Tool -->
+    <section id="compare-panel" class="view-hidden">
+        <h2>Market Comparison</h2>
+        <p style="color:var(--text-dim);font-size:13px;margin-bottom:16px;">Side-by-side view of the same event across Kalshi & Polymarket. Spot price gaps instantly.</p>
+        <div id="compare-grid" class="compare-grid"></div>
+    </section>
+
+    <!-- Custom Alerts Engine -->
+    <section id="alerts-panel" class="view-hidden">
+        <h2>Custom Alerts</h2>
+        <p style="color:var(--text-dim);font-size:13px;margin-bottom:16px;">Get notified when markets match your rules.</p>
+        <div class="alert-builder">
+            <div class="alert-builder-row">
+                <select id="alert-condition" class="alert-select">
+                    <option value="score-above">Sygnal Score above</option>
+                    <option value="score-below">Sygnal Score below</option>
+                    <option value="price-above">YES price above</option>
+                    <option value="price-below">YES price below</option>
+                    <option value="change-up">Price jumps up by</option>
+                    <option value="change-down">Price drops by</option>
+                    <option value="signal-buy">Signal is BUY YES</option>
+                    <option value="signal-sell">Signal is BUY NO</option>
+                </select>
+                <input type="number" id="alert-threshold" class="alert-input" placeholder="Value" value="80">
+                <select id="alert-category" class="alert-select">
+                    <option value="all">Any Category</option>
+                    <option value="crypto">Crypto</option>
+                    <option value="sports">Sports</option>
+                    <option value="politics">Politics</option>
+                    <option value="weather">Weather</option>
+                    <option value="finance">Finance</option>
+                </select>
+                <button class="alert-add-btn" onclick="addCustomAlertRule()">+ Add Rule</button>
+            </div>
+        </div>
+        <div id="custom-alert-rules" style="margin-top:16px;"></div>
     </section>
 
     <!-- Sygnal AI Chat Widget -->
-    <div id="pulse-chat-btn" onclick="togglePulseChat()">
+    <div id="sygnal-chat-btn" onclick="toggleSygnalChat()">
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
     </div>
-    <div id="pulse-chat" style="display:none;">
+    <div id="sygnal-chat" style="display:none;">
         <div class="chat-header">
             <div class="chat-header-left">
                 <span class="chat-dot"></span>
                 <span class="chat-title">Sygnal AI</span>
             </div>
-            <button class="chat-close" onclick="togglePulseChat()">&times;</button>
+            <button class="chat-close" onclick="toggleSygnalChat()">&times;</button>
         </div>
         <div class="chat-messages" id="chat-messages">
             <div class="chat-msg bot">Hey! I'm Sygnal AI. Ask me about any market, trade signals, or the Kalshi bot. Try: "best trades right now" or "how is the bot doing?"</div>
@@ -565,24 +669,29 @@
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
             <span>Trending</span>
         </a>
-        <a href="#" class="mobile-nav-item" onclick="switchTab('portfolio', this); return false;">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12V7H5a2 2 0 010-4h14v4"/><path d="M3 5v14a2 2 0 002 2h16v-5"/><path d="M18 12a2 2 0 100 4 2 2 0 000-4z"/></svg>
-            <span>Portfolio</span>
-        </a>
-        <a href="#" class="mobile-nav-item" onclick="switchTab('arbitrage', this); return false;">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 3v3a2 2 0 01-2 2H3"/><path d="M21 8h-3a2 2 0 01-2-2V3"/><path d="M3 16h3a2 2 0 012 2v3"/><path d="M16 21v-3a2 2 0 012-2h3"/></svg>
-            <span>Arb</span>
-        </a>
-        <a href="#" class="mobile-nav-item" onclick="switchTab('leagues', this); return false;">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9H4.5a2.5 2.5 0 010-5C7 4 7 7 7 7"/><path d="M18 9h1.5a2.5 2.5 0 000-5C17 4 17 7 17 7"/><path d="M4 22h16"/><path d="M18 2H6v7a6 6 0 0012 0V2Z"/></svg>
-            <span>Leagues</span>
-        </a>
         <a href="#" class="mobile-nav-item" onclick="switchTab('bot', this); return false;">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="10" rx="2"/><circle cx="12" cy="5" r="2"/><path d="M12 7v4"/><line x1="8" y1="16" x2="8" y2="16"/><line x1="16" y1="16" x2="16" y2="16"/></svg>
             <span>Bot</span>
         </a>
+        <a href="#" class="mobile-nav-item" onclick="switchTab('portfolio', this); return false;">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12V7H5a2 2 0 010-4h14v4"/><path d="M3 5v14a2 2 0 002 2h16v-5"/><path d="M18 12a2 2 0 100 4 2 2 0 000-4z"/></svg>
+            <span>Portfolio</span>
+        </a>
+        <div class="mobile-more-wrap">
+            <a href="#" class="mobile-nav-item" onclick="toggleMobileMore(event); return false;">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="5" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="12" cy="19" r="1.5"/></svg>
+                <span>More</span>
+            </a>
+            <div class="mobile-more-menu" id="mobile-more-menu">
+                <a href="#" onclick="switchTabMobile('arbitrage'); return false;">Arbitrage</a>
+                <a href="#" onclick="switchTabMobile('leagues'); return false;">Leagues</a>
+                <a href="#" onclick="switchTabMobile('correlations'); return false;">Correlations</a>
+                <a href="#" onclick="switchTabMobile('compare'); return false;">Compare</a>
+                <a href="#" onclick="switchTabMobile('alerts'); return false;">Alerts</a>
+            </div>
+        </div>
     </nav>
 
-    <script src="app.js?v=14"></script>
+    <script src="app.js?v=15"></script>
 </body>
 </html>
