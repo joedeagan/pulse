@@ -75,6 +75,27 @@ function switchTabFromMore(tab, btn) {
     switchTab(tab, null);
 }
 
+// ── MOBILE MORE DROPDOWN ──
+function toggleMobileMore(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    const menu = document.getElementById('mobile-more-menu');
+    menu.classList.toggle('open');
+    if (menu.classList.contains('open')) {
+        setTimeout(() => document.addEventListener('click', closeMobileMore, { once: true }), 10);
+    }
+}
+function closeMobileMore() {
+    document.getElementById('mobile-more-menu')?.classList.remove('open');
+}
+function switchTabMobile(tab) {
+    closeMobileMore();
+    // Update mobile nav active
+    document.querySelectorAll('.mobile-nav-item').forEach(a => a.classList.remove('active'));
+    document.querySelector('.mobile-more-wrap .mobile-nav-item')?.classList.add('active');
+    switchTab(tab, null);
+}
+
 // ── TAB NAVIGATION ──
 function switchTab(tab, btn) {
     // Update active nav link
