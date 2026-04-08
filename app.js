@@ -3859,9 +3859,11 @@ loadMarkets = async function() {
 };
 
 // ── SYGNAL SCORE EXPLAINER ──
-if (localStorage.getItem('sygnal-explainer-dismissed') === 'true') {
+// Check both old and new key names
+if (localStorage.getItem('sygnal-explainer-dismissed') === 'true' || localStorage.getItem('pulse-explainer-dismissed') === 'true') {
     const expl = document.getElementById('sygnal-explainer');
     if (expl) expl.style.display = 'none';
+    localStorage.setItem('sygnal-explainer-dismissed', 'true');
 }
 
 // ── KEYBOARD SHORTCUTS ──
