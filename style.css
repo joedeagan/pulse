@@ -139,7 +139,7 @@
     --card-shadow: 0 2px 8px rgba(0,0,0,0.3), 0 0 0 1px rgba(255,255,255,0.04);
 }
 
-html { scroll-behavior: smooth; overflow-x: hidden; }
+html { scroll-behavior: smooth; overflow-y: auto; -webkit-overflow-scrolling: touch; }
 *, *::before, *::after { box-sizing: border-box; }
 canvas { max-width: 100%; }
 
