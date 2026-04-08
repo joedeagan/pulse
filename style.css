@@ -140,6 +140,8 @@
 }
 
 html { scroll-behavior: smooth; overflow-x: hidden; }
+*, *::before, *::after { box-sizing: border-box; }
+canvas { max-width: 100%; }
 
 body {
     background: var(--bg);
@@ -291,7 +293,8 @@ nav {
     top: 0;
     left: 50%;
     transform: translateX(-50%);
-    width: 600px;
+    width: 100%;
+    max-width: 600px;
     height: 400px;
     background: radial-gradient(ellipse, rgba(0, 136, 255, 0.08) 0%, transparent 70%);
     pointer-events: none;
@@ -341,6 +344,7 @@ nav {
     padding: 20px 20px;
     border-bottom: 1px solid rgba(255,255,255,0.04);
     margin: 0 40px;
+    max-width: 100%;
 }
 
 .stat-item {
@@ -1325,7 +1329,8 @@ body.light .buy-no:hover { background: #e53e3e; color: #fff; }
     border: 1px solid var(--border);
     border-radius: var(--radius);
     padding: 24px;
-    margin: 0 40px 24px;
+    margin: 0 auto 24px;
+    max-width: calc(100% - 32px);
 }
 
 .brief-title {
