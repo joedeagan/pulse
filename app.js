@@ -3351,7 +3351,7 @@ function generatePickCard(market) {
 
     // "SYGNAL" header
     ctx.fillStyle = '#0088ff'; ctx.font = '800 12px system-ui';
-    ctx.fillText('P U L S E', 28, 36);
+    ctx.fillText('S Y G N A L', 28, 36);
 
     // Platform badge
     const plat = market.source === 'kalshi' ? 'KALSHI' : 'POLYMARKET';
