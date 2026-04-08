@@ -943,6 +943,8 @@ section, .stats-bar {
 .settings-dropdown {
     position: relative;
     z-index: 999;
+    margin-left: auto;
+    flex-shrink: 0;
 }
 
 .settings-btn {
