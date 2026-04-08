@@ -2553,8 +2553,8 @@ body.light .buy-no:hover { background: #e53e3e; color: #fff; }
     color: var(--text-dim) !important;
     font-size: 13px !important;
 }
-.share-card-popup { max-width: 440px; }
-.share-card-preview canvas { width: 100%; border-radius: 12px; margin-bottom: 4px; }
+.share-card-popup { max-width: 480px; width: 95%; }
+.share-card-preview canvas { width: 100% !important; height: auto !important; border-radius: 12px; margin-bottom: 8px; display: block; }
 .share-btn-row { display: flex; gap: 8px; }
 .share-btn-row .share-action-btn { flex: 1; font-size: 12px; padding: 10px 8px; }
 

@@ -3312,8 +3312,22 @@ loadPortfolio = function() {
 
 // ── SHARE POPUP (Feature 2) ──
 function generatePickCard(market) {
-    const scale = 2; // 2x for retina/high-DPI
-    const W = 600, H = 360;
+    const scale = 3; // 3x for sharp retina
+    const W = 600;
+
+    // Pre-calculate height based on content
+    const tempCanvas = document.createElement('canvas');
+    const tempCtx = tempCanvas.getContext('2d');
+    tempCtx.font = '700 20px system-ui';
+    const words = (market.question || '').split(' ');
+    let lines = 1, testLine = '';
+    for (const w of words) {
+        const test = testLine ? testLine + ' ' + w : w;
+        if (tempCtx.measureText(test).width > W - 60) { lines++; testLine = w; }
+        else testLine = test;
+    }
+    const H = 140 + lines * 28 + 80; // header + question lines + prices/signal/footer
+
     const canvas = document.createElement('canvas');
     canvas.width = W * scale; canvas.height = H * scale;
     canvas.style.width = W + 'px'; canvas.style.height = H + 'px';
@@ -3325,79 +3339,85 @@ function generatePickCard(market) {
     grad.addColorStop(0, '#0a0a14'); grad.addColorStop(1, '#12121f');
     ctx.fillStyle = grad; roundRect(ctx, 0, 0, W, H, 20, true);
 
-    // Subtle border
-    ctx.strokeStyle = 'rgba(255,255,255,0.06)'; ctx.lineWidth = 1;
+    // Border
+    ctx.strokeStyle = 'rgba(255,255,255,0.08)'; ctx.lineWidth = 1;
     roundRect(ctx, 0.5, 0.5, W - 1, H - 1, 20, false, true);
 
     // Top accent line
-    ctx.strokeStyle = '#0088ff'; ctx.lineWidth = 2;
-    ctx.beginPath(); ctx.moveTo(24, 2); ctx.lineTo(W - 24, 2); ctx.stroke();
+    const accentGrad = ctx.createLinearGradient(24, 0, W - 24, 0);
+    accentGrad.addColorStop(0, 'transparent'); accentGrad.addColorStop(0.3, '#0088ff'); accentGrad.addColorStop(0.7, '#0088ff'); accentGrad.addColorStop(1, 'transparent');
+    ctx.strokeStyle = accentGrad; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(24, 1); ctx.lineTo(W - 24, 1); ctx.stroke();
 
     // "PULSE" header
-    ctx.fillStyle = '#0088ff'; ctx.font = '800 11px system-ui';
-    ctx.fillText('PULSE', 28, 34);
+    ctx.fillStyle = '#0088ff'; ctx.font = '800 12px system-ui';
+    ctx.fillText('P U L S E', 28, 36);
 
     // Platform badge
     const plat = market.source === 'kalshi' ? 'KALSHI' : 'POLYMARKET';
     const platColor = market.source === 'kalshi' ? '#0088ff' : '#8b5cf6';
-    ctx.fillStyle = platColor; ctx.font = '700 10px system-ui';
-    const platW = ctx.measureText(plat).width;
-    ctx.fillStyle = platColor + '18'; roundRect(ctx, W - 28 - platW - 16, 20, platW + 16, 22, 6, true);
-    ctx.fillStyle = platColor; ctx.fillText(plat, W - 28 - platW - 8, 35);
+    ctx.font = '700 10px system-ui';
+    const platTextW = ctx.measureText(plat).width;
+    ctx.fillStyle = platColor + '20'; roundRect(ctx, W - 28 - platTextW - 16, 22, platTextW + 16, 22, 6, true);
+    ctx.strokeStyle = platColor + '30'; ctx.lineWidth = 1; roundRect(ctx, W - 28 - platTextW - 16, 22, platTextW + 16, 22, 6, false, true);
+    ctx.fillStyle = platColor; ctx.fillText(plat, W - 28 - platTextW - 8, 37);
 
     // Market question (word wrap)
-    ctx.fillStyle = '#eaeaef'; ctx.font = '600 18px system-ui';
-    const words = (market.question || '').split(' ');
-    let line = '', y = 72;
+    ctx.fillStyle = '#eaeaef'; ctx.font = '700 20px system-ui';
+    let line = '', y = 74;
     for (const w of words) {
         const test = line ? line + ' ' + w : w;
-        if (ctx.measureText(test).width > W - 56) { ctx.fillText(line, 28, y); y += 26; line = w; }
+        if (ctx.measureText(test).width > W - 60) { ctx.fillText(line, 28, y); y += 28; line = w; }
         else line = test;
     }
     if (line) ctx.fillText(line, 28, y);
 
     // Prices
-    const priceY = y + 48;
-    ctx.font = '700 32px system-ui';
+    const priceY = y + 44;
+    ctx.font = '800 34px system-ui';
     ctx.fillStyle = market.yes >= 50 ? '#00d68f' : '#8b8b99';
     ctx.fillText(`YES ${market.yes}¢`, 28, priceY);
-    const noX = ctx.measureText(`YES ${market.yes}¢`).width + 48;
+    const noX = ctx.measureText(`YES ${market.yes}¢`).width + 40;
     ctx.fillStyle = market.no >= 50 ? '#ff3b5c' : '#8b8b99';
     ctx.fillText(`NO ${market.no}¢`, noX, priceY);
 
     // Pulse Score circle
     const ps = calcPulseScore(market, getMarketChange(market.ticker));
     const psColor = ps >= 67 ? '#00d68f' : ps >= 34 ? '#f0b000' : '#ff3b5c';
-    const scoreX = W - 60, scoreY = priceY - 8;
-    ctx.beginPath(); ctx.arc(scoreX, scoreY, 36, 0, Math.PI * 2);
+    const scoreX = W - 60, scoreY2 = priceY - 10;
+    ctx.beginPath(); ctx.arc(scoreX, scoreY2, 34, 0, Math.PI * 2);
     ctx.strokeStyle = psColor; ctx.lineWidth = 3; ctx.stroke();
-    ctx.fillStyle = psColor; ctx.font = '800 28px system-ui'; ctx.textAlign = 'center';
-    ctx.fillText(ps, scoreX, scoreY + 10);
-    ctx.fillStyle = '#55556a'; ctx.font = '700 9px system-ui';
-    ctx.fillText('PULSE', scoreX, scoreY + 26);
+    // Score arc fill (partial ring based on score)
+    ctx.beginPath(); ctx.arc(scoreX, scoreY2, 34, -Math.PI/2, -Math.PI/2 + (ps/99) * Math.PI * 2);
+    ctx.strokeStyle = psColor + '40'; ctx.lineWidth = 6; ctx.stroke();
+    ctx.fillStyle = psColor; ctx.font = '800 26px system-ui'; ctx.textAlign = 'center';
+    ctx.fillText(ps, scoreX, scoreY2 + 9);
+    ctx.fillStyle = '#55556a'; ctx.font = '700 8px system-ui';
+    ctx.fillText('PULSE', scoreX, scoreY2 + 24);
     ctx.textAlign = 'left';
 
     // Signal badge
     const sig = getPulseSignal(market.ticker);
-    const sigY = priceY + 24;
+    const sigY = priceY + 20;
     let sigCol = '#f0b000';
     if (sig.signal.includes('YES')) sigCol = '#00d68f';
     else if (sig.signal.includes('NO')) sigCol = '#ff3b5c';
     ctx.font = '700 14px system-ui';
-    const sigW = ctx.measureText(sig.signal).width;
-    ctx.fillStyle = sigCol + '18'; roundRect(ctx, 28, sigY, sigW + 24, 30, 8, true);
+    const sigTextW = ctx.measureText(sig.signal).width;
+    ctx.fillStyle = sigCol + '15'; roundRect(ctx, 28, sigY, sigTextW + 24, 28, 8, true);
+    ctx.strokeStyle = sigCol + '30'; ctx.lineWidth = 1; roundRect(ctx, 28, sigY, sigTextW + 24, 28, 8, false, true);
     ctx.fillStyle = sigCol;
-    ctx.fillText(sig.signal, 40, sigY + 21);
+    ctx.fillText(sig.signal, 40, sigY + 20);
 
     // Divider
     ctx.strokeStyle = 'rgba(255,255,255,0.06)'; ctx.lineWidth = 1;
-    ctx.beginPath(); ctx.moveTo(28, H - 44); ctx.lineTo(W - 28, H - 44); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(28, H - 38); ctx.lineTo(W - 28, H - 38); ctx.stroke();
 
     // Footer
-    ctx.fillStyle = '#55556a'; ctx.font = '500 12px system-ui';
-    ctx.fillText('pulse-api-joed.onrender.com', 28, H - 18);
+    ctx.fillStyle = '#44445a'; ctx.font = '500 11px system-ui';
+    ctx.fillText('pulse-api-joed.onrender.com', 28, H - 14);
     ctx.textAlign = 'right';
-    ctx.fillText(new Date().toLocaleDateString(), W - 28, H - 18);
+    ctx.fillText(new Date().toLocaleDateString(), W - 28, H - 14);
     ctx.textAlign = 'left';
 
     return canvas;
