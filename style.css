@@ -505,8 +505,12 @@ section h2 span {
     color: var(--text);
     margin-bottom: 12px;
     line-height: 1.45;
-    flex: 1;
     letter-spacing: -0.2px;
+    min-height: 42px;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
 }
 
 /* ── PRICES ── */
