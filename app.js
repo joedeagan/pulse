@@ -8,8 +8,9 @@
 // Show them side by side so you can spot arbitrage (price differences)
 
 // API base — uses same origin when served from backend, or Render URL from GitHub Pages
-const API_BASE = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
-    ? '' : (window.location.hostname === 'sygnal-markets.fly.dev' ? '' : 'https://sygnal-markets.fly.dev');
+const API_BASE = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' ||
+    window.location.hostname === 'sygnal-markets.fly.dev' || window.location.hostname === 'sygnalmarkets.com')
+    ? '' : 'https://sygnal-markets.fly.dev';
 
 // ── AFFILIATE LINKS ──
 const AFFILIATE = {

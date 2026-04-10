@@ -1,13 +1,12 @@
 // SYGNAL Service Worker — enables offline + install as app
-const CACHE_NAME = 'sygnal-v3';
+const CACHE_NAME = 'sygnal-v4';
 const ASSETS = [
     '/',
-    '/style.css',
-    '/app.js',
     '/manifest.json',
     '/icon-192.png',
     '/icon-512.png',
 ];
+// NOTE: app.js and style.css are NOT cached by SW — they use ?v= query params for cache busting
 
 // Install — cache core assets
 self.addEventListener('install', (e) => {
