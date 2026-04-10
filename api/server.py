@@ -73,6 +73,121 @@ async def index():
     return FileResponse(os.path.join(static_dir, "index.html"))
 
 
+@app.get("/stats")
+async def public_stats_page():
+    """Public stats page — shareable proof that Sygnal works."""
+    try:
+        # Gather live data
+        scores_data = await get_sygnal_scores()
+        scores = scores_data.get("scores", [])
+        buy_signals = [s for s in scores if "BUY" in s.get("signal", "")]
+        top_picks = sorted(buy_signals, key=lambda x: x.get("score", 0), reverse=True)[:5]
+
+        # Bot data
+        bot_html = ""
+        try:
+            async with httpx.AsyncClient() as client:
+                bot_resp = await client.get(BOT_URL + "/api/bot/status", timeout=10)
+                bot = bot_resp.json()
+                equity = bot.get("equity_cents", 0) / 100
+                trades = bot.get("trades_today", 0)
+                scans = bot.get("scan_count", 0)
+                running = bot.get("running", False)
+                bot_html = f"""
+                <div class="stat-grid">
+                    <div class="stat-box"><div class="stat-num">${equity:.2f}</div><div class="stat-label">Bot Equity</div></div>
+                    <div class="stat-box"><div class="stat-num">{trades}</div><div class="stat-label">Trades Today</div></div>
+                    <div class="stat-box"><div class="stat-num">{scans}</div><div class="stat-label">Scans</div></div>
+                    <div class="stat-box"><div class="stat-num">{'LIVE' if running else 'OFF'}</div><div class="stat-label">Status</div></div>
+                </div>"""
+        except:
+            bot_html = "<p style='color:#888;'>Bot data unavailable</p>"
+
+        picks_html = ""
+        for i, s in enumerate(top_picks):
+            sig_color = "#00d68f" if "YES" in s["signal"] else "#ff3b5c"
+            picks_html += f"""
+            <div class="pick-card">
+                <div class="pick-rank">#{i+1}</div>
+                <div class="pick-info">
+                    <div class="pick-q">{s.get('question','')[:55]}</div>
+                    <div class="pick-meta">
+                        <span style="color:{sig_color};font-weight:700;">{s['signal']}</span>
+                        <span>YES {s.get('yes',50)}¢</span>
+                        <span>Score: {s.get('score',0)}/99</span>
+                    </div>
+                </div>
+            </div>"""
+
+        html = f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sygnal Markets — Live Stats & Performance</title>
+<meta name="description" content="Real-time Sygnal Score performance, live trading bot stats, and today's top picks. See proof that AI-powered prediction market analytics works.">
+<meta property="og:title" content="Sygnal Markets — Live Stats">
+<meta property="og:description" content="Live bot P&L, signal accuracy, and today's top picks.">
+<meta property="og:image" content="https://sygnalmarkets.com/og-image.png">
+<meta property="og:url" content="https://sygnalmarkets.com/stats">
+<style>
+*{{box-sizing:border-box;margin:0;padding:0;}}
+body{{background:#06060b;color:#fff;font-family:'Segoe UI',system-ui,sans-serif;padding:20px;max-width:700px;margin:0 auto;}}
+h1{{font-size:28px;font-weight:800;margin-bottom:4px;}}
+.subtitle{{color:#888;font-size:14px;margin-bottom:24px;}}
+.section{{margin-bottom:28px;}}
+.section-title{{font-size:12px;letter-spacing:2px;color:#666;font-weight:700;margin-bottom:12px;}}
+.stat-grid{{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;}}
+.stat-box{{background:#0e0e18;border:1px solid #1a1a2e;border-radius:12px;padding:16px;text-align:center;}}
+.stat-num{{font-size:22px;font-weight:800;color:#fff;}}
+.stat-label{{font-size:10px;color:#666;letter-spacing:1px;text-transform:uppercase;margin-top:4px;}}
+.pick-card{{display:flex;align-items:center;gap:12px;padding:14px;background:#0e0e18;border:1px solid #1a1a2e;border-radius:10px;margin-bottom:8px;}}
+.pick-rank{{font-size:18px;font-weight:900;color:#0088ff;min-width:30px;}}
+.pick-info{{flex:1;}}
+.pick-q{{font-size:14px;font-weight:600;margin-bottom:4px;}}
+.pick-meta{{display:flex;gap:12px;font-size:12px;color:#888;}}
+.cta{{display:block;text-align:center;background:#0088ff;color:#fff;padding:14px;border-radius:10px;font-size:15px;font-weight:700;text-decoration:none;margin-top:24px;}}
+.cta:hover{{opacity:0.9;}}
+.live-dot{{display:inline-block;width:8px;height:8px;border-radius:50%;background:#00d68f;margin-right:6px;animation:blink 2s infinite;}}
+@keyframes blink{{0%,100%{{opacity:1;}}50%{{opacity:0.3;}}}}
+.footer{{text-align:center;color:#444;font-size:11px;margin-top:32px;}}
+@media(max-width:600px){{.stat-grid{{grid-template-columns:repeat(2,1fr);}}.pick-meta{{flex-wrap:wrap;gap:6px;}}}}
+</style>
+</head>
+<body>
+<h1><span class="live-dot"></span>Sygnal Markets — Live Stats</h1>
+<p class="subtitle">Real-time AI-powered prediction market analytics. Updated every 2 minutes.</p>
+
+<div class="section">
+<div class="section-title">LIVE TRADING BOT</div>
+{bot_html}
+</div>
+
+<div class="section">
+<div class="section-title">MARKET OVERVIEW</div>
+<div class="stat-grid">
+    <div class="stat-box"><div class="stat-num">{len(scores)}</div><div class="stat-label">Markets Tracked</div></div>
+    <div class="stat-box"><div class="stat-num">{len(buy_signals)}</div><div class="stat-label">BUY Signals</div></div>
+    <div class="stat-box"><div class="stat-num">{len([s for s in scores if s.get('score',0) >= 50])}</div><div class="stat-label">Score 50+</div></div>
+    <div class="stat-box"><div class="stat-num">{len([s for s in scores if s.get('crossEdge',0) >= 3])}</div><div class="stat-label">Arb Opportunities</div></div>
+</div>
+</div>
+
+<div class="section">
+<div class="section-title">TODAY'S TOP PICKS</div>
+{picks_html if picks_html else '<p style="color:#888;">No strong signals right now. Check back soon.</p>'}
+</div>
+
+<a href="https://sygnalmarkets.com" class="cta">Open Sygnal — Free 30-Day Trial</a>
+
+<p class="footer">sygnalmarkets.com — Cross-platform prediction market analytics.<br>Kalshi & Polymarket data. AI-powered Sygnal Scores. Live trading bot.</p>
+</body>
+</html>"""
+        return HTMLResponse(content=html)
+    except Exception as e:
+        return HTMLResponse(content=f"<h1>Error loading stats</h1><p>{e}</p>", status_code=500)
+
+
 @app.get("/style.css")
 async def serve_css():
     return FileResponse(os.path.join(static_dir, "style.css"), media_type="text/css")
