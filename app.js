@@ -5826,7 +5826,8 @@ function buildProfilePanel() {
     const alerts = getCustomAlertRules();
 
     // Accuracy
-    const record = getTrackRecord();
+    const rawRecord = getTrackRecord();
+    const record = Array.isArray(rawRecord) ? rawRecord : (rawRecord.results || []);
     const correct = record.filter(r => r.correct).length;
     const accuracy = record.length > 0 ? ((correct / record.length) * 100).toFixed(0) : '—';
 
