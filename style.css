@@ -3525,6 +3525,21 @@ body.light .mobile-more-menu a:hover { color: #1a1a2e; background: rgba(0,0,0,0.
     box-sizing: border-box;
 }
 .auth-input:focus { border-color: var(--accent); outline: none; }
+.auth-pw-wrap { position: relative; }
+.auth-pw-wrap .auth-input { padding-right: 60px; }
+.auth-pw-toggle {
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    color: var(--accent);
+    font-family: var(--font);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+}
 .auth-btn {
     width: 100%;
     padding: 14px;

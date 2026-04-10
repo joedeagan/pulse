@@ -5975,6 +5975,17 @@ function switchAuthTab(tab) {
     document.getElementById('auth-signin-form').style.display = tab === 'signin' ? '' : 'none';
 }
 
+function togglePw(inputId, btn) {
+    const input = document.getElementById(inputId);
+    if (input.type === 'password') {
+        input.type = 'text';
+        btn.textContent = 'Hide';
+    } else {
+        input.type = 'password';
+        btn.textContent = 'Show';
+    }
+}
+
 // Google Client ID — replace with yours from console.cloud.google.com/apis/credentials
 const GOOGLE_CLIENT_ID = '';
 

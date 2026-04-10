@@ -88,7 +88,10 @@
             <div id="auth-signup-form" class="auth-form">
                 <input type="text" id="auth-name" class="auth-input" placeholder="Your name">
                 <input type="email" id="auth-email" class="auth-input" placeholder="Email address">
-                <input type="password" id="auth-password" class="auth-input" placeholder="Create password">
+                <div class="auth-pw-wrap">
+                    <input type="password" id="auth-password" class="auth-input" placeholder="Create password">
+                    <button type="button" class="auth-pw-toggle" onclick="togglePw('auth-password', this)">Show</button>
+                </div>
                 <button class="auth-btn" onclick="submitAuth('signup')">Create Free Account</button>
                 <p class="auth-note">30-day free trial included. No credit card required.</p>
             </div>
@@ -96,7 +99,10 @@
             <!-- Sign In Form -->
             <div id="auth-signin-form" class="auth-form" style="display:none;">
                 <input type="email" id="auth-signin-email" class="auth-input" placeholder="Email address">
-                <input type="password" id="auth-signin-password" class="auth-input" placeholder="Password">
+                <div class="auth-pw-wrap">
+                    <input type="password" id="auth-signin-password" class="auth-input" placeholder="Password">
+                    <button type="button" class="auth-pw-toggle" onclick="togglePw('auth-signin-password', this)">Show</button>
+                </div>
                 <button class="auth-btn" onclick="submitAuth('signin')">Sign In</button>
             </div>
 
