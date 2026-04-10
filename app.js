@@ -9,7 +9,7 @@
 
 // API base — uses same origin when served from backend, or Render URL from GitHub Pages
 const API_BASE = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
-    ? '' : (window.location.origin.includes('github.io') ? 'https://sygnalmarkets.com' : '');
+    ? '' : (window.location.hostname === 'pulse-api-joed.onrender.com' ? '' : 'https://pulse-api-joed.onrender.com');
 
 // ── AFFILIATE LINKS ──
 const AFFILIATE = {
