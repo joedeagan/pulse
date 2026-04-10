@@ -46,6 +46,10 @@ if os.path.exists(_env_path):
 SENDGRID_API_KEY = os.environ.get("SENDGRID_API_KEY", "")
 SENDGRID_FROM_EMAIL = os.environ.get("SENDGRID_FROM_EMAIL", "sygnal.joedeagan.com")
 
+# Data directory: use /data volume on Fly.io, else local api/ directory
+_api_dir = os.path.dirname(os.path.abspath(__file__))
+DATA_DIR = "/data" if os.path.isdir("/data") else _api_dir
+
 # WHAT IS FastAPI?
 # It's a Python framework for building web APIs.
 # You define "endpoints" (URLs) and what data they return.
@@ -70,7 +74,10 @@ static_dir = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__fil
 
 @app.get("/")
 async def index():
-    return FileResponse(os.path.join(static_dir, "index.html"))
+    from starlette.responses import HTMLResponse
+    with open(os.path.join(static_dir, "index.html"), "r", encoding="utf-8") as f:
+        html = f.read()
+    return HTMLResponse(html, headers={"Cache-Control": "no-cache, no-store, must-revalidate"})
 
 
 @app.get("/style.css")
@@ -223,6 +230,16 @@ async def get_kalshi():
                     if yes_price == 0:
                         continue
 
+                    # Get close time — tag but don't filter (let frontend handle)
+                    close_time = m.get("close_time") or m.get("expiration_time") or ""
+                    days_left = -1
+                    if close_time:
+                        try:
+                            close_dt = datetime.fromisoformat(close_time.replace("Z", "+00:00"))
+                            days_left = (close_dt - datetime.now(timezone.utc)).days
+                        except Exception:
+                            pass
+
                     result.append({
                         "question": title,
                         "ticker": m.get("ticker", ""),
@@ -232,6 +249,8 @@ async def get_kalshi():
                         "source": "kalshi",
                         "category": categorize(title + " " + event_title),
                         "url": f"https://kalshi.com/markets/{series_ticker}/{event_ticker}",
+                        "close_time": close_time,
+                        "days_left": days_left,
                     })
 
                 if len(result) >= 80:
@@ -282,6 +301,16 @@ async def get_polymarket():
                 if yes_price <= 2 or yes_price >= 98:
                     continue
 
+                # Tag with days left — don't filter
+                end_date = m.get("endDate") or ""
+                poly_days_left = -1
+                if end_date:
+                    try:
+                        end_dt = datetime.fromisoformat(end_date.replace("Z", "+00:00"))
+                        poly_days_left = (end_dt - datetime.now(timezone.utc)).days
+                    except Exception:
+                        pass
+
                 events = m.get("events", [])
                 event_slug = events[0].get("slug", "") if events else m.get("slug", m.get("conditionId", ""))
                 result.append({
@@ -293,6 +322,7 @@ async def get_polymarket():
                     "source": "poly",
                     "category": categorize(m.get("question", "")),
                     "url": f"https://polymarket.com/event/{event_slug}",
+                    "days_left": poly_days_left,
                 })
 
             result.sort(key=lambda x: x["volume"], reverse=True)
@@ -510,7 +540,7 @@ def find_arbitrage(kalshi_markets, poly_markets):
 
 # ─── NEWSLETTER / SUBSCRIBERS ───
 
-SUBSCRIBERS_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "subscribers.json")
+SUBSCRIBERS_FILE = os.path.join(DATA_DIR, "subscribers.json")
 
 
 def load_subscribers():
@@ -579,7 +609,7 @@ async def generate_newsletter():
     top_markets = all_markets[:5]
     movers = sorted(all_markets, key=lambda x: abs(x.get("yes", 50) - 50), reverse=True)[:5]
 
-    SITE = "https://pulse-api-joed.onrender.com"
+    SITE = "https://sygnal-markets.fly.dev"
     date_str = datetime.now().strftime("%B %d, %Y")
 
     # Market rows
@@ -748,7 +778,7 @@ async def send_newsletter():
 
 # ─── AFFILIATE CLICK TRACKING ───
 
-CLICKS_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "clicks.json")
+CLICKS_FILE = os.path.join(DATA_DIR, "clicks.json")
 
 
 @app.post("/api/clicks")
@@ -782,7 +812,7 @@ async def get_clicks():
 async def robots():
     from fastapi.responses import PlainTextResponse
     return PlainTextResponse(
-        "User-agent: *\nAllow: /\nSitemap: https://pulse-api-joed.onrender.com/sitemap.xml\n"
+        "User-agent: *\nAllow: /\nSitemap: https://sygnal-markets.fly.dev/sitemap.xml\n"
     )
 
 
@@ -791,7 +821,7 @@ async def sitemap():
     from fastapi.responses import Response
     xml = f"""<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-  <url><loc>https://pulse-api-joed.onrender.com/</loc><changefreq>hourly</changefreq><priority>1.0</priority></url>
+  <url><loc>https://sygnal-markets.fly.dev/</loc><changefreq>hourly</changefreq><priority>1.0</priority></url>
 </urlset>"""
     return Response(content=xml, media_type="application/xml")
 
@@ -829,7 +859,7 @@ async def get_recap():
     for m in top3:
         sig = "BUY YES" if m["yes"] >= 70 else ("BUY NO" if m["yes"] <= 30 else "WATCH")
         share_text += f"{m['question'][:50]}\nYES {m['yes']}c — {sig}\n\n"
-    share_text += f"{len(all_markets)} markets tracked across Kalshi & Polymarket\nhttps://pulse-api-joed.onrender.com"
+    share_text += f"{len(all_markets)} markets tracked across Kalshi & Polymarket\nhttps://sygnal-markets.fly.dev"
 
     return {
         "date": datetime.now().strftime("%B %d, %Y"),
@@ -850,7 +880,7 @@ async def get_recap():
 
 STRIPE_PRICE_ID = os.environ.get("STRIPE_PRICE_ID", "")
 STRIPE_SECRET_KEY = os.environ.get("STRIPE_SECRET_KEY", "")
-PRO_USERS_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "pro_users.json")
+PRO_USERS_FILE = os.path.join(DATA_DIR, "pro_users.json")
 
 
 def load_pro_users():
@@ -878,8 +908,9 @@ async def pro_checkout(request: Request):
             mode="subscription",
             line_items=[{"price": STRIPE_PRICE_ID, "quantity": 1}],
             customer_email=email if email else None,
-            success_url="https://pulse-api-joed.onrender.com/?pro=success",
-            cancel_url="https://pulse-api-joed.onrender.com/?pro=cancel",
+            success_url="https://sygnalmarkets.com/?pro=success",
+            cancel_url="https://sygnalmarkets.com/?pro=cancel",
+            metadata={"product": "sygnal_pro"},
         )
         return {"url": session.url}
     except Exception as e:
@@ -910,21 +941,407 @@ async def pro_webhook(request: Request):
         return JSONResponse({"error": str(e)}, status_code=400)
 
 
+@app.post("/api/pro/grant")
+async def grant_pro(request: Request):
+    """Admin: manually grant Pro access to an email (for bypasses)."""
+    body = await request.json()
+    email = body.get("email", "").lower().strip()
+    admin_key = body.get("admin_key", "")
+    # Simple admin auth — only you can grant Pro
+    if admin_key != "sygnal-admin-2026":
+        return JSONResponse({"error": "unauthorized"}, status_code=403)
+    if not email:
+        return JSONResponse({"error": "email required"}, status_code=400)
+    pros = load_pro_users()
+    if email not in pros:
+        pros.append(email)
+        with open(PRO_USERS_FILE, "w") as f:
+            json.dump(pros, f)
+    return {"ok": True, "email": email, "pro": True}
+
+
+# Admin emails that always have Pro (survives deploys)
+ADMIN_PRO_EMAILS = ["joeydeagan2010@gmail.com"]
+
 @app.get("/api/pro/check")
 async def check_pro(email: str = ""):
     """Check if email is a pro user."""
     if not email:
         return {"pro": False}
+    if email.lower() in ADMIN_PRO_EMAILS:
+        return {"pro": True}
     pros = load_pro_users()
     return {"pro": email.lower() in [p.lower() for p in pros]}
+
+
+# ─── SYGNAL SCORE API ───
+
+import math
+
+def _word_set(text):
+    return set(w.lower() for w in (text or "").split() if len(w) > 2)
+
+def _word_similarity(a, b):
+    wa, wb = _word_set(a), _word_set(b)
+    if not wa or not wb:
+        return 0
+    return len(wa & wb) / min(len(wa), len(wb))
+
+def compute_sygnal_scores(kalshi_markets, poly_markets):
+    """Port of the frontend Sygnal Score algorithm to Python."""
+    all_markets = kalshi_markets + poly_markets
+
+    # Build cross-platform price map
+    cross_map = {}
+    for k in kalshi_markets:
+        best, best_sim = None, 0
+        for p in poly_markets:
+            s = _word_similarity(k.get("question", ""), p.get("question", ""))
+            if s > best_sim and s >= 0.25:
+                best_sim = s
+                best = p
+        if best:
+            diff = abs((k.get("yes", 50)) - (best.get("yes", 50)))
+            cross_map[k.get("ticker", "")] = {"match": best, "priceDiff": diff}
+            cross_map[best.get("ticker", "")] = {"match": k, "priceDiff": diff}
+
+    max_vol = max((m.get("volume", 0) for m in all_markets), default=1) or 1
+    results = []
+
+    for m in all_markets:
+        yes = m.get("yes", 50)
+        vol = m.get("volume", 0) or 0
+        ticker = m.get("ticker", "")
+
+        no = 100 - yes
+        xp = cross_map.get(ticker)
+
+        # 1. Edge Detection (0-35): Cross-platform mispricing
+        edge_score = 0
+        edge_size = 0
+        edge_direction = "NEUTRAL"
+        if xp:
+            other_yes = xp["match"].get("yes", 50)
+            edge_size = abs(yes - other_yes)
+            if edge_size >= 3:
+                edge_score = min(round(35 * (edge_size / 12)), 35)
+            if yes < other_yes - 2: edge_direction = "YES"
+            elif yes > other_yes + 2: edge_direction = "NO"
+
+        # 2. Value (0-25): Risk/reward ratio
+        yes_roi = (100 - yes) / yes if yes > 0 else 0
+        no_roi = (100 - no) / no if no > 0 else 0
+        best_roi = max(yes_roi, no_roi)
+        if best_roi >= 4: value_score = 25
+        elif best_roi >= 2.5: value_score = 22
+        elif best_roi >= 1.5: value_score = 18
+        elif best_roi >= 1: value_score = 14
+        elif best_roi >= 0.5: value_score = 8
+        elif best_roi >= 0.2: value_score = 4
+        else: value_score = 1
+        if yes <= 5 or yes >= 95: value_score = 0
+
+        # 3. Momentum (0-15): base points server-side (no historical data)
+        momentum_score = 2
+
+        # 4. Confidence (0-15): Volume-based price reliability
+        if vol >= 500_000: conf_score = 15
+        elif vol >= 100_000: conf_score = 13
+        elif vol >= 50_000: conf_score = 11
+        elif vol >= 10_000: conf_score = 9
+        elif vol >= 5_000: conf_score = 7
+        elif vol >= 1_000: conf_score = 5
+        elif vol >= 100: conf_score = 3
+        else: conf_score = 1
+
+        # 5. Timing (0-9): Cross-platform + volume confirmation
+        timing_score = 0
+        if edge_size >= 3 and vol >= 10_000: timing_score += 5
+        if vol >= 50_000: timing_score += 4
+        if 15 <= yes <= 85: timing_score = max(timing_score, 3)
+
+        total = max(1, min(edge_score + value_score + momentum_score + conf_score + timing_score, 99))
+
+        # Directional signal — which side to bet
+        signal = "HOLD"
+        cross_vote = edge_direction
+        value_vote = "YES" if yes <= 45 else ("NO" if yes >= 55 else "NEUTRAL")
+
+        # Cross-platform edge alone is enough for LEAN
+        if cross_vote == "YES": signal = "LEAN YES"
+        elif cross_vote == "NO": signal = "LEAN NO"
+        # Cross-platform + value agreement = BUY
+        if cross_vote == "YES" and value_vote == "YES": signal = "BUY YES"
+        elif cross_vote == "NO" and value_vote == "NO": signal = "BUY NO"
+        # Strong value alone (very cheap YES or NO) = LEAN
+        if signal == "HOLD" and yes <= 30: signal = "LEAN YES"
+        elif signal == "HOLD" and yes >= 70: signal = "LEAN NO"
+        # High score without cross-platform = still LEAN based on value
+        if signal == "HOLD" and total >= 35:
+            if yes <= 45: signal = "LEAN YES"
+            elif yes >= 55: signal = "LEAN NO"
+        if yes <= 5 or yes >= 95: signal = "HOLD"
+
+        results.append({
+            "ticker": ticker,
+            "question": m.get("question", ""),
+            "source": m.get("source", ""),
+            "yes": yes,
+            "no": no,
+            "volume": vol,
+            "score": total,
+            "signal": signal,
+            "cross_edge": edge_size,
+            "edge_direction": edge_direction,
+            "best_roi": round(best_roi, 2),
+            "breakdown": {
+                "edge": edge_score,
+                "value": value_score,
+                "momentum": momentum_score,
+                "confidence": conf_score,
+                "timing": timing_score,
+            },
+        })
+
+    results.sort(key=lambda x: x["score"], reverse=True)
+    return results
+
+
+@app.get("/api/scores")
+async def get_scores(min_score: int = 0):
+    """Get Sygnal Scores for all markets. Bot uses this as a signal source."""
+    kalshi_data = await get_kalshi()
+    poly_data = await get_polymarket()
+    kalshi = kalshi_data.get("markets", [])
+    poly = poly_data.get("markets", [])
+    scores = compute_sygnal_scores(kalshi, poly)
+    if min_score > 0:
+        scores = [s for s in scores if s["score"] >= min_score]
+    return {"scores": scores, "count": len(scores)}
+
+
+# ─── NEWS FEED ───
+
+import xml.etree.ElementTree as ET
+
+NEWS_CATEGORIES = {
+    "politics": "US politics election policy when:2d",
+    "economics": "economy jobs inflation GDP federal reserve when:2d",
+    "crypto": "bitcoin ethereum crypto market when:2d",
+    "sports": "NBA NFL MLB NHL sports odds when:2d",
+    "markets": "prediction markets Kalshi Polymarket when:2d",
+}
+
+_news_cache = {"data": None, "ts": 0}
+NEWS_CACHE_TTL = 900  # 15 minutes
+
+
+async def fetch_news_category(client: httpx.AsyncClient, query: str, category: str):
+    """Fetch news headlines from Google News RSS for a category."""
+    try:
+        url = f"https://news.google.com/rss/search?q={query}&hl=en-US&gl=US&ceid=US:en"
+        resp = await client.get(url, timeout=10)
+        if resp.status_code != 200:
+            return []
+        root = ET.fromstring(resp.text)
+        items = []
+        cutoff = datetime.now(timezone.utc) - timedelta(hours=48)
+        for item in root.findall(".//item")[:8]:
+            title = item.findtext("title", "")
+            link = item.findtext("link", "")
+            pub_date = item.findtext("pubDate", "")
+            source = item.findtext("source", "")
+
+            # Filter out old articles
+            if pub_date:
+                try:
+                    from email.utils import parsedate_to_datetime
+                    article_dt = parsedate_to_datetime(pub_date)
+                    if article_dt < cutoff:
+                        continue
+                except Exception:
+                    pass
+
+            items.append({
+                "title": title,
+                "link": link,
+                "source": source,
+                "pub_date": pub_date,
+                "category": category,
+            })
+        return items[:5]
+    except Exception:
+        return []
+
+
+@app.get("/api/news")
+async def get_news(category: str = ""):
+    """Fetch news headlines relevant to active markets."""
+    now = datetime.now(timezone.utc).timestamp()
+
+    # Return cached if fresh
+    if _news_cache["data"] and (now - _news_cache["ts"]) < NEWS_CACHE_TTL:
+        cached = _news_cache["data"]
+        if category:
+            return {"articles": [a for a in cached if a["category"] == category]}
+        return {"articles": cached}
+
+    # Fetch current markets to build relevant search queries
+    try:
+        kalshi_data = await get_kalshi()
+        kalshi_markets = kalshi_data.get("markets", [])
+        # Extract top trending topics from market questions
+        market_topics = set()
+        for m in kalshi_markets[:30]:
+            q = m.get("question", "").lower()
+            if "bitcoin" in q or "btc" in q: market_topics.add("crypto")
+            elif "ethereum" in q or "eth" in q: market_topics.add("crypto")
+            elif "trump" in q or "election" in q or "president" in q or "congress" in q: market_topics.add("politics")
+            elif "nba" in q or "nfl" in q or "mlb" in q or "nhl" in q or "masters" in q: market_topics.add("sports")
+            elif "fed" in q or "inflation" in q or "gdp" in q or "jobs" in q or "rate" in q: market_topics.add("economics")
+        # Always include markets category
+        market_topics.add("markets")
+        # If none matched, add defaults
+        if len(market_topics) <= 1:
+            market_topics.update(["politics", "crypto", "sports"])
+    except Exception:
+        market_topics = set(NEWS_CATEGORIES.keys())
+
+    all_articles = []
+    async with httpx.AsyncClient() as client:
+        for cat in market_topics:
+            query = NEWS_CATEGORIES.get(cat, cat + " when:2d")
+            articles = await fetch_news_category(client, query, cat)
+            all_articles.extend(articles)
+
+    _news_cache["data"] = all_articles
+    _news_cache["ts"] = now
+
+    if category:
+        return {"articles": [a for a in all_articles if a["category"] == category]}
+    return {"articles": all_articles}
+
+
+# ─── INTELLIGENCE API (Pro Feature) ───
+# Real-world data overlays: polls, odds, weather, economic data
+
+_intel_cache = {"data": None, "ts": 0}
+INTEL_CACHE_TTL = 600  # 10 min
+
+
+async def fetch_polling_data(client: httpx.AsyncClient):
+    """Fetch RealClearPolitics-style polling averages from public sources."""
+    polls = []
+    try:
+        # Use Google News to find recent polling data
+        resp = await client.get(
+            "https://news.google.com/rss/search?q=election+poll+average+2026&hl=en-US&gl=US&ceid=US:en",
+            timeout=10,
+        )
+        if resp.status_code == 200:
+            root = ET.fromstring(resp.text)
+            for item in root.findall(".//item")[:5]:
+                title = item.findtext("title", "")
+                link = item.findtext("link", "")
+                source = item.findtext("source", "")
+                polls.append({"title": title, "source": source, "link": link, "type": "poll"})
+    except Exception:
+        pass
+
+    # Hardcoded high-confidence political data points
+    # These get updated when we see fresh data
+    polls.extend([
+        {"market_keyword": "trump", "data_point": "approval", "type": "static"},
+        {"market_keyword": "election", "data_point": "polling_average", "type": "static"},
+    ])
+    return polls
+
+
+async def fetch_sports_odds_summary(client: httpx.AsyncClient):
+    """Fetch sports odds from free API for comparison."""
+    odds = []
+    try:
+        # The Odds API — free tier
+        odds_key = os.environ.get("ODDS_API_KEY", "")
+        if not odds_key:
+            return odds
+
+        for sport in ["basketball_nba", "baseball_mlb", "icehockey_nhl"]:
+            resp = await client.get(
+                f"https://api.the-odds-api.com/v4/sports/{sport}/odds/",
+                params={
+                    "apiKey": odds_key,
+                    "regions": "us",
+                    "markets": "h2h",
+                    "oddsFormat": "decimal",
+                },
+                timeout=10,
+            )
+            if resp.status_code != 200:
+                continue
+
+            games = resp.json()
+            for game in games[:10]:
+                home = game.get("home_team", "")
+                away = game.get("away_team", "")
+                # Average odds across bookmakers
+                all_home_odds = []
+                all_away_odds = []
+                for bm in game.get("bookmakers", []):
+                    for market in bm.get("markets", []):
+                        if market.get("key") != "h2h":
+                            continue
+                        for outcome in market.get("outcomes", []):
+                            if outcome.get("name") == home:
+                                all_home_odds.append(outcome.get("price", 2.0))
+                            elif outcome.get("name") == away:
+                                all_away_odds.append(outcome.get("price", 2.0))
+
+                if all_home_odds and all_away_odds:
+                    avg_home = sum(all_home_odds) / len(all_home_odds)
+                    avg_away = sum(all_away_odds) / len(all_away_odds)
+                    # Convert decimal odds to implied probability
+                    home_prob = round(1 / avg_home * 100)
+                    away_prob = round(1 / avg_away * 100)
+                    odds.append({
+                        "home": home, "away": away, "sport": sport,
+                        "home_prob": home_prob, "away_prob": away_prob,
+                        "home_odds": round(avg_home, 2), "away_odds": round(avg_away, 2),
+                        "bookmaker_count": len(all_home_odds),
+                    })
+    except Exception:
+        pass
+    return odds
+
+
+@app.get("/api/intelligence")
+async def get_intelligence():
+    """Pro feature: real-world data overlays for smarter betting."""
+    now = datetime.now(timezone.utc).timestamp()
+
+    if _intel_cache["data"] and (now - _intel_cache["ts"]) < INTEL_CACHE_TTL:
+        return _intel_cache["data"]
+
+    async with httpx.AsyncClient() as client:
+        polls = await fetch_polling_data(client)
+        odds = await fetch_sports_odds_summary(client)
+
+    result = {
+        "polls": polls,
+        "sports_odds": odds,
+        "updated_at": datetime.now(timezone.utc).isoformat(),
+    }
+    _intel_cache["data"] = result
+    _intel_cache["ts"] = now
+    return result
 
 
 # ─── Sygnal AUTOPILOT (Smart Alerts Scanner) ───
 
 ONESIGNAL_APP_ID = os.environ.get("ONESIGNAL_APP_ID", "")
 ONESIGNAL_API_KEY = os.environ.get("ONESIGNAL_API_KEY", "")
-ALERTS_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "alerts_history.json")
-SNAPSHOTS_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "market_snapshots.json")
+ALERTS_FILE = os.path.join(DATA_DIR, "alerts_history.json")
+SNAPSHOTS_FILE = os.path.join(DATA_DIR, "market_snapshots.json")
 
 
 def load_snapshots():
@@ -954,7 +1371,7 @@ def save_alerts_history(alerts):
         json.dump(alerts[-200:], f)
 
 
-async def send_push(title, message, url="https://pulse-api-joed.onrender.com", segment="Pro Users"):
+async def send_push(title, message, url="https://sygnal-markets.fly.dev", segment="Pro Users"):
     """Send push notification via OneSignal."""
     if not ONESIGNAL_APP_ID or not ONESIGNAL_API_KEY:
         return False
@@ -972,7 +1389,7 @@ async def send_push(title, message, url="https://pulse-api-joed.onrender.com", s
                     "headings": {"en": title},
                     "contents": {"en": message},
                     "url": url,
-                    "chrome_web_badge": "https://pulse-api-joed.onrender.com/icon-192.png",
+                    "chrome_web_badge": "https://sygnal-markets.fly.dev/icon-192.png",
                 },
                 timeout=10,
             )
@@ -1000,7 +1417,7 @@ async def autopilot_scan():
         vol = m.get("volume", 0)
         question = m.get("question", "")
         source = m.get("source", "")
-        url = m.get("url", "https://pulse-api-joed.onrender.com")
+        url = m.get("url", "https://sygnal-markets.fly.dev")
 
         prev = prev_snapshots.get(ticker, {})
         prev_yes = prev.get("yes", yes)
@@ -1060,7 +1477,7 @@ async def autopilot_scan():
                 "title": f"Arbitrage: {a['diff']}¢ spread",
                 "message": f"{a['topic']} — Kalshi {a['kalshi']['yes']}¢ vs Poly {a['poly']['yes']}¢. {a['direction']}",
                 "ticker": a.get("topic", ""),
-                "url": "https://pulse-api-joed.onrender.com",
+                "url": "https://sygnal-markets.fly.dev",
                 "timestamp": now,
             })
 
@@ -1097,7 +1514,7 @@ async def autopilot_scan():
         push_sent = await send_push(
             title=top["title"],
             message=top["message"],
-            url=top.get("url", "https://pulse-api-joed.onrender.com"),
+            url=top.get("url", "https://sygnal-markets.fly.dev"),
         )
 
     return {
