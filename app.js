@@ -875,12 +875,12 @@ function computeAllSygnalScores(allMarkets) {
 
         // Price lean (weighted by distance from 50)
         const priceDist = Math.abs(yes - 50);
-        if (yes >= 55) yesWeight += 0.5 + (priceDist - 5) / 80;
-        else if (yes <= 45) noWeight += 0.5 + (priceDist - 5) / 80;
+        if (yes >= 55) yesWeight += 0.3 + (priceDist - 5) / 50;
+        else if (yes <= 45) noWeight += 0.3 + (priceDist - 5) / 50;
 
         // Momentum lean (weighted by magnitude)
-        if (change >= 1.5) yesWeight += 0.3 + Math.min(absChange / 15, 0.5);
-        else if (change <= -1.5) noWeight += 0.3 + Math.min(absChange / 15, 0.5);
+        if (change >= 1) yesWeight += 0.2 + Math.min(absChange / 10, 0.5);
+        else if (change <= -1) noWeight += 0.2 + Math.min(absChange / 10, 0.5);
 
         // Cross-platform lean (weighted by gap size — strongest signal)
         if (xp) {
@@ -904,15 +904,15 @@ function computeAllSygnalScores(allMarkets) {
         // Determine signal from weights
         const netWeight = yesWeight - noWeight;
         const confidence = Math.max(yesWeight, noWeight);
-        if (netWeight >= 1.2) signal = 'BUY YES';
-        else if (netWeight <= -1.2) signal = 'BUY NO';
-        else if (netWeight >= 0.6) signal = 'LEAN YES';
-        else if (netWeight <= -0.6) signal = 'LEAN NO';
+        if (netWeight >= 0.7) signal = 'BUY YES';
+        else if (netWeight <= -0.7) signal = 'BUY NO';
+        else if (netWeight >= 0.35) signal = 'LEAN YES';
+        else if (netWeight <= -0.35) signal = 'LEAN NO';
 
         // Dead markets = always HOLD
         if (yes <= 5 || yes >= 95) signal = 'HOLD';
-        // Low volume = downgrade strong signals
-        if (vol < 5000 && signal.includes('BUY')) {
+        // Very low volume = downgrade strong signals
+        if (vol < 500 && signal.includes('BUY')) {
             signal = signal.replace('BUY', 'LEAN');
         }
 
@@ -1311,7 +1311,7 @@ document.getElementById('ai-popup')?.addEventListener('click', (e) => {
 let allMarketCards = [];  // Store all cards for filtering
 let currentFilter = 'all';
 let showLowVolume = false;
-const MIN_VOLUME = 1000; // $1K minimum to be "high value"
+const MIN_VOLUME = 100; // Show most markets, only filter truly dead ones
 
 function filterMarkets() {
     const query = document.getElementById('search-input').value.toLowerCase();
