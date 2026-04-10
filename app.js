@@ -56,18 +56,29 @@ function trackAffiliateClick(platform) {
 function toggleNavMore(e) {
     e.stopPropagation();
     const menu = document.getElementById('nav-more-menu');
-    menu.classList.toggle('open');
-    // Close on outside click
-    if (menu.classList.contains('open')) {
-        setTimeout(() => document.addEventListener('click', closeNavMore, { once: true }), 10);
+    const isOpen = menu.classList.toggle('open');
+    if (isOpen) {
+        setTimeout(() => {
+            document.addEventListener('click', _navMoreOutsideClick);
+        }, 50);
+    } else {
+        document.removeEventListener('click', _navMoreOutsideClick);
+    }
+}
+function _navMoreOutsideClick(e) {
+    const menu = document.getElementById('nav-more-menu');
+    const btn = document.querySelector('.nav-more-btn');
+    if (menu && !menu.contains(e.target) && btn && !btn.contains(e.target)) {
+        menu.classList.remove('open');
+        document.removeEventListener('click', _navMoreOutsideClick);
     }
 }
 function closeNavMore() {
     document.getElementById('nav-more-menu')?.classList.remove('open');
+    document.removeEventListener('click', _navMoreOutsideClick);
 }
 function switchTabFromMore(tab, btn) {
     closeNavMore();
-    // Highlight the More button when a sub-item is active
     document.querySelectorAll('.nav-links > a').forEach(a => a.classList.remove('active'));
     document.querySelector('.nav-more-btn')?.classList.add('active');
     document.querySelectorAll('.nav-more-menu a').forEach(a => a.classList.remove('active'));
@@ -80,17 +91,29 @@ function toggleMobileMore(e) {
     e.preventDefault();
     e.stopPropagation();
     const menu = document.getElementById('mobile-more-menu');
-    menu.classList.toggle('open');
-    if (menu.classList.contains('open')) {
-        setTimeout(() => document.addEventListener('click', closeMobileMore, { once: true }), 10);
+    const isOpen = menu.classList.toggle('open');
+    if (isOpen) {
+        setTimeout(() => {
+            document.addEventListener('click', _mobileMoreOutsideClick);
+        }, 50);
+    } else {
+        document.removeEventListener('click', _mobileMoreOutsideClick);
+    }
+}
+function _mobileMoreOutsideClick(e) {
+    const menu = document.getElementById('mobile-more-menu');
+    const wrap = document.querySelector('.mobile-more-wrap');
+    if (menu && !menu.contains(e.target) && wrap && !wrap.contains(e.target)) {
+        menu.classList.remove('open');
+        document.removeEventListener('click', _mobileMoreOutsideClick);
     }
 }
 function closeMobileMore() {
     document.getElementById('mobile-more-menu')?.classList.remove('open');
+    document.removeEventListener('click', _mobileMoreOutsideClick);
 }
 function switchTabMobile(tab) {
     closeMobileMore();
-    // Update mobile nav active
     document.querySelectorAll('.mobile-nav-item').forEach(a => a.classList.remove('active'));
     document.querySelector('.mobile-more-wrap .mobile-nav-item')?.classList.add('active');
     switchTab(tab, null);
