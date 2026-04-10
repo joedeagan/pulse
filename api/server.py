@@ -223,6 +223,35 @@ async def get_kalshi():
                     if yes_price == 0:
                         continue
 
+                    # Parse additional data for smarter scoring
+                    yes_bid = 0
+                    yes_ask_d = 0
+                    no_bid = 0
+                    no_ask = 0
+                    try:
+                        yes_bid = round(float(m.get("yes_bid_dollars", 0) or 0) * 100)
+                        yes_ask_d = round(float(m.get("yes_ask_dollars", 0) or 0) * 100)
+                        no_bid = round(float(m.get("no_bid_dollars", 0) or 0) * 100)
+                        no_ask = round(float(m.get("no_ask_dollars", 0) or 0) * 100)
+                    except (ValueError, TypeError):
+                        pass
+                    spread = abs(yes_ask_d - yes_bid) if yes_ask_d and yes_bid else 0
+                    oi = 0
+                    try:
+                        oi = float(m.get("open_interest_fp", 0) or 0)
+                    except (ValueError, TypeError):
+                        pass
+                    liq = 0
+                    try:
+                        liq = float(m.get("liquidity_dollars", 0) or 0)
+                    except (ValueError, TypeError):
+                        pass
+                    prev_price = 0
+                    try:
+                        prev_price = round(float(m.get("previous_price_dollars", 0) or 0) * 100)
+                    except (ValueError, TypeError):
+                        pass
+
                     result.append({
                         "question": title,
                         "ticker": m.get("ticker", ""),
@@ -232,6 +261,13 @@ async def get_kalshi():
                         "source": "kalshi",
                         "category": categorize(title + " " + event_title),
                         "url": f"https://kalshi.com/markets/{series_ticker}/{event_ticker}",
+                        # Rich data for smarter scoring
+                        "bestBid": yes_bid / 100 if yes_bid else 0,
+                        "bestAsk": yes_ask_d / 100 if yes_ask_d else 0,
+                        "spread": spread,
+                        "openInterest": oi,
+                        "liquidity": liq,
+                        "prevPrice": prev_price,
                     })
 
                 if len(result) >= 80:
@@ -293,6 +329,15 @@ async def get_polymarket():
                     "source": "poly",
                     "category": categorize(m.get("question", "")),
                     "url": f"https://polymarket.com/event/{event_slug}",
+                    # Rich data for smarter scoring
+                    "bestBid": float(m.get("bestBid", 0)),
+                    "bestAsk": float(m.get("bestAsk", 0)),
+                    "spread": float(m.get("spread", 0)),
+                    "liquidity": float(m.get("liquidity", 0)),
+                    "volume24h": float(m.get("volume24hr", 0)),
+                    "volume1w": float(m.get("volume1wk", 0)),
+                    "dayChange": float(m.get("oneDayPriceChange", 0)),
+                    "weekChange": float(m.get("oneWeekPriceChange", 0)),
                 })
 
             result.sort(key=lambda x: x["volume"], reverse=True)
@@ -346,6 +391,183 @@ async def get_bot():
 
 # ─── BOT CONFIG (GET + UPDATE) ───
 BOT_URL = "https://web-production-c8a5b.up.railway.app"
+
+# ─── HISTORICAL RESOLUTION DATA (for backtesting) ───
+@app.get("/api/resolutions")
+async def get_resolutions(limit: int = 100):
+    """Fetch resolved markets from both Kalshi and Polymarket for accuracy backtesting."""
+    try:
+        async with httpx.AsyncClient() as client:
+            results = []
+
+            # Kalshi settled markets
+            try:
+                kr = await client.get(
+                    "https://api.elections.kalshi.com/trade-api/v2/markets",
+                    params={"status": "settled", "limit": min(limit, 100)},
+                    timeout=15,
+                )
+                kalshi_data = kr.json().get("markets", [])
+                for m in kalshi_data:
+                    if m.get("result"):
+                        results.append({
+                            "question": m.get("title", ""),
+                            "ticker": m.get("ticker", ""),
+                            "result": m.get("result"),  # "yes" or "no"
+                            "lastPrice": round(float(m.get("last_price_dollars", 0) or 0) * 100),
+                            "volume": float(m.get("volume_fp", 0) or 0),
+                            "closeTime": m.get("close_time", ""),
+                            "platform": "kalshi",
+                        })
+            except Exception:
+                pass
+
+            # Polymarket closed markets
+            try:
+                pr = await client.get(
+                    "https://gamma-api.polymarket.com/markets",
+                    params={"closed": "true", "limit": min(limit, 100), "order": "volume", "ascending": "false"},
+                    timeout=15,
+                )
+                poly_data = pr.json()
+                for m in poly_data:
+                    try:
+                        outcomes = json.loads(m.get("outcomePrices", "[]"))
+                        if len(outcomes) >= 2:
+                            yes_final = float(outcomes[0])
+                            result = "yes" if yes_final > 0.5 else "no"
+                            results.append({
+                                "question": m.get("question", ""),
+                                "ticker": m.get("conditionId", ""),
+                                "result": result,
+                                "lastPrice": round(yes_final * 100),
+                                "volume": float(m.get("volume", 0)),
+                                "closeTime": m.get("closedTime", ""),
+                                "platform": "polymarket",
+                            })
+                    except Exception:
+                        continue
+            except Exception:
+                pass
+
+            results.sort(key=lambda x: x.get("closeTime", ""), reverse=True)
+            return {"resolutions": results[:limit], "count": len(results)}
+    except Exception as e:
+        return {"error": str(e)}
+
+
+# ─── KALSHI ORDER BOOK ───
+@app.get("/api/orderbook/{ticker}")
+async def get_orderbook(ticker: str):
+    """Fetch Kalshi order book for a specific market."""
+    try:
+        async with httpx.AsyncClient() as client:
+            resp = await client.get(
+                f"https://api.elections.kalshi.com/trade-api/v2/markets/{ticker}/orderbook",
+                timeout=10,
+            )
+            return resp.json()
+    except Exception as e:
+        return {"error": str(e)}
+
+
+# ─── SYGNAL SCORES API (for bot integration) ───
+@app.get("/api/scores")
+async def get_sygnal_scores():
+    """Compute and return Sygnal Scores for all active markets.
+    The Kalshi bot can use these scores to filter trades."""
+    try:
+        data = await get_all_markets()
+        kalshi = data.get("kalshi", [])
+        poly = data.get("polymarket", [])
+        all_markets = kalshi + poly
+
+        # Build cross-platform map
+        cross_map = {}
+        for km in kalshi:
+            kq = (km.get("question") or "").lower()
+            for pm in poly:
+                pq = (pm.get("question") or "").lower()
+                if kq and pq and (kq == pq or (len(kq) > 20 and pq[:20] in kq) or (len(pq) > 20 and kq[:20] in pq)):
+                    diff = abs((km.get("yes", 50)) - (pm.get("yes", 50)))
+                    cross_map[km["ticker"]] = {"otherYes": pm.get("yes", 50), "priceDiff": diff, "otherPlatform": "poly"}
+                    cross_map[pm["ticker"]] = {"otherYes": km.get("yes", 50), "priceDiff": diff, "otherPlatform": "kalshi"}
+
+        scores = []
+        for m in all_markets:
+            yes = m.get("yes", 50)
+            vol = m.get("volume", 0)
+            spread = m.get("spread", 0)
+
+            # Price value zone (0-22)
+            ps = 0
+            if 5 < yes < 95:
+                if 45 <= yes <= 55: ps = 4
+                elif 15 <= yes <= 40: ps = 18 + round(4 * (1 - abs(yes - 28) / 12))
+                elif 60 <= yes <= 85: ps = 18 + round(4 * (1 - abs(yes - 72) / 13))
+                else: ps = 8
+
+            # Volume (0-20)
+            vs = 0
+            if vol >= 5e6: vs = 20
+            elif vol >= 2e6: vs = 18
+            elif vol >= 1e6: vs = 16
+            elif vol >= 5e5: vs = 14
+            elif vol >= 2e5: vs = 12
+            elif vol >= 1e5: vs = 10
+            elif vol >= 5e4: vs = 8
+            elif vol >= 2e4: vs = 6
+            elif vol >= 1e4: vs = 4
+            elif vol >= 1e3: vs = 2
+
+            # Cross-platform edge (0-25)
+            xp = cross_map.get(m.get("ticker", ""))
+            cs = 0
+            if xp:
+                gap = xp["priceDiff"]
+                if gap >= 10: cs = 25
+                elif gap >= 7: cs = 22
+                elif gap >= 5: cs = 18
+                elif gap >= 3: cs = 13
+                elif gap >= 2: cs = 8
+                elif gap >= 1: cs = 4
+
+            # Liquidity (0-11)
+            ls = 0
+            if spread > 0 and spread <= 2: ls = 11
+            elif spread > 0 and spread <= 5: ls = 8
+            elif spread > 0 and spread <= 10: ls = 5
+            elif vol >= 1e6: ls = 11
+            elif vol >= 5e5: ls = 9
+            elif vol >= 1e5: ls = 7
+            elif vol >= 5e4: ls = 5
+
+            total = max(1, min(ps + vs + cs + ls, 99))
+
+            # Signal
+            signal = "HOLD"
+            if yes <= 5 or yes >= 95: signal = "HOLD"
+            elif xp and xp["priceDiff"] >= 5:
+                signal = "BUY YES" if xp["otherYes"] > yes else "BUY NO"
+            elif yes >= 60 and vol >= 50000: signal = "LEAN YES"
+            elif yes <= 40 and vol >= 50000: signal = "LEAN NO"
+
+            scores.append({
+                "ticker": m.get("ticker", ""),
+                "question": m.get("question", ""),
+                "platform": m.get("source", ""),
+                "yes": yes,
+                "score": total,
+                "signal": signal,
+                "factors": {"price": ps, "volume": vs, "edge": cs, "liquidity": ls},
+                "crossEdge": xp.get("priceDiff", 0) if xp else 0,
+            })
+
+        scores.sort(key=lambda x: x["score"], reverse=True)
+        return {"scores": scores, "count": len(scores)}
+    except Exception as e:
+        return {"error": str(e)}
+
 
 @app.get("/api/bot/config")
 async def get_bot_config():

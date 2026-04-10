@@ -757,6 +757,14 @@ function computeAllSygnalScores(allMarkets) {
         const absChange = Math.abs(change);
         const xp = _crossPlatformMap[m.ticker];
         const history = getPriceHistory(m.ticker);
+        // Rich data from API (Polymarket: dayChange/weekChange, Kalshi: prevPrice, both: spread/bid/ask/liquidity)
+        const spread = m.spread || 0;
+        const bestBid = m.bestBid || 0;
+        const bestAsk = m.bestAsk || 0;
+        const liq = m.liquidity || 0;
+        const dayChange = m.dayChange ? Math.abs(m.dayChange) * 100 : 0;
+        const weekChange = m.weekChange ? Math.abs(m.weekChange) * 100 : 0;
+        const openInterest = m.openInterest || 0;
 
         // ═══ 1. PRICE VALUE ZONE (0-22) ═══
         // Best risk/reward: 15-40¢ (cheap YES) or 60-85¢ (strong conviction)
@@ -787,9 +795,11 @@ function computeAllSygnalScores(allMarkets) {
         else if (vol > 0) volScore = 1;
 
         // ═══ 3. MOMENTUM + TREND (0-22) ═══
-        // Not just current change — analyze if price is accelerating or decelerating
+        // Use API day/week change when available, plus snapshot history for trend
         let momentumScore = 0;
-        const baseMomentum = Math.min(absChange / 6, 1); // Current move (softer curve, was /8)
+        // Best available momentum signal
+        const bestChange = dayChange > 0 ? dayChange : absChange;
+        const baseMomentum = Math.min(bestChange / 6, 1);
 
         // Trend analysis from price history
         let trendBonus = 0;
@@ -797,16 +807,16 @@ function computeAllSygnalScores(allMarkets) {
             const recent = history.slice(-4);
             const diffs = [];
             for (let i = 1; i < recent.length; i++) diffs.push(recent[i] - recent[i - 1]);
-            // Consistent direction = strong trend
             const allUp = diffs.every(d => d > 0);
             const allDown = diffs.every(d => d < 0);
             if (allUp || allDown) trendBonus = 0.4;
-            // Accelerating = even stronger
             if (diffs.length >= 2) {
                 const accel = Math.abs(diffs[diffs.length - 1]) > Math.abs(diffs[0]);
                 if ((allUp || allDown) && accel) trendBonus = 0.6;
             }
         }
+        // Weekly trend bonus — sustained moves are stronger signals
+        if (weekChange > 10) trendBonus = Math.max(trendBonus, 0.5);
         momentumScore = Math.round(22 * Math.min(baseMomentum + trendBonus, 1));
 
         // ═══ 4. CROSS-PLATFORM EDGE (0-25) ═══
@@ -824,14 +834,24 @@ function computeAllSygnalScores(allMarkets) {
         }
 
         // ═══ 5. LIQUIDITY (0-11) ═══
-        // Can you actually trade? Lower weight — it's a filter, not a signal
+        // Uses real spread + liquidity data when available, falls back to volume
         let liqScore = 0;
-        if (vol >= 1000000) liqScore = 11;
-        else if (vol >= 500000) liqScore = 9;
-        else if (vol >= 100000) liqScore = 7;
-        else if (vol >= 50000) liqScore = 5;
-        else if (vol >= 10000) liqScore = 3;
-        else if (vol >= 1000) liqScore = 1;
+        if (spread > 0 && spread <= 2) liqScore = 11;       // Tight spread = great liquidity
+        else if (spread > 0 && spread <= 5) liqScore = 8;
+        else if (spread > 0 && spread <= 10) liqScore = 5;
+        else if (spread > 10) liqScore = 2;
+        else {
+            // Fallback to volume-based if no spread data
+            if (vol >= 1000000) liqScore = 11;
+            else if (vol >= 500000) liqScore = 9;
+            else if (vol >= 100000) liqScore = 7;
+            else if (vol >= 50000) liqScore = 5;
+            else if (vol >= 10000) liqScore = 3;
+            else if (vol >= 1000) liqScore = 1;
+        }
+        // Bonus for high open interest (lots of contracts outstanding = active market)
+        if (openInterest > 100000) liqScore = Math.min(11, liqScore + 2);
+        else if (openInterest > 10000) liqScore = Math.min(11, liqScore + 1);
 
         // ═══ FINAL SCORE ═══
         // Max: 22 + 20 + 22 + 25 + 11 = 100 → capped at 99
@@ -865,8 +885,12 @@ function computeAllSygnalScores(allMarkets) {
         if (xp) {
             const other = xp.match.yes || 50;
             const gap = other - yes;
-            if (gap > 1.5) { yesWeight += 0.6 + Math.min(Math.abs(gap) / 15, 0.4); }
-            else if (gap < -1.5) { noWeight += 0.6 + Math.min(Math.abs(gap) / 15, 0.4); }
+            // Use bid/ask for more accurate edge: if our price < other's bid, that's real alpha
+            const otherBid = xp.match.bestBid ? xp.match.bestBid * 100 : other;
+            const bidGap = otherBid - yes;
+            const effectiveGap = Math.abs(bidGap) > Math.abs(gap) ? bidGap : gap;
+            if (effectiveGap > 1.5) { yesWeight += 0.6 + Math.min(Math.abs(effectiveGap) / 15, 0.4); }
+            else if (effectiveGap < -1.5) { noWeight += 0.6 + Math.min(Math.abs(effectiveGap) / 15, 0.4); }
         }
 
         // Trend lean
@@ -5403,6 +5427,51 @@ function addConversionTriggers() {
 }
 
 // ══════════════════════════════════════════════
+// RESOLUTION DATABASE — Backtesting calibration data
+// ══════════════════════════════════════════════
+async function fetchResolutionData() {
+    try {
+        const cached = localStorage.getItem('sygnal-resolutions');
+        const cacheTime = localStorage.getItem('sygnal-resolutions-time');
+        // Only fetch once per day
+        if (cached && cacheTime && Date.now() - parseInt(cacheTime) < 86400000) return;
+
+        const resp = await fetch(API_BASE + '/api/resolutions?limit=200');
+        if (!resp.ok) return;
+        const data = await resp.json();
+        if (data.resolutions) {
+            localStorage.setItem('sygnal-resolutions', JSON.stringify(data.resolutions));
+            localStorage.setItem('sygnal-resolutions-time', Date.now().toString());
+
+            // Compute calibration: at each price level, how often does YES win?
+            const calibration = {};
+            for (const r of data.resolutions) {
+                const bucket = Math.round(r.lastPrice / 10) * 10; // 10-cent buckets
+                if (!calibration[bucket]) calibration[bucket] = { yes: 0, no: 0, total: 0 };
+                calibration[bucket].total++;
+                if (r.result === 'yes') calibration[bucket].yes++;
+                else calibration[bucket].no++;
+            }
+            localStorage.setItem('sygnal-calibration', JSON.stringify(calibration));
+        }
+    } catch(e) { console.log('Resolution fetch failed:', e); }
+}
+
+function getCalibrationAccuracy(price) {
+    try {
+        const cal = JSON.parse(localStorage.getItem('sygnal-calibration') || '{}');
+        const bucket = Math.round(price / 10) * 10;
+        const data = cal[bucket];
+        if (!data || data.total < 5) return null;
+        return {
+            yesRate: (data.yes / data.total * 100).toFixed(0),
+            noRate: (data.no / data.total * 100).toFixed(0),
+            sampleSize: data.total
+        };
+    } catch { return null; }
+}
+
+// ══════════════════════════════════════════════
 // INIT ALL NEW FEATURES
 // ══════════════════════════════════════════════
 setTimeout(() => {
@@ -5410,6 +5479,7 @@ setTimeout(() => {
     buildNewsFeed();
     buildProPicks();
     buildAccuracyBanner();
+    fetchResolutionData();
     setTimeout(addConversionTriggers, 2000);
 }, 3000);
 
