@@ -1,5 +1,5 @@
 // SYGNAL Service Worker — enables offline + install as app
-const CACHE_NAME = 'sygnal-v4';
+const CACHE_NAME = 'sygnal-v5';
 const ASSETS = [
     '/',
     '/manifest.json',
