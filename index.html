@@ -142,7 +142,7 @@
 
     <!-- Navigation -->
     <nav>
-        <div class="logo">
+        <div class="logo" onclick="switchTab('markets', document.querySelector('.nav-links > a')); window.scrollTo({top:0,behavior:'smooth'});" style="cursor:pointer;">
             <canvas id="nav-orb" width="32" height="32" class="logo-icon"></canvas>
             <span class="logo-text">SYGNAL</span>
             <span class="logo-tag">Trade Smarter.</span>
