@@ -534,6 +534,15 @@ async def get_sygnal_scores():
                 elif gap >= 2: cs = 8
                 elif gap >= 1: cs = 4
 
+            # Momentum (0-22) — use dayChange if available
+            ms = 0
+            day_ch = abs(float(m.get("dayChange", 0) or 0)) * 100
+            week_ch = abs(float(m.get("weekChange", 0) or 0)) * 100
+            if day_ch > 0:
+                ms = round(22 * min(day_ch / 6, 1))
+            if week_ch > 10:
+                ms = max(ms, 11)
+
             # Liquidity (0-11)
             ls = 0
             if spread > 0 and spread <= 2: ls = 11
@@ -543,16 +552,42 @@ async def get_sygnal_scores():
             elif vol >= 5e5: ls = 9
             elif vol >= 1e5: ls = 7
             elif vol >= 5e4: ls = 5
+            elif vol >= 1e3: ls = 2
 
-            total = max(1, min(ps + vs + cs + ls, 99))
+            total = max(1, min(ps + vs + ms + cs + ls, 99))
 
-            # Signal
+            # Signal — weighted confidence (matches frontend logic)
             signal = "HOLD"
+            yes_weight = 0.0
+            no_weight = 0.0
+
+            # Price lean
+            if yes >= 55:
+                yes_weight += 0.3 + (abs(yes - 50) - 5) / 50
+            elif yes <= 45:
+                no_weight += 0.3 + (abs(yes - 50) - 5) / 50
+
+            # Momentum lean
+            raw_day = float(m.get("dayChange", 0) or 0) * 100
+            if raw_day >= 1:
+                yes_weight += 0.2 + min(abs(raw_day) / 10, 0.5)
+            elif raw_day <= -1:
+                no_weight += 0.2 + min(abs(raw_day) / 10, 0.5)
+
+            # Cross-platform lean (strongest)
+            if xp:
+                gap = xp["otherYes"] - yes
+                if gap > 1.5:
+                    yes_weight += 0.6 + min(abs(gap) / 15, 0.4)
+                elif gap < -1.5:
+                    no_weight += 0.6 + min(abs(gap) / 15, 0.4)
+
+            net = yes_weight - no_weight
+            if net >= 0.7: signal = "BUY YES"
+            elif net <= -0.7: signal = "BUY NO"
+            elif net >= 0.35: signal = "LEAN YES"
+            elif net <= -0.35: signal = "LEAN NO"
             if yes <= 5 or yes >= 95: signal = "HOLD"
-            elif xp and xp["priceDiff"] >= 5:
-                signal = "BUY YES" if xp["otherYes"] > yes else "BUY NO"
-            elif yes >= 60 and vol >= 50000: signal = "LEAN YES"
-            elif yes <= 40 and vol >= 50000: signal = "LEAN NO"
 
             scores.append({
                 "ticker": m.get("ticker", ""),
