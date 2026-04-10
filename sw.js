@@ -1,5 +1,5 @@
 // SYGNAL Service Worker — enables offline + install as app
-const CACHE_NAME = 'sygnal-v2';
+const CACHE_NAME = 'sygnal-v3';
 const ASSETS = [
     '/',
     '/style.css',
