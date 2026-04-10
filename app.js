@@ -5820,7 +5820,58 @@ setInterval(() => {
 }, 120000);
 
 // ── PROFILE PANEL ──
+// ── AUTH PAGE ──
+function showAuthPage() {
+    document.getElementById('auth-overlay').style.display = 'flex';
+}
+
+function switchAuthTab(tab) {
+    document.getElementById('auth-tab-signup').classList.toggle('active', tab === 'signup');
+    document.getElementById('auth-tab-signin').classList.toggle('active', tab === 'signin');
+    document.getElementById('auth-signup-form').style.display = tab === 'signup' ? '' : 'none';
+    document.getElementById('auth-signin-form').style.display = tab === 'signin' ? '' : 'none';
+}
+
+function submitAuth(mode) {
+    let email, name;
+    if (mode === 'signup') {
+        email = document.getElementById('auth-email')?.value?.trim();
+        name = document.getElementById('auth-name')?.value?.trim();
+    } else {
+        email = document.getElementById('auth-signin-email')?.value?.trim();
+    }
+    if (!email || !email.includes('@')) {
+        showToast('Please enter a valid email');
+        return;
+    }
+    localStorage.setItem('sygnal-account-email', email);
+    if (name) localStorage.setItem('sygnal-account-name', name);
+
+    // Check if this email is Pro
+    isPro(); // Will auto-set sygnal-pro if email is in PRO_EMAILS
+
+    // Send to backend
+    fetch((API_BASE || '') + '/api/signup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, name: name || '' }),
+    }).catch(() => {});
+
+    document.getElementById('auth-overlay').style.display = 'none';
+    showToast(mode === 'signup' ? 'Account created! Welcome to Sygnal' : 'Signed in!');
+
+    // If on profile, refresh it
+    if (document.getElementById('profile-panel') && !document.getElementById('profile-panel').classList.contains('view-hidden')) {
+        buildProfilePanel();
+    }
+}
+
 function buildProfilePanel() {
+    // If no account, show auth page instead
+    if (!localStorage.getItem('sygnal-account-email')) {
+        showAuthPage();
+        return;
+    }
     const el = document.getElementById('profile-content');
     if (!el) return;
     try {

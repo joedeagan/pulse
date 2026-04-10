@@ -68,6 +68,48 @@
 </head>
 <body>
 
+    <!-- Sign In / Create Account Overlay -->
+    <div id="auth-overlay" class="auth-overlay" style="display:none;">
+        <div class="auth-card">
+            <button class="auth-close" onclick="document.getElementById('auth-overlay').style.display='none'">&times;</button>
+            <div class="auth-logo">S</div>
+            <h2 class="auth-title">Welcome to Sygnal</h2>
+            <p class="auth-subtitle">Create a free account or sign in to access your dashboard.</p>
+
+            <div class="auth-tabs">
+                <button class="auth-tab active" id="auth-tab-signup" onclick="switchAuthTab('signup')">Create Account</button>
+                <button class="auth-tab" id="auth-tab-signin" onclick="switchAuthTab('signin')">Sign In</button>
+            </div>
+
+            <!-- Create Account Form -->
+            <div id="auth-signup-form" class="auth-form">
+                <input type="text" id="auth-name" class="auth-input" placeholder="Your name">
+                <input type="email" id="auth-email" class="auth-input" placeholder="Email address">
+                <button class="auth-btn" onclick="submitAuth('signup')">Create Free Account</button>
+                <p class="auth-note">30-day free trial included. No credit card required.</p>
+            </div>
+
+            <!-- Sign In Form -->
+            <div id="auth-signin-form" class="auth-form" style="display:none;">
+                <input type="email" id="auth-signin-email" class="auth-input" placeholder="Email address">
+                <button class="auth-btn" onclick="submitAuth('signin')">Sign In</button>
+            </div>
+
+            <div class="auth-divider"><span>or</span></div>
+
+            <button class="auth-pro-btn" onclick="document.getElementById('auth-overlay').style.display='none'; showProUpsell('Sygnal Pro');">
+                Upgrade to Pro — $9.99/mo
+            </button>
+
+            <div class="auth-features">
+                <div class="auth-feature">✓ Track your paper trades</div>
+                <div class="auth-feature">✓ Save your watchlist</div>
+                <div class="auth-feature">✓ Custom price alerts</div>
+                <div class="auth-feature">✓ 30-day free trial</div>
+            </div>
+        </div>
+    </div>
+
     <!-- Landing Page -->
     <section id="landing" class="landing" style="display:none;">
     <script>if(!localStorage.getItem('sygnal-seen-landing'))document.getElementById('landing').style.display='flex';</script>
