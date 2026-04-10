@@ -2337,6 +2337,7 @@ function openDetail(market, platform) {
             </div>
         </div>
         ${breakdownHtml}
+        ${getWhyToBetHtml(market, sig, sygnalScore, factors, xp, change)}
         ${crossHtml}
         ${getMispricingHtml(market)}
         <div class="detail-btn-row">
@@ -5665,6 +5666,81 @@ async function buildBotTransparencyBanner() {
 // ══════════════════════════════════════════════
 // ADD MISPRICING TO DETAIL VIEW
 // ══════════════════════════════════════════════
+// ══════════════════════════════════════════════
+// WHY TO BET — Plain-English trade rationale (Pro only)
+// ══════════════════════════════════════════════
+function getWhyToBetHtml(market, sig, score, factors, xp, change) {
+    const showFull = isPro();
+    const signal = sig.signal;
+
+    if (signal === 'HOLD') {
+        if (!showFull) return '';
+        return `<div class="why-bet-section hold">
+            <div class="why-bet-header">◇ HOLD — No clear edge</div>
+            <p class="why-bet-text">This market doesn't have a strong enough signal in either direction. Wait for momentum, a cross-platform gap, or a significant price move before trading.</p>
+        </div>`;
+    }
+
+    // Build reasons array
+    const reasons = [];
+    const isYes = signal.includes('YES');
+    const side = isYes ? 'YES' : 'NO';
+    const yes = market.yes || 50;
+    const vol = market.volume || 0;
+
+    // Price position reason
+    if (isYes && yes <= 40) reasons.push(`Priced at just ${yes}¢ — cheap entry with high upside if it resolves YES`);
+    else if (isYes && yes >= 60) reasons.push(`Strong conviction at ${yes}¢ — the market leans YES and could push higher`);
+    else if (!isYes && yes >= 60) reasons.push(`Priced at ${yes}¢ — expensive YES, room for a pullback toward NO`);
+    else if (!isYes && yes <= 40) reasons.push(`Already leaning NO at ${yes}¢ — momentum favors this direction`);
+
+    // Momentum reason
+    if (Math.abs(change) >= 2) {
+        if (isYes && change > 0) reasons.push(`Price moving up +${change.toFixed(0)}¢ — momentum is with YES`);
+        else if (!isYes && change < 0) reasons.push(`Price dropping ${change.toFixed(0)}¢ — momentum is with NO`);
+        else if (isYes && change < 0) reasons.push(`Price dipped ${change.toFixed(0)}¢ — possible buying opportunity on the pullback`);
+        else if (!isYes && change > 0) reasons.push(`Price rose +${change.toFixed(0)}¢ — may be overextended, NO could profit from a reversal`);
+    }
+
+    // Cross-platform reason (strongest)
+    if (xp && xp.priceDiff >= 3) {
+        const otherPlatform = xp.match.source === 'kalshi' ? 'Kalshi' : 'Polymarket';
+        const otherYes = xp.match.yes || 50;
+        if (isYes && otherYes > yes) {
+            reasons.push(`${otherPlatform} has YES at ${otherYes}¢ vs ${yes}¢ here — ${xp.priceDiff}¢ cross-platform edge says it's underpriced`);
+        } else if (!isYes && otherYes < yes) {
+            reasons.push(`${otherPlatform} has YES at ${otherYes}¢ vs ${yes}¢ here — ${xp.priceDiff}¢ gap suggests YES is overpriced`);
+        }
+    }
+
+    // Volume reason
+    if (vol >= 500000) reasons.push(`High volume ($${(vol/1000000).toFixed(1)}M) — this is a well-traded market with reliable pricing`);
+    else if (vol >= 50000) reasons.push(`Decent volume ($${(vol/1000).toFixed(0)}K) — enough activity to trust the price signal`);
+
+    // Score reason
+    if (score >= 75) reasons.push(`Sygnal Score ${score}/99 — strong across all factors`);
+    else if (score >= 50) reasons.push(`Sygnal Score ${score}/99 — moderate opportunity`);
+
+    if (!reasons.length) reasons.push(`Multiple factors align for ${side} — price, momentum, and volume support this direction`);
+
+    const isBuy = signal.includes('BUY');
+    const strength = isBuy ? 'Strong' : 'Moderate';
+    const strengthColor = isBuy ? (isYes ? 'var(--green)' : 'var(--red)') : 'var(--gold)';
+
+    if (!showFull) {
+        return `<div class="why-bet-section locked" onclick="showProUpsell('Trade Rationale')">
+            <div class="why-bet-header" style="color:${strengthColor}">◆ ${strength} ${signal}</div>
+            <p class="why-bet-text blurred-text">${reasons[0] || 'Multiple factors align...'}</p>
+            <div class="why-bet-lock">🔒 Unlock trade reasoning with Pro</div>
+        </div>`;
+    }
+
+    return `<div class="why-bet-section">
+        <div class="why-bet-header" style="color:${strengthColor}">◆ ${strength} ${signal} — Here's Why</div>
+        ${reasons.map(r => `<p class="why-bet-reason">→ ${r}</p>`).join('')}
+    </div>`;
+}
+
 function getMispricingHtml(market) {
     const mp = getMispricingSignal(market);
     const showDetail = isPro() || isTrialActive();

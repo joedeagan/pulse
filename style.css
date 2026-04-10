@@ -3290,6 +3290,59 @@ body.light .mobile-more-menu a:hover { color: #1a1a2e; background: rgba(0,0,0,0.
     .profile-stats { grid-template-columns: repeat(2, 1fr); }
 }
 
+/* ── WHY TO BET ── */
+.why-bet-section {
+    margin: 12px 0;
+    padding: 14px 16px;
+    background: rgba(0, 214, 143, 0.04);
+    border: 1px solid rgba(0, 214, 143, 0.12);
+    border-radius: 10px;
+    position: relative;
+}
+.why-bet-section.hold {
+    background: rgba(255,255,255,0.02);
+    border-color: var(--border);
+}
+.why-bet-section.locked {
+    cursor: pointer;
+    overflow: hidden;
+}
+.why-bet-section.locked:hover { background: rgba(0,136,255,0.04); border-color: rgba(0,136,255,0.15); }
+.why-bet-header {
+    font-size: 13px;
+    font-weight: 800;
+    letter-spacing: 0.5px;
+    margin-bottom: 8px;
+}
+.why-bet-text {
+    font-size: 13px;
+    color: var(--text-mid);
+    line-height: 1.5;
+    margin: 0;
+}
+.why-bet-reason {
+    font-size: 13px;
+    color: var(--text-mid);
+    line-height: 1.5;
+    margin: 0 0 4px;
+}
+.why-bet-reason:last-child { margin-bottom: 0; }
+.why-bet-lock {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(6, 6, 11, 0.5);
+    color: var(--accent);
+    font-size: 13px;
+    font-weight: 700;
+    border-radius: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    height: 100%;
+}
+
 /* ── MISPRICING DETECTOR ── */
 .mispricing-row {
     margin: 10px 0;
