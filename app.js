@@ -5671,8 +5671,9 @@ async function buildBotTransparencyBanner() {
 // WHY TO BET — Plain-English trade rationale (Pro only)
 // ══════════════════════════════════════════════
 function getWhyToBetHtml(market, sig, score, factors, xp, change) {
+    try {
     const showFull = isPro();
-    const signal = sig.signal;
+    const signal = sig?.signal || 'HOLD';
 
     if (signal === 'HOLD') {
         if (!showFull) return '';
@@ -5732,7 +5733,13 @@ function getWhyToBetHtml(market, sig, score, factors, xp, change) {
         return `<div class="why-bet-section locked" onclick="showProUpsell('Trade Rationale')">
             <div class="why-bet-header" style="color:${strengthColor}">◆ ${strength} ${signal}</div>
             <p class="why-bet-text blurred-text">${reasons[0] || 'Multiple factors align...'}</p>
-            <div class="why-bet-lock">🔒 Unlock trade reasoning with Pro</div>
+            <div class="why-bet-lock">
+                <div style="text-align:center;">
+                    <div style="font-size:16px;margin-bottom:4px;">🔒</div>
+                    <div style="font-size:13px;font-weight:700;color:var(--accent);">See why Sygnal says ${signal}</div>
+                    <div style="font-size:11px;color:var(--text-dim);margin-top:2px;">Upgrade to Pro — $9.99/mo</div>
+                </div>
+            </div>
         </div>`;
     }
 
@@ -5740,6 +5747,7 @@ function getWhyToBetHtml(market, sig, score, factors, xp, change) {
         <div class="why-bet-header" style="color:${strengthColor}">◆ ${strength} ${signal} — Here's Why</div>
         ${reasons.map(r => `<p class="why-bet-reason">→ ${r}</p>`).join('')}
     </div>`;
+    } catch(e) { return ''; }
 }
 
 function getMispricingHtml(market) {
@@ -5803,6 +5811,7 @@ setInterval(() => {
 function buildProfilePanel() {
     const el = document.getElementById('profile-content');
     if (!el) return;
+    try {
 
     const email = localStorage.getItem('sygnal-account-email') || '';
     const name = localStorage.getItem('sygnal-account-name') || '';
@@ -5883,6 +5892,7 @@ function buildProfilePanel() {
             ${email ? `<button class="profile-action-btn" onclick="localStorage.removeItem('sygnal-account-email'); localStorage.removeItem('sygnal-account-name'); localStorage.removeItem('sygnal-pro'); buildProfilePanel(); showToast('Signed out');">Sign Out</button>` : ''}
         </div>
     `;
+    } catch(e) { el.innerHTML = '<p style="color:var(--red);">Error loading profile: ' + e.message + '</p>'; }
 }
 
 // ── SERVICE WORKER (PWA) ──
