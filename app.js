@@ -5817,6 +5817,141 @@ setTimeout(() => {
     setTimeout(addConversionTriggers, 2000);
 }, 3000);
 
+// ══════════════════════════════════════════════
+// ONBOARDING TOUR
+// ══════════════════════════════════════════════
+function shouldShowOnboarding() {
+    return !localStorage.getItem('sygnal-onboarding-done') && !localStorage.getItem('sygnal-account-email');
+}
+
+function startOnboarding() {
+    if (!shouldShowOnboarding()) return;
+    const steps = [
+        {
+            title: 'Welcome to Sygnal',
+            text: 'The smartest way to trade prediction markets. We analyze Kalshi & Polymarket so you don\'t have to.',
+            icon: '◆',
+            highlight: null,
+        },
+        {
+            title: 'Sygnal Score',
+            text: 'Every market gets a 0-99 score based on 5 factors: price value, volume, momentum, cross-platform edge, and liquidity. Higher = better opportunity.',
+            icon: '▲',
+            highlight: '.card-sygnal-footer',
+        },
+        {
+            title: 'BUY Signals',
+            text: 'We tell you WHAT to trade and WHY. BUY YES, BUY NO, LEAN, or HOLD — with full reasoning for Pro members.',
+            icon: '★',
+            highlight: '.card-signal',
+        },
+        {
+            title: 'Live Trading Bot',
+            text: 'Our bot trades real money on Kalshi using Sygnal Scores. Watch its P&L live — proof the system works.',
+            icon: '◎',
+            highlight: null,
+        },
+        {
+            title: 'Daily Challenge',
+            text: 'Pick 3 markets each day and track your accuracy. Build a streak and earn badges.',
+            icon: '◇',
+            highlight: '#daily-challenge-widget',
+        },
+        {
+            title: 'Cross-Platform Edge',
+            text: 'Only Sygnal sees both Kalshi AND Polymarket. When they disagree on price, that\'s your edge.',
+            icon: '◈',
+            highlight: null,
+        },
+        {
+            title: 'You\'re Ready!',
+            text: 'Tap any market card to see the full analysis. Create a free account to save your watchlist and start paper trading.',
+            icon: '✦',
+            highlight: null,
+        },
+    ];
+
+    let currentStep = 0;
+
+    function renderStep() {
+        const existing = document.getElementById('onboarding-overlay');
+        if (existing) existing.remove();
+
+        const step = steps[currentStep];
+        const isLast = currentStep === steps.length - 1;
+
+        const overlay = document.createElement('div');
+        overlay.id = 'onboarding-overlay';
+        overlay.className = 'onboarding-overlay';
+        overlay.innerHTML = `
+            <div class="onboarding-card">
+                <div class="onboarding-progress">
+                    ${steps.map((_, i) => `<div class="onboarding-dot ${i === currentStep ? 'active' : i < currentStep ? 'done' : ''}"></div>`).join('')}
+                </div>
+                <div class="onboarding-icon">${step.icon}</div>
+                <h3 class="onboarding-title">${step.title}</h3>
+                <p class="onboarding-text">${step.text}</p>
+                <div class="onboarding-btns">
+                    ${currentStep > 0 ? '<button class="onboarding-btn secondary" id="ob-back">Back</button>' : ''}
+                    <button class="onboarding-btn primary" id="ob-next">${isLast ? 'Get Started' : 'Next'}</button>
+                </div>
+                <button class="onboarding-skip" id="ob-skip">Skip tour</button>
+            </div>
+        `;
+        document.body.appendChild(overlay);
+
+        // Highlight element if specified
+        if (step.highlight) {
+            const el = document.querySelector(step.highlight);
+            if (el) {
+                el.classList.add('onboarding-highlight');
+                el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+        }
+
+        document.getElementById('ob-next').onclick = () => {
+            clearHighlights();
+            if (isLast) {
+                finishOnboarding();
+            } else {
+                currentStep++;
+                renderStep();
+            }
+        };
+        if (document.getElementById('ob-back')) {
+            document.getElementById('ob-back').onclick = () => {
+                clearHighlights();
+                currentStep--;
+                renderStep();
+            };
+        }
+        document.getElementById('ob-skip').onclick = () => {
+            clearHighlights();
+            finishOnboarding();
+        };
+    }
+
+    function clearHighlights() {
+        document.querySelectorAll('.onboarding-highlight').forEach(el => el.classList.remove('onboarding-highlight'));
+    }
+
+    function finishOnboarding() {
+        localStorage.setItem('sygnal-onboarding-done', 'true');
+        const overlay = document.getElementById('onboarding-overlay');
+        if (overlay) overlay.remove();
+        clearHighlights();
+        // Show signup after tour
+        setTimeout(() => showAuthPage(), 500);
+    }
+
+    renderStep();
+}
+
+// Start onboarding after markets load
+setTimeout(() => {
+    if (shouldShowOnboarding()) startOnboarding();
+}, 4000);
+
 // Run smart money detection every 5 min
 setInterval(() => {
     if (allMarketCards.length) detectSmartMoney(allMarketCards.map(c => c.market));
@@ -6203,11 +6338,16 @@ function buildDailyChallengeWidget() {
     if (!widget) return;
     const ch = getDailyChallenge();
     const streak = parseInt(localStorage.getItem('sygnal-challenge-streak') || '0');
+    const history = getChallengeHistory();
+    const totalCorrect = history.reduce((s, d) => s + (d.correct || 0), 0);
+    const totalPicks = history.reduce((s, d) => s + (d.total || 0), 0);
+    const accuracy = totalPicks > 0 ? ((totalCorrect / totalPicks) * 100).toFixed(0) : '—';
+
     widget.innerHTML = `
         <div class="daily-challenge">
             <div class="dc-header">
                 <span class="dc-title">DAILY CHALLENGE</span>
-                <span class="dc-streak">${streak} day streak</span>
+                <span class="dc-streak">${streak > 0 ? streak + ' day streak 🔥' : 'Start your streak!'}</span>
             </div>
             <p class="dc-desc">Pick 3 markets today. Track your accuracy.</p>
             <div class="dc-picks">
@@ -6216,11 +6356,44 @@ function buildDailyChallengeWidget() {
                     if (pick) {
                         return `<div class="dc-pick filled"><span class="dc-pick-side ${pick.side}">${pick.side.toUpperCase()}</span><span class="dc-pick-q">${shortenTitle(pick.question, 30)}</span></div>`;
                     }
-                    return `<div class="dc-pick empty"><span class="dc-pick-num">${i + 1}</span><span class="dc-pick-q">Tap a market card to pick</span></div>`;
+                    return `<div class="dc-pick empty"><span class="dc-pick-num">${i + 1}</span><span class="dc-pick-q">Tap a market to pick</span></div>`;
                 }).join('')}
             </div>
+            ${totalPicks > 0 ? `
+            <div class="dc-leaderboard">
+                <div class="dc-lb-header">YOUR TRACK RECORD</div>
+                <div class="dc-lb-stats">
+                    <span class="dc-lb-stat"><b>${totalCorrect}</b>/${totalPicks} correct</span>
+                    <span class="dc-lb-stat"><b>${accuracy}%</b> accuracy</span>
+                    <span class="dc-lb-stat"><b>${streak}</b> streak</span>
+                </div>
+                ${history.length > 0 ? `<div class="dc-lb-history">${history.slice(-7).reverse().map(d =>
+                    `<div class="dc-lb-day"><span class="dc-lb-date">${d.date?.substring(5) || '?'}</span><span class="dc-lb-result ${d.correct > d.total / 2 ? 'win' : 'loss'}">${d.correct}/${d.total}</span></div>`
+                ).join('')}</div>` : ''}
+            </div>` : ''}
         </div>
     `;
+}
+
+function getChallengeHistory() {
+    try { return JSON.parse(localStorage.getItem('sygnal-challenge-history') || '[]'); }
+    catch { return []; }
+}
+
+function recordChallengeResult(correct, total) {
+    const history = getChallengeHistory();
+    const today = new Date().toISOString().split('T')[0];
+    if (history.length && history[history.length-1].date === today) return; // Already recorded
+    history.push({ date: today, correct, total });
+    if (history.length > 30) history.shift();
+    localStorage.setItem('sygnal-challenge-history', JSON.stringify(history));
+    // Update streak
+    let streak = 0;
+    for (let i = history.length - 1; i >= 0; i--) {
+        if (history[i].correct > history[i].total / 2) streak++;
+        else break;
+    }
+    localStorage.setItem('sygnal-challenge-streak', streak.toString());
 }
 
 // ══════════════════════════════════════════════

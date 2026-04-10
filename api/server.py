@@ -1110,9 +1110,16 @@ async def robots():
 @app.get("/sitemap.xml")
 async def sitemap():
     from fastapi.responses import Response
+    categories = ["crypto", "sports", "politics", "weather", "finance", "entertainment", "science"]
+    cat_urls = "\n".join(f'  <url><loc>https://sygnalmarkets.com/?cat={c}</loc><changefreq>hourly</changefreq><priority>0.8</priority></url>' for c in categories)
     xml = f"""<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url><loc>https://sygnalmarkets.com/</loc><changefreq>hourly</changefreq><priority>1.0</priority></url>
+  <url><loc>https://sygnalmarkets.com/?tab=trending</loc><changefreq>hourly</changefreq><priority>0.9</priority></url>
+  <url><loc>https://sygnalmarkets.com/?tab=bot</loc><changefreq>hourly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://sygnalmarkets.com/?tab=arbitrage</loc><changefreq>hourly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://sygnalmarkets.com/?tab=compare</loc><changefreq>daily</changefreq><priority>0.7</priority></url>
+{cat_urls}
 </urlset>"""
     return Response(content=xml, media_type="application/xml")
 
