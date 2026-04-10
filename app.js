@@ -1313,8 +1313,8 @@ document.getElementById('ai-popup')?.addEventListener('click', (e) => {
 // ── SEARCH & FILTER ──
 let allMarketCards = [];  // Store all cards for filtering
 let currentFilter = 'all';
-let showLowVolume = false;
-const MIN_VOLUME = 100; // Show most markets, only filter truly dead ones
+let showLowVolume = true; // Show all markets by default
+const MIN_VOLUME = 0;
 
 function filterMarkets() {
     const query = document.getElementById('search-input').value.toLowerCase();
