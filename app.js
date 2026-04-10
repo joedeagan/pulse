@@ -2337,8 +2337,8 @@ function openDetail(market, platform) {
                 </div>
             </div>
         </div>
-        ${breakdownHtml}
         ${getWhyToBetHtml(market, sig, sygnalScore, factors, xp, change)}
+        ${breakdownHtml}
         ${crossHtml}
         ${getMispricingHtml(market)}
         <div class="detail-btn-row">
