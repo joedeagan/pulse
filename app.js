@@ -718,75 +718,179 @@ function buildCrossPlatformMap(allMarkets) {
 function computeAllSygnalScores(allMarkets) {
     _sygnalScoreCache = {};
     _sygnalSignalCache = {};
+    _sygnalFactorCache = {};
     if (!allMarkets || allMarkets.length === 0) return;
 
     buildCrossPlatformMap(allMarkets);
-    const maxVol = Math.max(...allMarkets.map(m => m.volume || 0), 1);
+
+    // Pre-compute signal accuracy for history bonus
+    const pastAccuracy = _getSignalAccuracyMap();
 
     for (const m of allMarkets) {
         const yes = m.yes || 50;
+        const no = m.no || (100 - yes);
         const vol = m.volume || 0;
         const change = getMarketChange(m.ticker) || 0;
         const absChange = Math.abs(change);
+        const xp = _crossPlatformMap[m.ticker];
+        const history = getPriceHistory(m.ticker);
 
-        // 1. PRICE POSITION (0-20): Bell curve at 25¢/75¢
+        // ═══ 1. PRICE VALUE ZONE (0-22) ═══
+        // Best risk/reward: 15-40¢ (cheap YES) or 60-85¢ (strong conviction)
+        // Dead zones: 0-5¢, 95-100¢ (resolved), 45-55¢ (coin flip)
         let priceScore = 0;
-        if (yes > 3 && yes < 97) {
-            const dist = Math.abs(yes - 50);
-            priceScore = Math.round(20 * Math.exp(-Math.pow(dist - 25, 2) / 450));
+        if (yes <= 5 || yes >= 95) priceScore = 0;           // Dead/resolved
+        else if (yes >= 45 && yes <= 55) priceScore = 4;      // Coin flip — low edge
+        else if (yes >= 15 && yes <= 40) priceScore = 18 + Math.round(4 * (1 - Math.abs(yes - 28) / 12));  // Sweet spot YES
+        else if (yes >= 60 && yes <= 85) priceScore = 18 + Math.round(4 * (1 - Math.abs(yes - 72) / 13));  // Sweet spot NO
+        else if (yes > 5 && yes < 15) priceScore = Math.round(8 * (yes - 5) / 10);   // Cheap longshot
+        else if (yes > 85 && yes < 95) priceScore = Math.round(8 * (95 - yes) / 10);  // Expensive favorite
+        else priceScore = 8;
+        priceScore = Math.min(22, Math.max(0, priceScore));
+
+        // ═══ 2. VOLUME — ABSOLUTE THRESHOLDS (0-20) ═══
+        // Real-money flow = real conviction. Absolute thresholds, not relative.
+        let volScore = 0;
+        if (vol >= 5000000) volScore = 20;
+        else if (vol >= 2000000) volScore = 18;
+        else if (vol >= 1000000) volScore = 16;
+        else if (vol >= 500000) volScore = 14;
+        else if (vol >= 200000) volScore = 12;
+        else if (vol >= 100000) volScore = 10;
+        else if (vol >= 50000) volScore = 8;
+        else if (vol >= 20000) volScore = 6;
+        else if (vol >= 10000) volScore = 4;
+        else if (vol >= 1000) volScore = 2;
+        else if (vol > 0) volScore = 1;
+
+        // ═══ 3. MOMENTUM + TREND (0-22) ═══
+        // Not just current change — analyze if price is accelerating or decelerating
+        let momentumScore = 0;
+        const baseMomentum = Math.min(absChange / 6, 1); // Current move (softer curve, was /8)
+
+        // Trend analysis from price history
+        let trendBonus = 0;
+        if (history.length >= 4) {
+            const recent = history.slice(-4);
+            const diffs = [];
+            for (let i = 1; i < recent.length; i++) diffs.push(recent[i] - recent[i - 1]);
+            // Consistent direction = strong trend
+            const allUp = diffs.every(d => d > 0);
+            const allDown = diffs.every(d => d < 0);
+            if (allUp || allDown) trendBonus = 0.4;
+            // Accelerating = even stronger
+            if (diffs.length >= 2) {
+                const accel = Math.abs(diffs[diffs.length - 1]) > Math.abs(diffs[0]);
+                if ((allUp || allDown) && accel) trendBonus = 0.6;
+            }
+        }
+        momentumScore = Math.round(22 * Math.min(baseMomentum + trendBonus, 1));
+
+        // ═══ 4. CROSS-PLATFORM EDGE (0-25) ═══
+        // This is SYGNAL's killer feature — weight it highest
+        // When Kalshi and Polymarket disagree, that's real alpha
+        let crossScore = 0;
+        if (xp) {
+            const gap = xp.priceDiff;
+            if (gap >= 10) crossScore = 25;       // Huge disagreement
+            else if (gap >= 7) crossScore = 22;
+            else if (gap >= 5) crossScore = 18;   // Strong edge
+            else if (gap >= 3) crossScore = 13;   // Moderate edge
+            else if (gap >= 2) crossScore = 8;    // Small edge
+            else if (gap >= 1) crossScore = 4;    // Tiny edge
         }
 
-        // 2. VOLUME (0-20): Log-scaled relative to all markets
-        let volScore = 0;
-        if (vol > 0) volScore = Math.round(20 * Math.min(Math.log10(vol) / Math.log10(maxVol), 1));
-
-        // 3. MOMENTUM (0-20): Price velocity
-        const momentumScore = Math.round(20 * Math.min(absChange / 8, 1));
-
-        // 4. CROSS-PLATFORM EDGE (0-20): Price gap between platforms — SYGNAL exclusive
-        let crossScore = 0;
-        const xp = _crossPlatformMap[m.ticker];
-        if (xp) crossScore = Math.round(20 * Math.min(xp.priceDiff / 10, 1));
-
-        // 5. LIQUIDITY (0-19): Can you trade at this price?
+        // ═══ 5. LIQUIDITY (0-11) ═══
+        // Can you actually trade? Lower weight — it's a filter, not a signal
         let liqScore = 0;
-        if (vol >= 1000000) liqScore = 19;
-        else if (vol >= 500000) liqScore = 16;
-        else if (vol >= 100000) liqScore = 13;
-        else if (vol >= 50000) liqScore = 10;
-        else if (vol >= 10000) liqScore = 7;
-        else if (vol >= 1000) liqScore = 4;
-        else if (vol > 0) liqScore = 1;
+        if (vol >= 1000000) liqScore = 11;
+        else if (vol >= 500000) liqScore = 9;
+        else if (vol >= 100000) liqScore = 7;
+        else if (vol >= 50000) liqScore = 5;
+        else if (vol >= 10000) liqScore = 3;
+        else if (vol >= 1000) liqScore = 1;
 
-        const total = Math.max(1, Math.min(priceScore + volScore + momentumScore + crossScore + liqScore, 99));
+        // ═══ FINAL SCORE ═══
+        // Max: 22 + 20 + 22 + 25 + 11 = 100 → capped at 99
+        let total = priceScore + volScore + momentumScore + crossScore + liqScore;
+
+        // Signal accuracy bonus: if past signals on this market were correct, boost score
+        const accuracy = pastAccuracy[m.ticker];
+        if (accuracy && accuracy.total >= 2 && accuracy.correct / accuracy.total >= 0.6) {
+            total = Math.round(total * 1.08); // 8% boost for proven accuracy
+        }
+
+        total = Math.max(1, Math.min(total, 99));
         _sygnalScoreCache[m.ticker] = total;
-
-        // Store factor breakdown for Pro detail view
-        if (!_sygnalFactorCache) _sygnalFactorCache = {};
         _sygnalFactorCache[m.ticker] = { price: priceScore, volume: volScore, momentum: momentumScore, edge: crossScore, liquidity: liqScore };
 
-        // ── DIRECTIONAL SIGNAL ──
+        // ═══ DIRECTIONAL SIGNAL — WEIGHTED CONFIDENCE ═══
         let signal = 'HOLD';
-        const priceLean = yes >= 52 ? 'YES' : yes <= 48 ? 'NO' : 'NEUTRAL';
-        const momLean = change >= 2 ? 'YES' : change <= -2 ? 'NO' : 'NEUTRAL';
-        let crossLean = 'NEUTRAL';
+        let yesWeight = 0;
+        let noWeight = 0;
+
+        // Price lean (weighted by distance from 50)
+        const priceDist = Math.abs(yes - 50);
+        if (yes >= 55) yesWeight += 0.5 + (priceDist - 5) / 80;
+        else if (yes <= 45) noWeight += 0.5 + (priceDist - 5) / 80;
+
+        // Momentum lean (weighted by magnitude)
+        if (change >= 1.5) yesWeight += 0.3 + Math.min(absChange / 15, 0.5);
+        else if (change <= -1.5) noWeight += 0.3 + Math.min(absChange / 15, 0.5);
+
+        // Cross-platform lean (weighted by gap size — strongest signal)
         if (xp) {
             const other = xp.match.yes || 50;
-            if (yes < other - 2) crossLean = 'YES';
-            else if (yes > other + 2) crossLean = 'NO';
+            const gap = other - yes;
+            if (gap > 1.5) { yesWeight += 0.6 + Math.min(Math.abs(gap) / 15, 0.4); }
+            else if (gap < -1.5) { noWeight += 0.6 + Math.min(Math.abs(gap) / 15, 0.4); }
         }
-        const leans = [priceLean, momLean, crossLean];
-        const yC = leans.filter(l => l === 'YES').length;
-        const nC = leans.filter(l => l === 'NO').length;
 
-        if (yC >= 2) signal = 'BUY YES';
-        else if (nC >= 2) signal = 'BUY NO';
-        else if (yC === 1 && nC === 0) signal = 'LEAN YES';
-        else if (nC === 1 && yC === 0) signal = 'LEAN NO';
+        // Trend lean
+        if (history.length >= 3) {
+            const recentTrend = history[history.length - 1] - history[history.length - 3];
+            if (recentTrend > 2) yesWeight += 0.2;
+            else if (recentTrend < -2) noWeight += 0.2;
+        }
+
+        // Determine signal from weights
+        const netWeight = yesWeight - noWeight;
+        const confidence = Math.max(yesWeight, noWeight);
+        if (netWeight >= 1.2) signal = 'BUY YES';
+        else if (netWeight <= -1.2) signal = 'BUY NO';
+        else if (netWeight >= 0.6) signal = 'LEAN YES';
+        else if (netWeight <= -0.6) signal = 'LEAN NO';
+
+        // Dead markets = always HOLD
         if (yes <= 5 || yes >= 95) signal = 'HOLD';
+        // Low volume = downgrade strong signals
+        if (vol < 5000 && signal.includes('BUY')) {
+            signal = signal.replace('BUY', 'LEAN');
+        }
 
-        _sygnalSignalCache[m.ticker] = { signal, confidence: Math.max(yC, nC), crossEdge: xp ? xp.priceDiff : 0 };
+        _sygnalSignalCache[m.ticker] = {
+            signal,
+            confidence: Math.round(confidence * 100) / 100,
+            crossEdge: xp ? xp.priceDiff : 0,
+            yesWeight: Math.round(yesWeight * 100) / 100,
+            noWeight: Math.round(noWeight * 100) / 100
+        };
     }
+}
+
+// Helper: build accuracy map from signal history
+function _getSignalAccuracyMap() {
+    const map = {};
+    try {
+        const record = JSON.parse(localStorage.getItem('sygnal-track-record') || '[]');
+        for (const r of record) {
+            if (!r.ticker) continue;
+            if (!map[r.ticker]) map[r.ticker] = { correct: 0, total: 0 };
+            map[r.ticker].total++;
+            if (r.correct) map[r.ticker].correct++;
+        }
+    } catch {}
+    return map;
 }
 
 function calcSygnalScore(market, priceChange) {
@@ -2130,13 +2234,18 @@ function openDetail(market, platform) {
     // Build factor breakdown — show bars for Pro, locked for free
     const factors = _sygnalFactorCache[market.ticker] || { price: ps, volume: vs, momentum: ms, edge: cs, liquidity: ls };
     const showBreakdown = isPro() || isTrialActive();
+    const sigData = _sygnalSignalCache[market.ticker] || {};
+    const confidencePct = sigData.confidence ? Math.round(sigData.confidence * 50) : 0;
     const breakdownHtml = showBreakdown ? `
         <div class="score-breakdown">
-            <div class="score-factor-row"><span class="score-factor-name">Price Position</span><div class="score-factor-bar"><div class="score-factor-fill" style="width:${factors.price/20*100}%;background:var(--accent);"></div></div><span class="score-factor-pts">${factors.price}/20</span></div>
+            <div class="score-factor-row"><span class="score-factor-name">Value Zone</span><div class="score-factor-bar"><div class="score-factor-fill" style="width:${factors.price/22*100}%;background:var(--accent);"></div></div><span class="score-factor-pts">${factors.price}/22</span></div>
             <div class="score-factor-row"><span class="score-factor-name">Volume</span><div class="score-factor-bar"><div class="score-factor-fill" style="width:${factors.volume/20*100}%;background:var(--green);"></div></div><span class="score-factor-pts">${factors.volume}/20</span></div>
-            <div class="score-factor-row"><span class="score-factor-name">Momentum</span><div class="score-factor-bar"><div class="score-factor-fill" style="width:${factors.momentum/20*100}%;background:var(--gold);"></div></div><span class="score-factor-pts">${factors.momentum}/20</span></div>
-            <div class="score-factor-row"><span class="score-factor-name">Cross-Platform</span><div class="score-factor-bar"><div class="score-factor-fill" style="width:${factors.edge/20*100}%;background:var(--purple);"></div></div><span class="score-factor-pts">${factors.edge}/20</span></div>
-            <div class="score-factor-row"><span class="score-factor-name">Liquidity</span><div class="score-factor-bar"><div class="score-factor-fill" style="width:${factors.liquidity/19*100}%;background:#4dc9ff;"></div></div><span class="score-factor-pts">${factors.liquidity}/19</span></div>
+            <div class="score-factor-row"><span class="score-factor-name">Momentum</span><div class="score-factor-bar"><div class="score-factor-fill" style="width:${factors.momentum/22*100}%;background:var(--gold);"></div></div><span class="score-factor-pts">${factors.momentum}/22</span></div>
+            <div class="score-factor-row"><span class="score-factor-name">Cross-Platform</span><div class="score-factor-bar"><div class="score-factor-fill" style="width:${factors.edge/25*100}%;background:var(--purple);"></div></div><span class="score-factor-pts">${factors.edge}/25</span></div>
+            <div class="score-factor-row"><span class="score-factor-name">Liquidity</span><div class="score-factor-bar"><div class="score-factor-fill" style="width:${factors.liquidity/11*100}%;background:#4dc9ff;"></div></div><span class="score-factor-pts">${factors.liquidity}/11</span></div>
+            <div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--border);font-size:11px;color:var(--text-dim);">
+                Signal confidence: <b style="color:var(--text)">${confidencePct}%</b> · YES weight: ${sigData.yesWeight || 0} · NO weight: ${sigData.noWeight || 0}
+            </div>
         </div>
     ` : `
         <div class="score-breakdown-locked" onclick="showProUpsell('Score Breakdown')">
