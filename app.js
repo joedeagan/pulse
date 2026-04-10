@@ -162,7 +162,9 @@ function switchTab(tab, btn) {
     const compareView = [compareEl];
     const alertsView = [alertsEl];
     const newsView = [newsPanelEl];
-    const allSections = [...marketsView, ...botView, ...portfolioView, ...arbView, ...corrView, ...trendingView, ...leaguesView, ...compareView, ...alertsView, ...newsView];
+    const profileEl = document.getElementById('profile-panel');
+    const profileView = [profileEl];
+    const allSections = [...marketsView, ...botView, ...portfolioView, ...arbView, ...corrView, ...trendingView, ...leaguesView, ...compareView, ...alertsView, ...newsView, ...profileView];
 
     // Hide everything
     allSections.forEach(el => { if (el) el.classList.add('view-hidden'); });
@@ -179,6 +181,7 @@ function switchTab(tab, btn) {
     else if (tab === 'leagues') { visible = leaguesView; buildLeaguePanel(); }
     else if (tab === 'compare') { visible = compareView; buildComparePanel(); }
     else if (tab === 'alerts') { visible = alertsView; renderAlertRules(); }
+    else if (tab === 'profile') { visible = profileView; if (typeof buildProfilePanel === 'function') buildProfilePanel(); }
 
     visible.forEach(el => { if (el) el.classList.remove('view-hidden'); });
 
@@ -5676,3 +5679,684 @@ if ('serviceWorker' in navigator) {
     var account = document.getElementById('mm-account');
     if (account) account.onclick = function(e) { e.preventDefault(); closeMenu(); handleAuthAction(); };
 })();
+// ══════════════════════════════════════════════
+// ONBOARDING TOUR
+// ══════════════════════════════════════════════
+function shouldShowOnboarding() {
+    return !localStorage.getItem('sygnal-onboarding-done') && !localStorage.getItem('sygnal-account-email');
+}
+
+function startOnboarding() {
+    const steps = [
+        {
+            title: 'Welcome to Sygnal',
+            text: 'The smartest way to trade prediction markets. We analyze Kalshi & Polymarket so you don\'t have to.',
+            icon: '◆',
+            highlight: null,
+        },
+        {
+            title: 'Sygnal Score',
+            text: 'Every market gets a 0-99 score based on 5 factors: price value, volume, momentum, cross-platform edge, and liquidity. Higher = better opportunity.',
+            icon: '▲',
+            highlight: '.card-sygnal-footer',
+        },
+        {
+            title: 'BUY Signals',
+            text: 'We tell you WHAT to trade and WHY. BUY YES, BUY NO, LEAN, or HOLD — with full reasoning for Pro members.',
+            icon: '★',
+            highlight: '.card-signal',
+        },
+        {
+            title: 'Live Trading Bot',
+            text: 'Our bot trades real money on Kalshi using Sygnal Scores. Watch its P&L live — proof the system works.',
+            icon: '◎',
+            highlight: null,
+        },
+        {
+            title: 'Daily Challenge',
+            text: 'Pick 3 markets each day and track your accuracy. Build a streak and earn badges.',
+            icon: '◇',
+            highlight: '#daily-challenge-widget',
+        },
+        {
+            title: 'Cross-Platform Edge',
+            text: 'Only Sygnal sees both Kalshi AND Polymarket. When they disagree on price, that\'s your edge.',
+            icon: '◈',
+            highlight: null,
+        },
+        {
+            title: 'You\'re Ready!',
+            text: 'Tap any market card to see the full analysis. Create a free account to save your watchlist and start paper trading.',
+            icon: '✦',
+            highlight: null,
+        },
+    ];
+
+    let currentStep = 0;
+
+    // Hide distracting elements during tour
+    const dcWidget = document.getElementById('daily-challenge-widget');
+    if (dcWidget) dcWidget.style.display = 'none';
+    const accBanner = document.getElementById('accuracy-banner');
+    if (accBanner) accBanner.style.display = 'none';
+
+    function renderStep() {
+        const existing = document.getElementById('onboarding-overlay');
+        if (existing) existing.remove();
+
+        const step = steps[currentStep];
+        const isLast = currentStep === steps.length - 1;
+
+        const overlay = document.createElement('div');
+        overlay.id = 'onboarding-overlay';
+        overlay.className = 'onboarding-overlay';
+        overlay.innerHTML = `
+            <div class="onboarding-card">
+                <div class="onboarding-progress">
+                    ${steps.map((_, i) => `<div class="onboarding-dot ${i === currentStep ? 'active' : i < currentStep ? 'done' : ''}"></div>`).join('')}
+                </div>
+                <div class="onboarding-icon">${step.icon}</div>
+                <h3 class="onboarding-title">${step.title}</h3>
+                <p class="onboarding-text">${step.text}</p>
+                <div class="onboarding-btns">
+                    ${currentStep > 0 ? '<button class="onboarding-btn secondary" id="ob-back">Back</button>' : ''}
+                    <button class="onboarding-btn primary" id="ob-next">${isLast ? 'Get Started' : 'Next'}</button>
+                </div>
+                <button class="onboarding-skip" id="ob-skip">Skip tour</button>
+            </div>
+        `;
+        document.body.appendChild(overlay);
+
+        // Highlight element if specified
+        if (step.highlight) {
+            const el = document.querySelector(step.highlight);
+            if (el) {
+                el.classList.add('onboarding-highlight');
+                el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+        }
+
+        document.getElementById('ob-next').onclick = () => {
+            clearHighlights();
+            if (isLast) {
+                finishOnboarding();
+            } else {
+                currentStep++;
+                renderStep();
+            }
+        };
+        if (document.getElementById('ob-back')) {
+            document.getElementById('ob-back').onclick = () => {
+                clearHighlights();
+                currentStep--;
+                renderStep();
+            };
+        }
+        document.getElementById('ob-skip').onclick = () => {
+            clearHighlights();
+            finishOnboarding();
+        };
+    }
+
+    function clearHighlights() {
+        document.querySelectorAll('.onboarding-highlight').forEach(el => el.classList.remove('onboarding-highlight'));
+    }
+
+    function finishOnboarding() {
+        localStorage.setItem('sygnal-onboarding-done', 'true');
+        const overlay = document.getElementById('onboarding-overlay');
+        if (overlay) overlay.remove();
+        clearHighlights();
+        // Restore hidden elements
+        if (dcWidget) dcWidget.style.display = '';
+        if (accBanner) accBanner.style.display = '';
+        // Show signup after tour
+        setTimeout(() => showAuthPage(), 500);
+    }
+
+    renderStep();
+}
+
+// Start onboarding after markets load
+setTimeout(() => {
+    if (shouldShowOnboarding()) startOnboarding();
+}, 4000);
+
+// Run smart money detection every 5 min
+setInterval(() => {
+    if (allMarketCards.length) detectSmartMoney(allMarketCards.map(c => c.market));
+}, 300000);
+
+// Run alert checks every 2 minutes
+setInterval(() => {
+    checkWatchlistAlerts();
+    evaluateCustomAlertRules();
+}, 120000);
+
+// ── PROFILE PANEL ──
+// ── AUTH PAGE ──
+function showAuthPage() {
+    document.getElementById('auth-overlay').style.display = 'flex';
+}
+
+function switchAuthTab(tab) {
+    document.getElementById('auth-tab-signup').classList.toggle('active', tab === 'signup');
+    document.getElementById('auth-tab-signin').classList.toggle('active', tab === 'signin');
+    document.getElementById('auth-signup-form').style.display = tab === 'signup' ? '' : 'none';
+    document.getElementById('auth-signin-form').style.display = tab === 'signin' ? '' : 'none';
+}
+
+function togglePw(inputId, btn) {
+    const input = document.getElementById(inputId);
+    if (input.type === 'password') {
+        input.type = 'text';
+        btn.textContent = 'Hide';
+    } else {
+        input.type = 'password';
+        btn.textContent = 'Show';
+    }
+}
+
+// Google Client ID — replace with yours from console.cloud.google.com/apis/credentials
+const GOOGLE_CLIENT_ID = '';
+
+function googleSignIn() {
+    if (!GOOGLE_CLIENT_ID) {
+        showToast('Google Sign-In coming soon');
+        return;
+    }
+    google.accounts.id.initialize({
+        client_id: GOOGLE_CLIENT_ID,
+        callback: handleGoogleCredential,
+    });
+    google.accounts.id.prompt();
+}
+
+function handleGoogleCredential(response) {
+    // Decode the JWT to get email and name
+    try {
+        const payload = JSON.parse(atob(response.credential.split('.')[1]));
+        const email = payload.email;
+        const name = payload.name || '';
+        localStorage.setItem('sygnal-account-email', email);
+        if (name) localStorage.setItem('sygnal-account-name', name);
+        isPro(); // Check if Pro email
+        document.getElementById('auth-overlay').style.display = 'none';
+        showToast('Signed in as ' + email);
+        fetch((API_BASE || '') + '/api/signup', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, name, provider: 'google' }),
+        }).catch(() => {});
+        if (document.getElementById('profile-panel') && !document.getElementById('profile-panel').classList.contains('view-hidden')) {
+            buildProfilePanel();
+        }
+    } catch(e) {
+        showToast('Google sign-in failed');
+    }
+}
+
+function submitAuth(mode) {
+    let email, name;
+    if (mode === 'signup') {
+        email = document.getElementById('auth-email')?.value?.trim();
+        name = document.getElementById('auth-name')?.value?.trim();
+    } else {
+        email = document.getElementById('auth-signin-email')?.value?.trim();
+    }
+    if (!email || !email.includes('@')) {
+        showToast('Please enter a valid email');
+        return;
+    }
+    localStorage.setItem('sygnal-account-email', email);
+    if (name) localStorage.setItem('sygnal-account-name', name);
+
+    // Check if this email is Pro
+    isPro(); // Will auto-set sygnal-pro if email is in PRO_EMAILS
+
+    // Send to backend
+    fetch((API_BASE || '') + '/api/signup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, name: name || '' }),
+    }).catch(() => {});
+
+    document.getElementById('auth-overlay').style.display = 'none';
+    showToast(mode === 'signup' ? 'Account created! Welcome to Sygnal' : 'Signed in!');
+
+    // If on profile, refresh it
+    if (document.getElementById('profile-panel') && !document.getElementById('profile-panel').classList.contains('view-hidden')) {
+        buildProfilePanel();
+    }
+}
+
+function buildProfilePanel() {
+    // If no account, show auth page instead
+    if (!localStorage.getItem('sygnal-account-email')) {
+        showAuthPage();
+        return;
+    }
+    const el = document.getElementById('profile-content');
+    if (!el) return;
+    try {
+
+    const email = localStorage.getItem('sygnal-account-email') || '';
+    const name = localStorage.getItem('sygnal-account-name') || '';
+    const pro = isPro();
+    const trialDays = getTrialDaysLeft();
+    const trialActive = isTrialActive();
+
+    // Stats
+    const portfolio = getPaperPortfolio();
+    const trades = portfolio.trades || [];
+    const watchlist = getWatchlist();
+    const alerts = getCustomAlertRules();
+
+    // Accuracy
+    const rawRecord = getTrackRecord();
+    const record = Array.isArray(rawRecord) ? rawRecord : (rawRecord.results || []);
+    const correct = record.filter(r => r.correct).length;
+    const accuracy = record.length > 0 ? ((correct / record.length) * 100).toFixed(0) : '—';
+
+    const proFeatures = [
+        { name: 'Score Breakdown', desc: 'See all 5 factors behind every Sygnal Score', icon: '◆', free: false },
+        { name: 'Mispricing Detector', desc: 'Know when a market is underpriced or overpriced', icon: '▲', free: false },
+        { name: 'Pro Picks', desc: 'Top 3 highest-conviction signals daily', icon: '★', free: false },
+        { name: 'Smart Money Alerts', desc: 'Get notified when big volume flows in', icon: '◈', free: false },
+        { name: 'AI Analysis', desc: 'Deep AI analysis on any market', icon: '⚡', free: false },
+        { name: '30s Refresh', desc: '4x faster data updates (vs 2min free)', icon: '↻', free: false },
+        { name: 'Custom Alerts', desc: 'Build rules: score > 80, price drops 5¢, etc.', icon: '▽', free: false },
+        { name: 'Paper Trading', desc: 'Unlimited simulated trading', icon: '◇', free: '30-day trial' },
+        { name: 'Signal Export', desc: 'Download full signal history as CSV', icon: '↓', free: false },
+        { name: 'Bot Trade Feed', desc: 'See every bot trade with full P&L details', icon: '◎', free: false },
+    ];
+
+    el.innerHTML = `
+        <div class="profile-header">
+            <div class="profile-avatar">${(name || email || 'S').charAt(0).toUpperCase()}</div>
+            <div class="profile-info">
+                <h2 class="profile-name">${name || 'Sygnal User'}</h2>
+                <p class="profile-email">${email || 'No account yet'}</p>
+                <span class="profile-badge ${pro ? 'pro' : trialActive ? 'trial' : 'free'}">${pro ? 'PRO' : trialActive ? trialDays + ' DAYS LEFT' : 'FREE'}</span>
+            </div>
+        </div>
+
+        <div class="profile-stats">
+            <div class="profile-stat"><span class="profile-stat-val">${trades.length}</span><span class="profile-stat-label">Trades</span></div>
+            <div class="profile-stat"><span class="profile-stat-val">${watchlist.length}</span><span class="profile-stat-label">Watchlist</span></div>
+            <div class="profile-stat"><span class="profile-stat-val">${accuracy}%</span><span class="profile-stat-label">Accuracy</span></div>
+            <div class="profile-stat"><span class="profile-stat-val">${alerts.length}</span><span class="profile-stat-label">Alerts</span></div>
+        </div>
+
+        ${!email ? `<div class="profile-cta-card">
+            <h3>Create Your Account</h3>
+            <p>Save your watchlist, trade history, and alert rules across devices.</p>
+            <button class="pro-btn" onclick="showSignupPopup()">Sign Up Free</button>
+        </div>` : ''}
+
+        ${!pro ? `<div class="profile-cta-card pro-cta">
+            <div style="font-size:10px;letter-spacing:3px;color:var(--accent);font-weight:700;margin-bottom:6px;">SYGNAL PRO</div>
+            <h3>Unlock Everything</h3>
+            <p>Score breakdowns, mispricing detection, Pro Picks, smart money alerts, AI analysis, and more.</p>
+            <div style="font-size:24px;font-weight:800;color:var(--text);margin:12px 0;">$9.99<span style="font-size:13px;color:var(--text-dim);font-weight:400;">/month</span></div>
+            <button class="pro-btn" onclick="showProUpsell('Sygnal Pro')">Upgrade to Pro</button>
+        </div>` : ''}
+
+        <div class="profile-features">
+            <h3 style="font-size:13px;letter-spacing:2px;color:var(--text-dim);margin-bottom:12px;">${pro ? 'YOUR PRO FEATURES' : 'FREE vs PRO'}</h3>
+            ${proFeatures.map(f => `
+                <div class="profile-feature-row">
+                    <span class="profile-feature-icon" style="color:${pro ? 'var(--green)' : 'var(--text-dim)'}">${f.icon}</span>
+                    <div class="profile-feature-info">
+                        <span class="profile-feature-name">${f.name}</span>
+                        <span class="profile-feature-desc">${f.desc}</span>
+                    </div>
+                    <span class="profile-feature-status ${pro ? 'unlocked' : f.free ? 'trial' : 'locked'}">${pro ? '✓' : f.free || '🔒'}</span>
+                </div>
+            `).join('')}
+        </div>
+
+        ${buildAchievementsSection()}
+
+        <div class="profile-actions" style="display:flex;gap:10px;justify-content:center;">
+            ${email ? `<button class="profile-action-btn" onclick="showReferralPanel()">Invite Friends</button>` : ''}
+            ${email ? `<button class="profile-action-btn" onclick="localStorage.removeItem('sygnal-account-email'); localStorage.removeItem('sygnal-account-name'); localStorage.removeItem('sygnal-pro'); buildProfilePanel(); showToast('Signed out');">Sign Out</button>` : ''}
+        </div>
+    `;
+    } catch(e) { el.innerHTML = '<p style="color:var(--red);">Error loading profile: ' + e.message + '</p>'; }
+}
+
+// ══════════════════════════════════════════════
+// CATEGORY HUB PAGES
+// ══════════════════════════════════════════════
+function buildCategoryHub(category) {
+    const grid = document.querySelector('.market-grid');
+    if (!grid) return;
+    // Filter to category and sort by score
+    setFilter(category, document.querySelector(`.chip[onclick*="'${category}'"]`));
+    // Scroll to markets
+    document.getElementById('markets')?.scrollIntoView({ behavior: 'smooth' });
+}
+
+// ══════════════════════════════════════════════
+// REFERRAL PROGRAM
+// ══════════════════════════════════════════════
+function getReferralCode() {
+    const email = localStorage.getItem('sygnal-account-email');
+    if (!email) return null;
+    return btoa(email).replace(/=/g, '').substring(0, 12);
+}
+
+function getReferralLink() {
+    const code = getReferralCode();
+    if (!code) return 'https://sygnalmarkets.com';
+    return `https://sygnalmarkets.com?ref=${code}`;
+}
+
+function showReferralPanel() {
+    const email = localStorage.getItem('sygnal-account-email');
+    if (!email) { showAuthPage(); return; }
+    const code = getReferralCode();
+    const link = getReferralLink();
+
+    const existing = document.querySelector('.pro-modal');
+    if (existing) existing.remove();
+    const modal = document.createElement('div');
+    modal.className = 'pro-modal';
+    modal.innerHTML = `
+        <div class="pro-modal-content">
+            <div style="font-size:10px;letter-spacing:3px;color:var(--green);font-weight:700;margin-bottom:8px;">REFER & EARN</div>
+            <h3 style="margin:0 0 8px;font-size:18px;color:var(--text);">Invite Friends, Get Pro Free</h3>
+            <p style="color:var(--text-dim);font-size:13px;margin:0 0 16px;line-height:1.5;">Every 3 friends who sign up = 1 free month of Sygnal Pro.</p>
+            <div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:12px;margin-bottom:12px;word-break:break-all;font-size:12px;color:var(--accent);">${link}</div>
+            <button class="pro-btn" onclick="navigator.clipboard?.writeText('${link}'); showToast('Link copied!');">Copy Referral Link</button>
+            <button onclick="this.closest('.pro-modal').remove()" style="background:none;border:none;color:var(--text-dim);font-size:12px;cursor:pointer;margin-top:10px;">Close</button>
+        </div>
+    `;
+    document.body.appendChild(modal);
+}
+
+// Check for referral on load
+(function() {
+    const params = new URLSearchParams(window.location.search);
+    const ref = params.get('ref');
+    if (ref) {
+        localStorage.setItem('sygnal-referred-by', ref);
+        history.replaceState({}, '', '/');
+    }
+})();
+
+// ══════════════════════════════════════════════
+// ANNUAL PRICING
+// ══════════════════════════════════════════════
+function showPricingModal() {
+    const existing = document.querySelector('.pro-modal');
+    if (existing) existing.remove();
+    const modal = document.createElement('div');
+    modal.className = 'pro-modal';
+    modal.innerHTML = `
+        <div class="pro-modal-content" style="max-width:500px;">
+            <div style="font-size:10px;letter-spacing:3px;color:var(--accent);font-weight:700;margin-bottom:8px;">SYGNAL PRO</div>
+            <h3 style="margin:0 0 16px;font-size:18px;color:var(--text);">Choose Your Plan</h3>
+            <div style="display:flex;gap:12px;">
+                <div class="pricing-card" onclick="startProCheckout()" style="flex:1;padding:20px;border:1px solid var(--border);border-radius:12px;cursor:pointer;text-align:center;">
+                    <div style="font-size:12px;color:var(--text-dim);letter-spacing:1px;">MONTHLY</div>
+                    <div style="font-size:28px;font-weight:800;color:var(--text);margin:8px 0;">$9.99</div>
+                    <div style="font-size:12px;color:var(--text-dim);">/month</div>
+                </div>
+                <div class="pricing-card" onclick="startProCheckout()" style="flex:1;padding:20px;border:2px solid var(--accent);border-radius:12px;cursor:pointer;text-align:center;position:relative;">
+                    <div style="position:absolute;top:-10px;left:50%;transform:translateX(-50%);background:var(--accent);color:#fff;font-size:10px;font-weight:700;padding:2px 10px;border-radius:10px;">SAVE 33%</div>
+                    <div style="font-size:12px;color:var(--text-dim);letter-spacing:1px;">ANNUAL</div>
+                    <div style="font-size:28px;font-weight:800;color:var(--text);margin:8px 0;">$79</div>
+                    <div style="font-size:12px;color:var(--text-dim);">/year ($6.58/mo)</div>
+                </div>
+            </div>
+            <button onclick="this.closest('.pro-modal').remove()" style="background:none;border:none;color:var(--text-dim);font-size:12px;cursor:pointer;margin-top:16px;">Maybe later</button>
+        </div>
+    `;
+    document.body.appendChild(modal);
+}
+
+// ══════════════════════════════════════════════
+// NEWS SENTIMENT ON MARKET DETAIL
+// ══════════════════════════════════════════════
+async function loadNewsSentiment(market) {
+    const container = document.getElementById('detail-news');
+    if (!container) return;
+    const query = (market.question || '').split(' ').slice(0, 4).join(' ');
+    container.innerHTML = '<p style="color:var(--text-dim);font-size:12px;">Loading news...</p>';
+    try {
+        const resp = await fetch(API_BASE + '/api/news/' + encodeURIComponent(query));
+        if (!resp.ok) { container.innerHTML = ''; return; }
+        const data = await resp.json();
+        if (!data.articles || !data.articles.length) { container.innerHTML = ''; return; }
+        const toneColor = data.avgTone > 1 ? 'var(--green)' : data.avgTone < -1 ? 'var(--red)' : 'var(--text-dim)';
+        const toneLabel = data.avgTone > 1 ? 'Positive' : data.avgTone < -1 ? 'Negative' : 'Neutral';
+        container.innerHTML = `
+            <div class="news-sentiment-section">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+                    <h4 style="font-size:13px;color:var(--text-dim);letter-spacing:1px;margin:0;">NEWS SENTIMENT</h4>
+                    <span style="color:${toneColor};font-size:12px;font-weight:700;">${toneLabel} (${data.avgTone > 0 ? '+' : ''}${data.avgTone})</span>
+                </div>
+                ${data.articles.slice(0, 3).map(a => `
+                    <a href="${a.url}" target="_blank" class="news-article-row">
+                        <span class="news-article-title">${a.title.substring(0, 60)}${a.title.length > 60 ? '...' : ''}</span>
+                        <span class="news-article-source">${a.source}</span>
+                    </a>
+                `).join('')}
+            </div>
+        `;
+    } catch { container.innerHTML = ''; }
+}
+
+// ══════════════════════════════════════════════
+// ORDER BOOK VISUALIZATION
+// ══════════════════════════════════════════════
+async function loadOrderBook(market) {
+    if (!isPro()) return;
+    const container = document.getElementById('detail-orderbook');
+    if (!container || market.source !== 'kalshi') { if (container) container.innerHTML = ''; return; }
+    container.innerHTML = '<p style="color:var(--text-dim);font-size:12px;">Loading order book...</p>';
+    try {
+        const resp = await fetch(API_BASE + '/api/orderbook/' + market.ticker);
+        if (!resp.ok) { container.innerHTML = ''; return; }
+        const data = await resp.json();
+        const ob = data.orderbook || data;
+        const yesBids = (ob.yes || []).slice(0, 5);
+        const noBids = (ob.no || []).slice(0, 5);
+        if (!yesBids.length && !noBids.length) { container.innerHTML = ''; return; }
+        const maxQty = Math.max(...[...yesBids, ...noBids].map(l => l[1] || 0), 1);
+        container.innerHTML = `
+            <div class="orderbook-section">
+                <h4 style="font-size:13px;color:var(--text-dim);letter-spacing:1px;margin:0 0 8px;">ORDER BOOK</h4>
+                <div class="orderbook-grid">
+                    <div class="orderbook-side">
+                        <div class="orderbook-label" style="color:var(--green);">YES BIDS</div>
+                        ${yesBids.map(l => {
+                            const pct = (l[1] / maxQty * 100).toFixed(0);
+                            return `<div class="ob-row"><div class="ob-bar-bg"><div class="ob-bar yes" style="width:${pct}%"></div></div><span class="ob-price">${(l[0]*100).toFixed(0)}¢</span><span class="ob-qty">${l[1]}</span></div>`;
+                        }).join('')}
+                    </div>
+                    <div class="orderbook-side">
+                        <div class="orderbook-label" style="color:var(--red);">NO BIDS</div>
+                        ${noBids.map(l => {
+                            const pct = (l[1] / maxQty * 100).toFixed(0);
+                            return `<div class="ob-row"><div class="ob-bar-bg"><div class="ob-bar no" style="width:${pct}%"></div></div><span class="ob-price">${(l[0]*100).toFixed(0)}¢</span><span class="ob-qty">${l[1]}</span></div>`;
+                        }).join('')}
+                    </div>
+                </div>
+            </div>
+        `;
+    } catch { container.innerHTML = ''; }
+}
+
+// ══════════════════════════════════════════════
+// DAILY CHALLENGE
+// ══════════════════════════════════════════════
+function getDailyChallenge() {
+    const today = new Date().toISOString().split('T')[0];
+    const saved = JSON.parse(localStorage.getItem('sygnal-daily-challenge') || '{}');
+    if (saved.date === today) return saved;
+    return { date: today, picks: [], results: [] };
+}
+
+function saveDailyChallenge(data) {
+    localStorage.setItem('sygnal-daily-challenge', JSON.stringify(data));
+}
+
+function addDailyPick(market, side) {
+    const challenge = getDailyChallenge();
+    if (challenge.picks.length >= 3) { showToast('Already picked 3 today!'); return; }
+    if (challenge.picks.find(p => p.ticker === market.ticker)) { showToast('Already picked this market'); return; }
+    challenge.picks.push({ ticker: market.ticker, question: market.question, side, price: market.yes, time: Date.now() });
+    saveDailyChallenge(challenge);
+    showToast(`Pick ${challenge.picks.length}/3 added!`);
+    buildDailyChallengeWidget();
+}
+
+function buildDailyChallengeWidget() {
+    let widget = document.getElementById('daily-challenge-widget');
+    if (!widget) return;
+    const ch = getDailyChallenge();
+    const streak = parseInt(localStorage.getItem('sygnal-challenge-streak') || '0');
+    const history = getChallengeHistory();
+    const totalCorrect = history.reduce((s, d) => s + (d.correct || 0), 0);
+    const totalPicks = history.reduce((s, d) => s + (d.total || 0), 0);
+    const accuracy = totalPicks > 0 ? ((totalCorrect / totalPicks) * 100).toFixed(0) : '—';
+
+    widget.innerHTML = `
+        <div class="daily-challenge">
+            <div class="dc-header">
+                <span class="dc-title">DAILY CHALLENGE</span>
+                <span class="dc-streak">${streak > 0 ? streak + ' day streak 🔥' : 'Start your streak!'}</span>
+            </div>
+            <p class="dc-desc">Pick 3 markets today. Track your accuracy.</p>
+            <div class="dc-picks">
+                ${[0,1,2].map(i => {
+                    const pick = ch.picks[i];
+                    if (pick) {
+                        return `<div class="dc-pick filled"><span class="dc-pick-side ${pick.side}">${pick.side.toUpperCase()}</span><span class="dc-pick-q">${shortenTitle(pick.question, 30)}</span></div>`;
+                    }
+                    return `<div class="dc-pick empty"><span class="dc-pick-num">${i + 1}</span><span class="dc-pick-q">Tap a market to pick</span></div>`;
+                }).join('')}
+            </div>
+            ${totalPicks > 0 ? `
+            <div class="dc-leaderboard">
+                <div class="dc-lb-header">YOUR TRACK RECORD</div>
+                <div class="dc-lb-stats">
+                    <span class="dc-lb-stat"><b>${totalCorrect}</b>/${totalPicks} correct</span>
+                    <span class="dc-lb-stat"><b>${accuracy}%</b> accuracy</span>
+                    <span class="dc-lb-stat"><b>${streak}</b> streak</span>
+                </div>
+                ${history.length > 0 ? `<div class="dc-lb-history">${history.slice(-7).reverse().map(d =>
+                    `<div class="dc-lb-day"><span class="dc-lb-date">${d.date?.substring(5) || '?'}</span><span class="dc-lb-result ${d.correct > d.total / 2 ? 'win' : 'loss'}">${d.correct}/${d.total}</span></div>`
+                ).join('')}</div>` : ''}
+            </div>` : ''}
+        </div>
+    `;
+}
+
+function getChallengeHistory() {
+    try { return JSON.parse(localStorage.getItem('sygnal-challenge-history') || '[]'); }
+    catch { return []; }
+}
+
+function recordChallengeResult(correct, total) {
+    const history = getChallengeHistory();
+    const today = new Date().toISOString().split('T')[0];
+    if (history.length && history[history.length-1].date === today) return; // Already recorded
+    history.push({ date: today, correct, total });
+    if (history.length > 30) history.shift();
+    localStorage.setItem('sygnal-challenge-history', JSON.stringify(history));
+    // Update streak
+    let streak = 0;
+    for (let i = history.length - 1; i >= 0; i--) {
+        if (history[i].correct > history[i].total / 2) streak++;
+        else break;
+    }
+    localStorage.setItem('sygnal-challenge-streak', streak.toString());
+}
+
+// ══════════════════════════════════════════════
+// ACHIEVEMENT BADGES
+// ══════════════════════════════════════════════
+function getAchievements() {
+    return JSON.parse(localStorage.getItem('sygnal-achievements') || '[]');
+}
+
+function checkAchievements() {
+    const earned = getAchievements();
+    const email = localStorage.getItem('sygnal-account-email');
+    const portfolio = getPaperPortfolio();
+    const watchlist = getWatchlist();
+    const challenge = getDailyChallenge();
+    const streak = parseInt(localStorage.getItem('sygnal-challenge-streak') || '0');
+
+    const badges = [
+        { id: 'first-visit', name: 'Explorer', desc: 'Visited Sygnal Markets', icon: '◆', check: () => true },
+        { id: 'account', name: 'Member', desc: 'Created an account', icon: '★', check: () => !!email },
+        { id: 'first-trade', name: 'Trader', desc: 'Made your first paper trade', icon: '▲', check: () => portfolio.trades.length > 0 },
+        { id: 'watchlist-5', name: 'Watchful', desc: 'Added 5 markets to watchlist', icon: '◎', check: () => watchlist.length >= 5 },
+        { id: '10-trades', name: 'Active Trader', desc: 'Made 10 paper trades', icon: '◇', check: () => portfolio.trades.length >= 10 },
+        { id: 'daily-3', name: 'Challenger', desc: 'Completed a daily challenge', icon: '▽', check: () => challenge.picks.length >= 3 },
+        { id: 'streak-3', name: 'Consistent', desc: '3-day challenge streak', icon: '◈', check: () => streak >= 3 },
+        { id: 'streak-7', name: 'Dedicated', desc: '7-day challenge streak', icon: '✦', check: () => streak >= 7 },
+        { id: 'pro', name: 'Pro Member', desc: 'Upgraded to Sygnal Pro', icon: '♛', check: () => isPro() },
+    ];
+
+    let newBadge = false;
+    for (const b of badges) {
+        if (!earned.includes(b.id) && b.check()) {
+            earned.push(b.id);
+            newBadge = true;
+            showToast(`Badge earned: ${b.name}!`);
+        }
+    }
+    if (newBadge) localStorage.setItem('sygnal-achievements', JSON.stringify(earned));
+    return badges.map(b => ({ ...b, earned: earned.includes(b.id) }));
+}
+
+function buildAchievementsSection() {
+    const badges = checkAchievements();
+    const earned = badges.filter(b => b.earned).length;
+    return `
+        <div class="achievements-section">
+            <h3 style="font-size:13px;letter-spacing:2px;color:var(--text-dim);margin-bottom:10px;">ACHIEVEMENTS (${earned}/${badges.length})</h3>
+            <div class="badge-grid">
+                ${badges.map(b => `
+                    <div class="badge-item ${b.earned ? 'earned' : 'locked'}">
+                        <span class="badge-icon">${b.icon}</span>
+                        <span class="badge-name">${b.name}</span>
+                        <span class="badge-desc">${b.earned ? b.desc : '???'}</span>
+                    </div>
+                `).join('')}
+            </div>
+        </div>
+    `;
+}
+
+// ══════════════════════════════════════════════
+// IMPROVED PUSH NOTIFICATIONS
+// ══════════════════════════════════════════════
+function scheduleSmartNotifications() {
+    if (!notificationsEnabled) return;
+    // High-score alert: notify when any market hits score 80+
+    for (const card of allMarketCards) {
+        const score = calcSygnalScore(card.market, 0);
+        const sig = getSygnalSignal(card.market.ticker);
+        if (score >= 80 && sig.signal.includes('BUY')) {
+            sendNotification(
+                `High Score Alert: ${score}/99`,
+                `${shortenTitle(card.market.question, 40)} — ${sig.signal}`,
+                'sygnal-highscore-' + card.market.ticker
+            );
+        }
+    }
+}
+
+// ── SERVICE WORKER (PWA) ──
+if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/sw.js')
+        .then(reg => console.log('SW registered:', reg.scope))
+        .catch(err => console.warn('SW failed:', err));
+}

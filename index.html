@@ -177,7 +177,7 @@
 
     <!-- Navigation -->
     <nav>
-        <div class="logo">
+        <div class="logo" onclick="switchTab('markets', document.querySelector('.nav-links > a'))" style="cursor:pointer;">
             <canvas id="nav-orb" width="32" height="32" class="logo-icon"></canvas>
             <span class="logo-text">SYGNAL</span>
             <span class="logo-tag">Trade Smarter.</span>
@@ -229,6 +229,14 @@
                 <div class="settings-item" onclick="clearWatchlist()">
                     <span>&#9734;</span>
                     <span>Clear Watchlist</span>
+                </div>
+                <div class="settings-item" onclick="switchTab('profile', null); document.getElementById('settings-menu').classList.remove('open');">
+                    <span>&#9679;</span>
+                    <span>Profile</span>
+                </div>
+                <div class="settings-item" onclick="localStorage.removeItem('sygnal-onboarding-done'); startOnboarding(); document.getElementById('settings-menu').classList.remove('open');">
+                    <span>&#9656;</span>
+                    <span>Replay Tour</span>
                 </div>
                 <div class="settings-divider"></div>
                 <div class="settings-item" id="auth-settings-item" onclick="handleAuthAction()">
@@ -494,6 +502,14 @@
     <!-- AI Market Brief -->
     <section id="ai-brief">
         <div id="ai-brief-content"></div>
+    </section>
+
+    <!-- Daily Challenge Widget -->
+    <div id="daily-challenge-widget"></div>
+
+    <!-- Profile Panel -->
+    <section id="profile-panel" class="view-hidden">
+        <div id="profile-content"></div>
     </section>
 
     <!-- Email Signup -->
@@ -795,9 +811,10 @@
         <a href="javascript:void(0)" ontouchend="event.preventDefault();document.getElementById('mobile-more-menu').style.display='none';switchTab('leagues',null)" onclick="document.getElementById('mobile-more-menu').style.display='none';switchTab('leagues',null)">Leagues</a>
         <a href="javascript:void(0)" ontouchend="event.preventDefault();document.getElementById('mobile-more-menu').style.display='none';switchTab('compare',null)" onclick="document.getElementById('mobile-more-menu').style.display='none';switchTab('compare',null)">Compare</a>
         <a href="javascript:void(0)" ontouchend="event.preventDefault();document.getElementById('mobile-more-menu').style.display='none';switchTab('alerts',null)" onclick="document.getElementById('mobile-more-menu').style.display='none';switchTab('alerts',null)">Alerts</a>
+        <a href="javascript:void(0)" ontouchend="event.preventDefault();document.getElementById('mobile-more-menu').style.display='none';switchTab('profile',null)" onclick="document.getElementById('mobile-more-menu').style.display='none';switchTab('profile',null)">Profile</a>
         <a href="javascript:void(0)" ontouchend="event.preventDefault();document.getElementById('mobile-more-menu').style.display='none';setTimeout(function(){toggleSettings()},100)" onclick="document.getElementById('mobile-more-menu').style.display='none';setTimeout(function(){toggleSettings()},100)">Settings</a>
         <a href="javascript:void(0)" ontouchend="event.preventDefault();document.getElementById('mobile-more-menu').style.display='none';upgradeToPro()" onclick="document.getElementById('mobile-more-menu').style.display='none';upgradeToPro()" style="color:#0088ff;font-weight:700;">Sygnal Pro</a>
-        <a href="javascript:void(0)" ontouchend="event.preventDefault();document.getElementById('mobile-more-menu').style.display='none';handleAuthAction()" onclick="document.getElementById('mobile-more-menu').style.display='none';handleAuthAction()">Account</a>
+        <a href="javascript:void(0)" ontouchend="event.preventDefault();document.getElementById('mobile-more-menu').style.display='none';localStorage.removeItem('sygnal-onboarding-done');startOnboarding()" onclick="document.getElementById('mobile-more-menu').style.display='none';localStorage.removeItem('sygnal-onboarding-done');startOnboarding()">Replay Tour</a>
     </div>
 
     <script>
@@ -809,6 +826,6 @@
         if (window.caches) caches.keys().then(function(k) { k.forEach(function(c) { caches.delete(c); }); });
     }
     </script>
-    <script src="app.js?v=24"></script>
+    <script src="app.js?v=25"></script>
 </body>
 </html>
