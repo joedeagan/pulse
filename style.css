@@ -2996,6 +2996,34 @@ body.light .mobile-more-menu a:hover { color: #1a1a2e; background: rgba(0,0,0,0.
     .autopilot-panel { right: 8px; left: 8px; width: auto; top: 50px; }
 }
 
+/* ── TRIAL BADGE ── */
+.trial-badge {
+    text-align: center;
+    padding: 10px 16px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    margin-bottom: 16px;
+    font-family: var(--font);
+}
+.trial-badge.trial {
+    background: rgba(0, 136, 255, 0.08);
+    border: 1px solid rgba(0, 136, 255, 0.2);
+    color: var(--accent);
+}
+.trial-badge.expired {
+    background: rgba(255, 59, 92, 0.08);
+    border: 1px solid rgba(255, 59, 92, 0.2);
+    color: var(--red);
+}
+.trial-badge.pro {
+    background: rgba(0, 214, 143, 0.08);
+    border: 1px solid rgba(0, 214, 143, 0.2);
+    color: var(--green);
+    letter-spacing: 3px;
+    font-weight: 800;
+}
+
 /* ── SYGNAL PRO MODAL ── */
 .pro-modal {
     position: fixed;

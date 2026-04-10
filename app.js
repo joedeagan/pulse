@@ -2503,6 +2503,7 @@ function savePaperPortfolio(portfolio) {
 }
 
 function placePaperTrade() {
+    if (!requireProOrTrial('Paper Trading')) return;
     if (!currentDetailMarket) return;
     const side = document.getElementById('paper-side').value;
     const amount = parseInt(document.getElementById('paper-amount').value) || 0;
@@ -2544,6 +2545,23 @@ function placePaperTrade() {
 function loadPortfolio() {
     const portfolio = getPaperPortfolio();
     const trades = portfolio.trades || [];
+
+    // Show trial status banner
+    const portfolioPanel = document.getElementById('portfolio-panel');
+    let trialBanner = document.getElementById('trial-banner');
+    if (!trialBanner) {
+        trialBanner = document.createElement('div');
+        trialBanner.id = 'trial-banner';
+        portfolioPanel?.insertBefore(trialBanner, portfolioPanel.firstChild?.nextSibling);
+    }
+    if (isPro()) {
+        trialBanner.innerHTML = '<div class="trial-badge pro">PRO</div>';
+    } else if (isTrialActive()) {
+        const days = getTrialDaysLeft();
+        trialBanner.innerHTML = `<div class="trial-badge trial">${days} day${days !== 1 ? 's' : ''} left on free trial · <a href="#" onclick="showProUpsell('Paper Trading'); return false;" style="color:var(--accent);text-decoration:underline;">Upgrade</a></div>`;
+    } else {
+        trialBanner.innerHTML = '<div class="trial-badge expired">Trial expired · <a href="#" onclick="showProUpsell(\'Paper Trading\'); return false;" style="color:var(--accent);text-decoration:underline;">Upgrade to Pro</a></div>';
+    }
 
     document.getElementById('paper-balance').textContent = '$' + portfolio.balance.toFixed(2);
 
@@ -4368,6 +4386,117 @@ function shareRecap() {
         navigator.clipboard.writeText(text).then(() => showToast('Recap copied!'));
     }
 }
+
+// ── 30-DAY FREE TRIAL ──
+const TRIAL_DAYS = 30;
+
+function getTrialStart() {
+    let start = localStorage.getItem('sygnal-trial-start');
+    if (!start) {
+        start = Date.now().toString();
+        localStorage.setItem('sygnal-trial-start', start);
+    }
+    return parseInt(start);
+}
+
+function getTrialDaysLeft() {
+    const start = getTrialStart();
+    const elapsed = Date.now() - start;
+    const daysElapsed = Math.floor(elapsed / (1000 * 60 * 60 * 24));
+    return Math.max(0, TRIAL_DAYS - daysElapsed);
+}
+
+function isTrialActive() {
+    return getTrialDaysLeft() > 0;
+}
+
+function requireProOrTrial(feature) {
+    if (isPro() || isTrialActive()) return true;
+    showTrialExpired(feature);
+    return false;
+}
+
+function showTrialExpired(feature) {
+    const existing = document.querySelector('.pro-modal');
+    if (existing) existing.remove();
+
+    const modal = document.createElement('div');
+    modal.className = 'pro-modal';
+    modal.innerHTML = `
+        <div class="pro-modal-content">
+            <div style="font-size:10px;letter-spacing:3px;color:var(--red);font-weight:700;margin-bottom:8px;">TRIAL EXPIRED</div>
+            <h3 style="margin:0 0 8px;font-size:18px;color:var(--text);">Your 30-Day Trial Has Ended</h3>
+            <p style="color:var(--text-dim);font-size:13px;margin:0 0 16px;line-height:1.5;">Your free trial of ${feature || 'this feature'} has expired. Upgrade to Sygnal Pro for unlimited access to paper trading, AI analysis, custom alerts, and more.</p>
+            <div style="font-size:24px;font-weight:800;color:var(--text);margin-bottom:16px;">$9.99<span style="font-size:13px;color:var(--text-dim);font-weight:400;">/month</span></div>
+            <button class="pro-btn" onclick="startProCheckout()">Upgrade to Pro</button>
+            <button onclick="this.closest('.pro-modal').remove()" style="background:none;border:none;color:var(--text-dim);font-size:12px;cursor:pointer;margin-top:10px;">Maybe later</button>
+        </div>
+    `;
+    document.body.appendChild(modal);
+}
+
+// ── ACCOUNT SIGNUP POPUP ──
+function hasAccount() {
+    return localStorage.getItem('sygnal-account-email') !== null;
+}
+
+function showSignupPopup() {
+    if (hasAccount()) return;
+    // Show after 30 seconds of first visit
+    const existing = document.querySelector('.signup-modal');
+    if (existing) return;
+
+    const daysLeft = getTrialDaysLeft();
+    const modal = document.createElement('div');
+    modal.className = 'pro-modal signup-modal';
+    modal.innerHTML = `
+        <div class="pro-modal-content">
+            <div style="font-size:10px;letter-spacing:3px;color:var(--accent);font-weight:700;margin-bottom:8px;">CREATE YOUR ACCOUNT</div>
+            <h3 style="margin:0 0 8px;font-size:18px;color:var(--text);">Welcome to Sygnal Markets</h3>
+            <p style="color:var(--text-dim);font-size:13px;margin:0 0 6px;line-height:1.5;">Sign up to track your paper trades, save your watchlist, and get market alerts.</p>
+            <p style="color:var(--green);font-size:13px;font-weight:600;margin:0 0 16px;">${daysLeft} days left on your free trial</p>
+            <input type="email" id="signup-modal-email" placeholder="your@email.com" style="width:100%;padding:12px 14px;border-radius:8px;border:1px solid var(--border);background:var(--bg);color:var(--text);font-family:var(--font);font-size:14px;margin-bottom:10px;box-sizing:border-box;">
+            <input type="text" id="signup-modal-name" placeholder="Your name (optional)" style="width:100%;padding:12px 14px;border-radius:8px;border:1px solid var(--border);background:var(--bg);color:var(--text);font-family:var(--font);font-size:14px;margin-bottom:16px;box-sizing:border-box;">
+            <button class="pro-btn" onclick="submitSignupModal()">Create Free Account</button>
+            <button onclick="this.closest('.pro-modal').remove(); localStorage.setItem('sygnal-signup-dismissed', Date.now())" style="background:none;border:none;color:var(--text-dim);font-size:12px;cursor:pointer;margin-top:10px;">Skip for now</button>
+        </div>
+    `;
+    document.body.appendChild(modal);
+}
+
+async function submitSignupModal() {
+    const email = document.getElementById('signup-modal-email')?.value?.trim();
+    const name = document.getElementById('signup-modal-name')?.value?.trim();
+    if (!email || !email.includes('@')) {
+        showToast('Please enter a valid email');
+        return;
+    }
+    localStorage.setItem('sygnal-account-email', email);
+    if (name) localStorage.setItem('sygnal-account-name', name);
+
+    // Send to Beehiiv / backend
+    try {
+        await fetch((API_BASE || '') + '/api/signup', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, name }),
+        });
+    } catch {}
+
+    const modal = document.querySelector('.signup-modal');
+    if (modal) modal.remove();
+    showToast('Account created! Welcome to Sygnal');
+}
+
+// Show signup popup after 30 seconds if no account
+setTimeout(() => {
+    if (!hasAccount()) {
+        const dismissed = localStorage.getItem('sygnal-signup-dismissed');
+        // Don't show again within 24 hours of dismissal
+        if (dismissed && Date.now() - parseInt(dismissed) < 86400000) return;
+        showSignupPopup();
+    }
+}, 30000);
 
 // ── SYGNAL PRO ──
 function isPro() {
