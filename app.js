@@ -686,6 +686,7 @@ function createMarketCard(market, platform, priceChange) {
 // Only SYGNAL can do this: we see BOTH platforms simultaneously
 let _sygnalScoreCache = {};
 let _sygnalSignalCache = {};
+let _sygnalFactorCache = {};
 let _crossPlatformMap = {};
 
 function buildCrossPlatformMap(allMarkets) {
@@ -759,6 +760,10 @@ function computeAllSygnalScores(allMarkets) {
 
         const total = Math.max(1, Math.min(priceScore + volScore + momentumScore + crossScore + liqScore, 99));
         _sygnalScoreCache[m.ticker] = total;
+
+        // Store factor breakdown for Pro detail view
+        if (!_sygnalFactorCache) _sygnalFactorCache = {};
+        _sygnalFactorCache[m.ticker] = { price: priceScore, volume: volScore, momentum: momentumScore, edge: crossScore, liquidity: liqScore };
 
         // ── DIRECTIONAL SIGNAL ──
         let signal = 'HOLD';
@@ -2122,6 +2127,26 @@ function openDetail(market, platform) {
     if (volRaw >= 1e6) ls = 19; else if (volRaw >= 5e5) ls = 16; else if (volRaw >= 1e5) ls = 13;
     else if (volRaw >= 5e4) ls = 10; else if (volRaw >= 1e4) ls = 7; else if (volRaw >= 1e3) ls = 4; else if (volRaw > 0) ls = 1;
 
+    // Build factor breakdown — show bars for Pro, locked for free
+    const factors = _sygnalFactorCache[market.ticker] || { price: ps, volume: vs, momentum: ms, edge: cs, liquidity: ls };
+    const showBreakdown = isPro() || isTrialActive();
+    const breakdownHtml = showBreakdown ? `
+        <div class="score-breakdown">
+            <div class="score-factor-row"><span class="score-factor-name">Price Position</span><div class="score-factor-bar"><div class="score-factor-fill" style="width:${factors.price/20*100}%;background:var(--accent);"></div></div><span class="score-factor-pts">${factors.price}/20</span></div>
+            <div class="score-factor-row"><span class="score-factor-name">Volume</span><div class="score-factor-bar"><div class="score-factor-fill" style="width:${factors.volume/20*100}%;background:var(--green);"></div></div><span class="score-factor-pts">${factors.volume}/20</span></div>
+            <div class="score-factor-row"><span class="score-factor-name">Momentum</span><div class="score-factor-bar"><div class="score-factor-fill" style="width:${factors.momentum/20*100}%;background:var(--gold);"></div></div><span class="score-factor-pts">${factors.momentum}/20</span></div>
+            <div class="score-factor-row"><span class="score-factor-name">Cross-Platform</span><div class="score-factor-bar"><div class="score-factor-fill" style="width:${factors.edge/20*100}%;background:var(--purple);"></div></div><span class="score-factor-pts">${factors.edge}/20</span></div>
+            <div class="score-factor-row"><span class="score-factor-name">Liquidity</span><div class="score-factor-bar"><div class="score-factor-fill" style="width:${factors.liquidity/19*100}%;background:#4dc9ff;"></div></div><span class="score-factor-pts">${factors.liquidity}/19</span></div>
+        </div>
+    ` : `
+        <div class="score-breakdown-locked" onclick="showProUpsell('Score Breakdown')">
+            <div class="score-factor-row blurred"><span class="score-factor-name">Price Position</span><div class="score-factor-bar"><div class="score-factor-fill" style="width:60%;background:var(--accent);opacity:0.3;"></div></div><span class="score-factor-pts">?/20</span></div>
+            <div class="score-factor-row blurred"><span class="score-factor-name">Volume</span><div class="score-factor-bar"><div class="score-factor-fill" style="width:45%;background:var(--green);opacity:0.3;"></div></div><span class="score-factor-pts">?/20</span></div>
+            <div class="score-factor-row blurred"><span class="score-factor-name">Momentum</span><div class="score-factor-bar"><div class="score-factor-fill" style="width:70%;background:var(--gold);opacity:0.3;"></div></div><span class="score-factor-pts">?/20</span></div>
+            <div class="locked-overlay">🔒 Unlock Score Breakdown with Pro</div>
+        </div>
+    `;
+
     document.getElementById('detail-actions').innerHTML = `
         <div class="detail-sygnal-row">
             <div class="detail-sygnal-score" style="border-color:${sygnalColor};">
@@ -2133,9 +2158,9 @@ function openDetail(market, platform) {
                     <span style="color:${sygnalColor};font-weight:700;">${sygnalLabel}</span>
                     <span style="color:${sigColor};background:${sigBg};padding:2px 8px;border-radius:4px;font-size:11px;font-weight:700;">${sig.signal}</span>
                 </div>
-                <span style="color:var(--text-dim);font-size:12px;display:block;">5-factor score: Price ${ps} + Vol ${vs} + Momentum ${ms} + Edge ${cs} + Liq ${ls}</span>
             </div>
         </div>
+        ${breakdownHtml}
         ${crossHtml}
         <div class="detail-btn-row">
             <a class="detail-btn detail-btn-yes" href="${url}" target="_blank">Buy YES on ${platform === 'kalshi' ? 'Kalshi' : 'Polymarket'}</a>
@@ -5126,11 +5151,134 @@ function formatVol(v) {
 }
 
 // ══════════════════════════════════════════════
+// PRO PICKS — Top 3 highest-conviction signals
+// ══════════════════════════════════════════════
+function buildProPicks() {
+    const el = document.getElementById('pro-picks');
+    if (!el || !allMarketCards.length) return;
+    el.style.display = '';
+
+    // Get top signals by score + confidence
+    const picks = allMarketCards
+        .map(c => ({
+            market: c.market,
+            platform: c.platform,
+            score: calcSygnalScore(c.market, 0),
+            sig: getSygnalSignal(c.market.ticker)
+        }))
+        .filter(p => p.sig.signal.includes('BUY') && p.score >= 60)
+        .sort((a, b) => b.score - a.score)
+        .slice(0, 3);
+
+    if (!picks.length) { el.style.display = 'none'; return; }
+
+    const userCanSee = isPro() || isTrialActive();
+
+    el.innerHTML = `
+        <div class="pro-picks-section">
+            <div class="pro-picks-header">
+                <h3>▲ TOP SIGNALS RIGHT NOW</h3>
+                ${!userCanSee ? '<span class="pro-picks-badge">PRO</span>' : '<span class="pro-picks-badge trial">LIVE</span>'}
+            </div>
+            <div class="pro-picks-grid">
+                ${picks.map((p, i) => {
+                    const sigColor = p.sig.signal.includes('YES') ? 'var(--green)' : 'var(--red)';
+                    const title = shortenTitle(p.market.question, 50);
+                    if (userCanSee) {
+                        return `<div class="pro-pick-card" onclick="openDetail(allMarketCards.find(c=>c.market.ticker==='${p.market.ticker}')?.market, '${p.platform}')">
+                            <div class="pro-pick-rank">#${i + 1}</div>
+                            <div class="pro-pick-info">
+                                <div class="pro-pick-title">${title}</div>
+                                <div class="pro-pick-meta">
+                                    <span style="color:${sigColor};font-weight:700;">${p.sig.signal}</span>
+                                    <span>YES ${p.market.yes}¢</span>
+                                    <span>Score: ${p.score}</span>
+                                </div>
+                            </div>
+                        </div>`;
+                    } else {
+                        return `<div class="pro-pick-card locked" onclick="showProUpsell('Pro Picks')">
+                            <div class="pro-pick-rank">#${i + 1}</div>
+                            <div class="pro-pick-info">
+                                <div class="pro-pick-title blurred-text">${title}</div>
+                                <div class="pro-pick-meta blurred-text">
+                                    <span>${p.sig.signal}</span>
+                                    <span>YES ??¢</span>
+                                    <span>Score: ??</span>
+                                </div>
+                            </div>
+                            <div class="pro-pick-lock">🔒</div>
+                        </div>`;
+                    }
+                }).join('')}
+            </div>
+            ${!userCanSee ? '<p class="pro-picks-cta" onclick="showProUpsell(\'Pro Picks\')">Unlock daily Pro Picks →</p>' : ''}
+        </div>
+    `;
+}
+
+// ══════════════════════════════════════════════
+// ACCURACY PROOF BANNER
+// ══════════════════════════════════════════════
+function buildAccuracyBanner() {
+    const el = document.getElementById('accuracy-banner');
+    if (!el) return;
+
+    const record = getTrackRecord();
+    if (record.length < 5) { el.style.display = 'none'; return; }
+
+    const correct = record.filter(r => r.correct).length;
+    const total = record.length;
+    const pct = ((correct / total) * 100).toFixed(0);
+
+    // Only show if accuracy is decent
+    if (pct < 50) { el.style.display = 'none'; return; }
+
+    // Calculate hypothetical profit
+    const avgReturn = record.filter(r => r.correct).reduce((s, r) => s + (r.profit || 0.1), 0) / Math.max(correct, 1);
+    const totalReturn = ((avgReturn * correct - 0.05 * (total - correct)) * 100).toFixed(0);
+
+    el.style.display = '';
+    el.innerHTML = `
+        <div class="accuracy-content">
+            <span class="accuracy-stat">${pct}% accurate</span>
+            <span class="accuracy-text">Sygnal signals were right on ${correct} of ${total} tracked markets</span>
+            <span class="accuracy-cta" onclick="switchTab('portfolio', document.querySelector('.nav-links > a:nth-child(4)'))">See Track Record →</span>
+        </div>
+    `;
+}
+
+// ══════════════════════════════════════════════
+// CONVERSION TRIGGERS ON MARKET CARDS
+// ══════════════════════════════════════════════
+function addConversionTriggers() {
+    if (isPro()) return; // Pro users don't need these
+
+    // Add "Pro users saw this 2h ago" to high-score cards
+    document.querySelectorAll('.card-sygnal-footer').forEach(footer => {
+        const scoreEl = footer.querySelector('.card-sygnal-score');
+        if (!scoreEl) return;
+        const score = parseInt(scoreEl.textContent);
+        if (score >= 75 && !footer.querySelector('.pro-teaser')) {
+            const teaser = document.createElement('span');
+            teaser.className = 'pro-teaser';
+            teaser.textContent = 'PRO';
+            teaser.title = 'Pro users get real-time alerts for high scores';
+            teaser.onclick = (e) => { e.stopPropagation(); showProUpsell('Real-time Score Alerts'); };
+            footer.appendChild(teaser);
+        }
+    });
+}
+
+// ══════════════════════════════════════════════
 // INIT ALL NEW FEATURES
 // ══════════════════════════════════════════════
 setTimeout(() => {
     loadBotPerformance();
     buildNewsFeed();
+    buildProPicks();
+    buildAccuracyBanner();
+    setTimeout(addConversionTriggers, 2000);
 }, 3000);
 
 // Run alert checks every 2 minutes

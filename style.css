@@ -2996,6 +2996,201 @@ body.light .mobile-more-menu a:hover { color: #1a1a2e; background: rgba(0,0,0,0.
     .autopilot-panel { right: 8px; left: 8px; width: auto; top: 50px; }
 }
 
+/* ── SCORE BREAKDOWN (Pro detail view) ── */
+.score-breakdown, .score-breakdown-locked {
+    margin: 12px 0;
+    padding: 12px;
+    background: rgba(255,255,255,0.02);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+}
+.score-breakdown-locked {
+    position: relative;
+    cursor: pointer;
+    overflow: hidden;
+}
+.score-factor-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 6px;
+}
+.score-factor-row:last-child { margin-bottom: 0; }
+.score-factor-row.blurred { filter: blur(3px); pointer-events: none; }
+.score-factor-name {
+    font-size: 11px;
+    color: var(--text-dim);
+    min-width: 90px;
+    font-weight: 500;
+}
+.score-factor-bar {
+    flex: 1;
+    height: 6px;
+    background: rgba(255,255,255,0.06);
+    border-radius: 3px;
+    overflow: hidden;
+}
+.score-factor-fill {
+    height: 100%;
+    border-radius: 3px;
+    transition: width 0.5s ease;
+}
+.score-factor-pts {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--text);
+    min-width: 35px;
+    text-align: right;
+    font-family: var(--font);
+}
+.locked-overlay {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(6, 6, 11, 0.6);
+    color: var(--accent);
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    border-radius: 10px;
+}
+
+/* ── PRO PICKS ── */
+.pro-picks-section {
+    padding: 0 20px;
+    margin-bottom: 16px;
+}
+.pro-picks-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 10px;
+}
+.pro-picks-header h3 {
+    font-size: 13px;
+    letter-spacing: 2px;
+    color: var(--text-dim);
+    margin: 0;
+}
+.pro-picks-badge {
+    font-size: 9px;
+    font-weight: 800;
+    letter-spacing: 1.5px;
+    padding: 3px 8px;
+    border-radius: 4px;
+    background: rgba(139, 92, 246, 0.15);
+    color: var(--purple);
+}
+.pro-picks-badge.trial {
+    background: rgba(0, 214, 143, 0.1);
+    color: var(--green);
+}
+.pro-picks-grid {
+    display: flex;
+    gap: 10px;
+}
+.pro-pick-card {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    cursor: pointer;
+    transition: all 0.2s;
+    position: relative;
+}
+.pro-pick-card:hover { background: rgba(255,255,255,0.04); border-color: var(--accent); }
+.pro-pick-card.locked { cursor: pointer; }
+.pro-pick-card.locked:hover { border-color: var(--purple); }
+.pro-pick-rank {
+    font-size: 18px;
+    font-weight: 900;
+    color: var(--accent);
+    font-family: var(--font);
+}
+.pro-pick-info { flex: 1; overflow: hidden; }
+.pro-pick-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-bottom: 4px;
+}
+.pro-pick-meta {
+    display: flex;
+    gap: 10px;
+    font-size: 11px;
+    color: var(--text-dim);
+}
+.pro-pick-lock {
+    font-size: 18px;
+    position: absolute;
+    right: 12px;
+}
+.blurred-text { filter: blur(4px); user-select: none; }
+.pro-picks-cta {
+    text-align: center;
+    color: var(--accent);
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    margin-top: 8px;
+}
+.pro-picks-cta:hover { text-decoration: underline; }
+
+/* ── ACCURACY BANNER ── */
+.accuracy-banner {
+    padding: 10px 20px;
+    border-bottom: 1px solid rgba(0, 214, 143, 0.1);
+    background: rgba(0, 214, 143, 0.03);
+}
+.accuracy-content {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    font-size: 13px;
+}
+.accuracy-stat {
+    font-weight: 800;
+    color: var(--green);
+}
+.accuracy-text {
+    color: var(--text-dim);
+}
+.accuracy-cta {
+    color: var(--accent);
+    font-weight: 600;
+    cursor: pointer;
+}
+.accuracy-cta:hover { text-decoration: underline; }
+
+/* ── PRO TEASER BADGE ON CARDS ── */
+.pro-teaser {
+    font-size: 8px;
+    font-weight: 800;
+    letter-spacing: 1px;
+    padding: 2px 6px;
+    border-radius: 3px;
+    background: rgba(139, 92, 246, 0.15);
+    color: var(--purple);
+    cursor: pointer;
+    margin-left: auto;
+}
+
+@media (max-width: 768px) {
+    .pro-picks-grid { flex-direction: column; }
+    .accuracy-content { flex-direction: column; gap: 4px; text-align: center; }
+    .score-factor-name { min-width: 70px; font-size: 10px; }
+}
+
 /* ── TRIAL BADGE ── */
 .trial-badge {
     text-align: center;
