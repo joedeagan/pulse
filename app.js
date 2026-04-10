@@ -2291,7 +2291,8 @@ function openDetail(market, platform) {
     const volRaw = market.volume || 0;
     const maxVol = 10000000;
     const vs = volRaw > 0 ? Math.round(20*Math.min(Math.log10(volRaw)/7,1)) : 0;
-    const absChange = Math.abs(getMarketChange(market.ticker) || 0);
+    const change = getMarketChange(market.ticker) || 0;
+    const absChange = Math.abs(change);
     const ms = Math.round(20*Math.min(absChange/8,1));
     const cs = xp ? Math.round(20*Math.min(xp.priceDiff/10,1)) : 0;
     let ls = 0;
