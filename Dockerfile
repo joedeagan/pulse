@@ -6,7 +6,8 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy application files
+# Cache bust — forces fresh copy on every deploy
+ARG CACHEBUST=1
 COPY . .
 
 # Create data directory and seed with existing JSON files
