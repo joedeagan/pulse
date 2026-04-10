@@ -4420,7 +4420,8 @@ async function startProCheckout() {
         });
         const data = await resp.json();
         if (data.url) {
-            window.open(data.url, '_blank');
+            window.location.href = data.url;
+            return;
         } else {
             showToast(data.error || 'Stripe not configured yet — coming soon!');
         }
