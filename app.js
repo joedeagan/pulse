@@ -2673,7 +2673,7 @@ async function toggleNotifications() {
     if (!notificationsEnabled) {
         // Request permission
         if (!('Notification' in window)) {
-            alert('Your browser doesn\'t support notifications');
+            showToast('Add Sygnal to your Home Screen first, then enable notifications');
             return;
         }
         const perm = await Notification.requestPermission();
@@ -2682,7 +2682,7 @@ async function toggleNotifications() {
             localStorage.setItem('sygnal-notifications', 'true');
             sendNotification('Sygnal Alerts Enabled', 'You\'ll be notified when watchlisted markets move 5%+ or your bot trades.');
         } else {
-            alert('Notifications blocked — enable them in browser settings');
+            showToast('Notifications blocked — check browser settings');
             return;
         }
     } else {
