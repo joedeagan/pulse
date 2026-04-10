@@ -5872,6 +5872,12 @@ function startOnboarding() {
 
     let currentStep = 0;
 
+    // Hide distracting elements during tour
+    const dcWidget = document.getElementById('daily-challenge-widget');
+    if (dcWidget) dcWidget.style.display = 'none';
+    const accBanner = document.getElementById('accuracy-banner');
+    if (accBanner) accBanner.style.display = 'none';
+
     function renderStep() {
         const existing = document.getElementById('onboarding-overlay');
         if (existing) existing.remove();
@@ -5939,6 +5945,9 @@ function startOnboarding() {
         const overlay = document.getElementById('onboarding-overlay');
         if (overlay) overlay.remove();
         clearHighlights();
+        // Restore hidden elements
+        if (dcWidget) dcWidget.style.display = '';
+        if (accBanner) accBanner.style.display = '';
         // Show signup after tour
         setTimeout(() => showAuthPage(), 500);
     }
