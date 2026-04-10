@@ -5405,7 +5405,8 @@ function updateAuthUI(user) {
 
 function handleAuthAction() {
     if (_currentUser) {
-        showAccountPanel();
+        switchTab('profile', null);
+        if (typeof buildProfilePanel === 'function') buildProfilePanel();
     } else {
         openAuthModal();
     }
@@ -5690,45 +5691,67 @@ function startOnboarding() {
     const steps = [
         {
             title: 'Welcome to Sygnal',
-            text: 'The smartest way to trade prediction markets. We analyze Kalshi & Polymarket so you don\'t have to.',
+            text: 'The smartest prediction market dashboard. We pull real-time data from Kalshi & Polymarket and tell you exactly what to trade.',
             icon: '◆',
             highlight: null,
+            tab: 'markets',
+            action: null,
+        },
+        {
+            title: 'Market Cards',
+            text: 'Each card shows a live market with YES/NO prices, price changes, and platform source. Tap any card to see the full analysis.',
+            icon: '▲',
+            highlight: '.market-card:first-child',
+            tab: 'markets',
+            action: function() { window.scrollTo({ top: document.querySelector('.market-grid')?.offsetTop - 100 || 500, behavior: 'smooth' }); },
         },
         {
             title: 'Sygnal Score',
-            text: 'Every market gets a 0-99 score based on 5 factors: price value, volume, momentum, cross-platform edge, and liquidity. Higher = better opportunity.',
-            icon: '▲',
+            text: 'The colored ring on each card is the Sygnal Score (0-99). It measures edge, value, momentum, confidence, and timing. Green = strong opportunity.',
+            icon: '★',
             highlight: '.card-sygnal-footer',
+            tab: 'markets',
+            action: null,
         },
         {
-            title: 'BUY Signals',
-            text: 'We tell you WHAT to trade and WHY. BUY YES, BUY NO, LEAN, or HOLD — with full reasoning for Pro members.',
-            icon: '★',
-            highlight: '.card-signal',
+            title: 'Filter & Sort',
+            text: 'Use category filters to find markets you care about — Crypto, Sports, Politics, Weather. Sort by score, volume, or price change.',
+            icon: '◇',
+            highlight: '.filter-chips',
+            tab: 'markets',
+            action: function() { window.scrollTo({ top: document.getElementById('filters')?.offsetTop - 60 || 400, behavior: 'smooth' }); },
         },
         {
             title: 'Live Trading Bot',
-            text: 'Our bot trades real money on Kalshi using Sygnal Scores. Watch its P&L live — proof the system works.',
+            text: 'Our bot trades real money on Kalshi using Sygnal Scores. Check its balance, positions, and P&L right here — proof the system works.',
             icon: '◎',
-            highlight: null,
+            highlight: '.bot-grid',
+            tab: 'bot',
+            action: null,
         },
         {
-            title: 'Daily Challenge',
-            text: 'Pick 3 markets each day and track your accuracy. Build a streak and earn badges.',
-            icon: '◇',
-            highlight: '#daily-challenge-widget',
+            title: 'News Feed',
+            text: 'Real headlines relevant to the markets you\'re watching. Filter by Politics, Crypto, Sports, and more.',
+            icon: '◈',
+            highlight: '.news-header',
+            tab: 'news',
+            action: function() { if (typeof loadNews === 'function') loadNews(); },
         },
         {
             title: 'Cross-Platform Edge',
-            text: 'Only Sygnal sees both Kalshi AND Polymarket. When they disagree on price, that\'s your edge.',
-            icon: '◈',
+            text: 'Only Sygnal sees both Kalshi AND Polymarket. When they disagree on price, that\'s real edge. The Score detects this automatically.',
+            icon: '✦',
             highlight: null,
+            tab: 'markets',
+            action: null,
         },
         {
             title: 'You\'re Ready!',
-            text: 'Tap any market card to see the full analysis. Create a free account to save your watchlist and start paper trading.',
-            icon: '✦',
+            text: 'Tap any market card for full analysis. Sign up free to save your watchlist. Upgrade to Pro for score breakdowns, signal explanations, and push alerts.',
+            icon: '◆',
             highlight: null,
+            tab: 'markets',
+            action: null,
         },
     ];
 
@@ -5747,6 +5770,16 @@ function startOnboarding() {
         const step = steps[currentStep];
         const isLast = currentStep === steps.length - 1;
 
+        // Navigate to the right tab
+        if (step.tab && typeof switchTab === 'function') {
+            switchTab(step.tab, null);
+        }
+
+        // Run step action (scroll, load data, etc.)
+        if (step.action) {
+            setTimeout(step.action, 300);
+        }
+
         const overlay = document.createElement('div');
         overlay.id = 'onboarding-overlay';
         overlay.className = 'onboarding-overlay';
@@ -5755,12 +5788,13 @@ function startOnboarding() {
                 <div class="onboarding-progress">
                     ${steps.map((_, i) => `<div class="onboarding-dot ${i === currentStep ? 'active' : i < currentStep ? 'done' : ''}"></div>`).join('')}
                 </div>
+                <div class="onboarding-step-count">${currentStep + 1} of ${steps.length}</div>
                 <div class="onboarding-icon">${step.icon}</div>
                 <h3 class="onboarding-title">${step.title}</h3>
                 <p class="onboarding-text">${step.text}</p>
                 <div class="onboarding-btns">
                     ${currentStep > 0 ? '<button class="onboarding-btn secondary" id="ob-back">Back</button>' : ''}
-                    <button class="onboarding-btn primary" id="ob-next">${isLast ? 'Get Started' : 'Next'}</button>
+                    <button class="onboarding-btn primary" id="ob-next">${isLast ? 'Get Started ◆' : 'Next →'}</button>
                 </div>
                 <button class="onboarding-skip" id="ob-skip">Skip tour</button>
             </div>
@@ -5928,6 +5962,20 @@ function submitAuth(mode) {
     if (document.getElementById('profile-panel') && !document.getElementById('profile-panel').classList.contains('view-hidden')) {
         buildProfilePanel();
     }
+}
+
+function getTrialDaysLeft() {
+    const start = localStorage.getItem('sygnal-trial-start');
+    if (!start) {
+        localStorage.setItem('sygnal-trial-start', Date.now().toString());
+        return 30;
+    }
+    const elapsed = (Date.now() - parseInt(start)) / 86400000;
+    return Math.max(0, Math.ceil(30 - elapsed));
+}
+
+function isTrialActive() {
+    return getTrialDaysLeft() > 0;
 }
 
 function buildProfilePanel() {
