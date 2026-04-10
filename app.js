@@ -1505,7 +1505,7 @@ function drawSparkline(canvas, data) {
 function toggleSettings() {
     const menu = document.getElementById('settings-menu');
     menu.classList.toggle('open');
-    // Update Pro button label
+    // Update Pro/Account button label
     const proLabel = document.getElementById('settings-pro-label');
     const proBtn = document.getElementById('settings-pro-btn');
     if (proLabel && proBtn) {
@@ -1514,11 +1514,11 @@ function toggleSettings() {
             proLabel.textContent = 'Pro Account' + (email ? ' (' + email + ')' : '');
             proBtn.onclick = () => { showToast('You\'re a Pro member!'); };
         } else if (email) {
-            proLabel.textContent = 'Upgrade to Pro (' + email + ')';
+            proLabel.textContent = 'Upgrade to Pro';
             proBtn.onclick = () => showProUpsell('Sygnal Pro');
         } else {
-            proLabel.textContent = 'Sign Up / Upgrade to Pro';
-            proBtn.onclick = () => showProUpsell('Sygnal Pro');
+            proLabel.textContent = 'Create Account';
+            proBtn.onclick = () => showSignupPopup();
         }
     }
 }
@@ -4683,8 +4683,16 @@ setTimeout(() => {
 }, 30000);
 
 // ── SYGNAL PRO ──
+const PRO_EMAILS = ['joeydeagan2010@gmail.com'];
+
 function isPro() {
-    return localStorage.getItem('sygnal-pro') === 'true';
+    if (localStorage.getItem('sygnal-pro') === 'true') return true;
+    const email = localStorage.getItem('sygnal-account-email');
+    if (email && PRO_EMAILS.includes(email.toLowerCase())) {
+        localStorage.setItem('sygnal-pro', 'true');
+        return true;
+    }
+    return false;
 }
 
 function exportSignalHistory() {
