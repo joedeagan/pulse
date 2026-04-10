@@ -4551,22 +4551,8 @@ function requireProOrTrial(feature) {
 }
 
 function showTrialExpired(feature) {
-    const existing = document.querySelector('.pro-modal');
-    if (existing) existing.remove();
-
-    const modal = document.createElement('div');
-    modal.className = 'pro-modal';
-    modal.innerHTML = `
-        <div class="pro-modal-content">
-            <div style="font-size:10px;letter-spacing:3px;color:var(--red);font-weight:700;margin-bottom:8px;">TRIAL EXPIRED</div>
-            <h3 style="margin:0 0 8px;font-size:18px;color:var(--text);">Your 30-Day Trial Has Ended</h3>
-            <p style="color:var(--text-dim);font-size:13px;margin:0 0 16px;line-height:1.5;">Your free trial of ${feature || 'this feature'} has expired. Upgrade to Sygnal Pro for unlimited access to paper trading, AI analysis, custom alerts, and more.</p>
-            <div style="font-size:24px;font-weight:800;color:var(--text);margin-bottom:16px;">$9.99<span style="font-size:13px;color:var(--text-dim);font-weight:400;">/month</span></div>
-            <button class="pro-btn" onclick="startProCheckout()">Upgrade to Pro</button>
-            <button onclick="this.closest('.pro-modal').remove()" style="background:none;border:none;color:var(--text-dim);font-size:12px;cursor:pointer;margin-top:10px;">Maybe later</button>
-        </div>
-    `;
-    document.body.appendChild(modal);
+    // Reuse the Pro upsell with trial expired messaging
+    showProUpsell('Your 30-Day Trial Has Ended');
 }
 
 // ── ACCOUNT SIGNUP POPUP ──
@@ -4659,14 +4645,16 @@ function showProUpsell(feature) {
     const existing = document.querySelector('.pro-modal');
     if (existing) existing.remove();
 
+    const savedEmail = localStorage.getItem('sygnal-account-email') || '';
     const modal = document.createElement('div');
     modal.className = 'pro-modal';
     modal.innerHTML = `
         <div class="pro-modal-content">
             <div style="font-size:10px;letter-spacing:3px;color:var(--accent);font-weight:700;margin-bottom:8px;">SYGNAL PRO</div>
             <h3 style="margin:0 0 8px;font-size:18px;color:var(--text);">${feature || 'Unlock Premium Features'}</h3>
-            <p style="color:var(--text-dim);font-size:13px;margin:0 0 16px;line-height:1.5;">Get access to AI Analysis, Signal History Export, Custom Push Alerts, and Priority Data Refresh.</p>
+            <p style="color:var(--text-dim);font-size:13px;margin:0 0 16px;line-height:1.5;">Score breakdowns, AI analysis, real-time alerts, Pro Picks, signal history export, and 30-second data refresh.</p>
             <div style="font-size:24px;font-weight:800;color:var(--text);margin-bottom:16px;">$9.99<span style="font-size:13px;color:var(--text-dim);font-weight:400;">/month</span></div>
+            ${!savedEmail ? '<input type="email" id="pro-checkout-email" placeholder="your@email.com" style="width:100%;padding:12px 14px;border-radius:8px;border:1px solid var(--border);background:var(--bg);color:var(--text);font-family:var(--font);font-size:14px;margin-bottom:12px;box-sizing:border-box;">' : ''}
             <button class="pro-btn" onclick="startProCheckout()">Upgrade to Pro</button>
             <button onclick="this.closest('.pro-modal').remove()" style="background:none;border:none;color:var(--text-dim);font-size:12px;cursor:pointer;margin-top:10px;">Maybe later</button>
         </div>
@@ -4675,11 +4663,23 @@ function showProUpsell(feature) {
 }
 
 async function startProCheckout() {
+    // Get email from input or localStorage
+    let email = localStorage.getItem('sygnal-account-email') || '';
+    const emailInput = document.getElementById('pro-checkout-email');
+    if (emailInput) {
+        email = emailInput.value.trim();
+        if (!email || !email.includes('@')) {
+            showToast('Please enter your email');
+            return;
+        }
+        localStorage.setItem('sygnal-account-email', email);
+    }
+
     try {
         const resp = await fetch((API_BASE || '') + '/api/pro/checkout', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({}),
+            body: JSON.stringify({ email }),
         });
         const data = await resp.json();
         if (data.url) {
