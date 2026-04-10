@@ -5692,67 +5692,79 @@ function startOnboarding() {
     const steps = [
         {
             title: 'Welcome to Sygnal',
-            text: 'The smartest prediction market dashboard. We pull real-time data from Kalshi & Polymarket and tell you exactly what to trade.',
+            text: 'Real-time prediction market intelligence. We analyze every market on Kalshi & Polymarket and tell you exactly where the edge is.',
             icon: '◆',
             highlight: null,
             tab: 'markets',
-            action: null,
+            position: 'center',
+            action: function() { window.scrollTo({ top: 0, behavior: 'smooth' }); },
         },
         {
-            title: 'Market Cards',
-            text: 'Each card shows a live market with YES/NO prices, price changes, and platform source. Tap any card to see the full analysis.',
+            title: 'Live Market Cards',
+            text: 'These are real markets happening right now. Each card shows YES/NO prices and which platform it\'s from. Try tapping one after the tour!',
             icon: '▲',
-            highlight: '.market-card:first-child',
+            highlight: '.market-card',
             tab: 'markets',
-            action: function() { window.scrollTo({ top: document.querySelector('.market-grid')?.offsetTop - 100 || 500, behavior: 'smooth' }); },
+            position: 'bottom',
+            action: function() {
+                var grid = document.querySelector('.market-grid');
+                if (grid) grid.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            },
         },
         {
-            title: 'Sygnal Score',
-            text: 'The colored ring on each card is the Sygnal Score (0-99). It measures edge, value, momentum, confidence, and timing. Green = strong opportunity.',
+            title: 'The Sygnal Score',
+            text: 'Every market gets a 0-99 score. It combines 5 factors: Edge Detection, Value, Momentum, Confidence, and Timing. Higher score = better bet.',
             icon: '★',
             highlight: '.card-sygnal-footer',
             tab: 'markets',
+            position: 'bottom',
             action: null,
         },
         {
-            title: 'Filter & Sort',
-            text: 'Use category filters to find markets you care about — Crypto, Sports, Politics, Weather. Sort by score, volume, or price change.',
+            title: 'BUY / SELL Signals',
+            text: 'When multiple factors agree, we give a directional signal: BUY YES, BUY NO, LEAN, or HOLD. Pro members see exactly WHY.',
             icon: '◇',
-            highlight: '.filter-chips',
+            highlight: '.card-signal',
             tab: 'markets',
-            action: function() { window.scrollTo({ top: document.getElementById('filters')?.offsetTop - 60 || 400, behavior: 'smooth' }); },
+            position: 'bottom',
+            action: null,
         },
         {
-            title: 'Live Trading Bot',
-            text: 'Our bot trades real money on Kalshi using Sygnal Scores. Check its balance, positions, and P&L right here — proof the system works.',
+            title: 'Your Trading Bot',
+            text: 'We run a real-money bot using Sygnal Scores on Kalshi. Watch its live P&L and open positions — proof the scoring works.',
             icon: '◎',
             highlight: '.bot-grid',
             tab: 'bot',
-            action: null,
+            position: 'bottom',
+            action: function() { if (typeof loadBot === 'function') loadBot(); },
         },
         {
-            title: 'News Feed',
-            text: 'Real headlines relevant to the markets you\'re watching. Filter by Politics, Crypto, Sports, and more.',
+            title: 'Market News',
+            text: 'Headlines relevant to active markets, pulled in real-time. Stay informed on what\'s moving prices.',
             icon: '◈',
-            highlight: '.news-header',
+            highlight: null,
             tab: 'news',
+            position: 'center',
             action: function() { if (typeof loadNews === 'function') loadNews(); },
         },
         {
             title: 'Cross-Platform Edge',
-            text: 'Only Sygnal sees both Kalshi AND Polymarket. When they disagree on price, that\'s real edge. The Score detects this automatically.',
+            text: 'Only Sygnal compares prices across Kalshi AND Polymarket. When they disagree, someone\'s wrong — and that\'s your edge.',
             icon: '✦',
             highlight: null,
             tab: 'markets',
-            action: null,
+            position: 'center',
+            action: function() { window.scrollTo({ top: 0, behavior: 'smooth' }); },
         },
         {
-            title: 'You\'re Ready!',
-            text: 'Tap any market card for full analysis. Sign up free to save your watchlist. Upgrade to Pro for score breakdowns, signal explanations, and push alerts.',
+            title: 'You\'re Ready! ◆',
+            text: 'Tap any market card for the full breakdown. Create a free account to save your watchlist. Go Pro for score details, signal explanations, and alerts.',
             icon: '◆',
             highlight: null,
             tab: 'markets',
-            action: null,
+            position: 'center',
+            cta: true,
+            action: function() { window.scrollTo({ top: 0, behavior: 'smooth' }); },
         },
     ];
 
@@ -5784,8 +5796,19 @@ function startOnboarding() {
         const overlay = document.createElement('div');
         overlay.id = 'onboarding-overlay';
         overlay.className = 'onboarding-overlay';
+
+        // Position card near highlighted element or center
+        let cardStyle = '';
+        if (step.position === 'bottom' && step.highlight) {
+            const el = document.querySelector(step.highlight);
+            if (el) {
+                const rect = el.getBoundingClientRect();
+                cardStyle = `position:fixed;top:${Math.min(rect.bottom + 20, window.innerHeight - 400)}px;left:50%;transform:translateX(-50%);`;
+            }
+        }
+
         overlay.innerHTML = `
-            <div class="onboarding-card">
+            <div class="onboarding-card onboarding-entrance" style="${cardStyle}">
                 <div class="onboarding-progress">
                     ${steps.map((_, i) => `<div class="onboarding-dot ${i === currentStep ? 'active' : i < currentStep ? 'done' : ''}"></div>`).join('')}
                 </div>
@@ -5794,9 +5817,10 @@ function startOnboarding() {
                 <h3 class="onboarding-title">${step.title}</h3>
                 <p class="onboarding-text">${step.text}</p>
                 <div class="onboarding-btns">
-                    ${currentStep > 0 ? '<button class="onboarding-btn secondary" id="ob-back">Back</button>' : ''}
+                    ${currentStep > 0 ? '<button class="onboarding-btn secondary" id="ob-back">◁ Back</button>' : ''}
                     <button class="onboarding-btn primary" id="ob-next">${isLast ? 'Get Started ◆' : 'Next →'}</button>
                 </div>
+                ${step.cta ? '<button class="onboarding-btn primary" style="margin-top:8px;background:var(--green);width:100%;" onclick="document.getElementById(\'onboarding-overlay\').remove();localStorage.setItem(\'sygnal-onboarding-done\',\'true\');openAuthModal();">Create Free Account</button>' : ''}
                 <button class="onboarding-skip" id="ob-skip">Skip tour</button>
             </div>
         `;
