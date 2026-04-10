@@ -912,12 +912,14 @@ function computeAllSygnalScores(allMarkets) {
         else if (netWeight >= 0.35) signal = 'LEAN YES';
         else if (netWeight <= -0.35) signal = 'LEAN NO';
 
-        // Dead markets = always HOLD
-        if (yes <= 5 || yes >= 95) signal = 'HOLD';
-        // Very low volume = downgrade strong signals
-        if (vol < 500 && signal.includes('BUY')) {
+        // Dead/extreme markets = HOLD
+        if (yes <= 8 || yes >= 92) signal = 'HOLD';
+        // BUY requires minimum score of 35
+        if (total < 35 && signal.includes('BUY')) {
             signal = signal.replace('BUY', 'LEAN');
         }
+        // LEAN requires minimum score of 20
+        if (total < 20) signal = 'HOLD';
 
         _sygnalSignalCache[m.ticker] = {
             signal,

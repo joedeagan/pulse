@@ -587,7 +587,9 @@ async def get_sygnal_scores():
             elif net <= -0.7: signal = "BUY NO"
             elif net >= 0.35: signal = "LEAN YES"
             elif net <= -0.35: signal = "LEAN NO"
-            if yes <= 5 or yes >= 95: signal = "HOLD"
+            if yes <= 8 or yes >= 92: signal = "HOLD"
+            if total < 35 and "BUY" in signal: signal = signal.replace("BUY", "LEAN")
+            if total < 20: signal = "HOLD"
 
             scores.append({
                 "ticker": m.get("ticker", ""),
@@ -619,6 +621,10 @@ async def get_bot_recommendations(min_score: int = 50):
         recommendations = []
         cutoff = (datetime.utcnow() + timedelta(days=14)).isoformat()
 
+        # Spam filters — skip low-quality market types
+        spam_keywords = ["best overall player", "temperature in", "median home value",
+                         "highest temperature", "lowest temperature"]
+
         for s in scores:
             # Only Kalshi (that's where the bot trades)
             if s.get("platform") != "kalshi":
@@ -628,6 +634,14 @@ async def get_bot_recommendations(min_score: int = 50):
                 continue
             # Only decent scores
             if s.get("score", 0) < min_score:
+                continue
+            # Skip spam/noise markets
+            q = (s.get("question") or "").lower()
+            if any(kw in q for kw in spam_keywords):
+                continue
+            # Skip extreme prices (likely resolved or dead)
+            yes = s.get("yes", 50)
+            if yes <= 8 or yes >= 92:
                 continue
 
             # Build why-to-bet reasoning
