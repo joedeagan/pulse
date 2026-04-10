@@ -4277,6 +4277,11 @@ body.light .buy-no:hover { background: #e53e3e; color: #fff; }
     margin-bottom: 20px;
 }
 .auth-tab {
+    flex: 1; padding: 8px; border: none; border-radius: 8px;
+    background: transparent; color: var(--text-dim); font-size: 13px;
+    font-weight: 600; cursor: pointer; font-family: inherit;
+}
+.auth-tab.active { background: var(--accent); color: #fff; }
 
 /* ── PROFILE PANEL ── */
 .profile-header {
