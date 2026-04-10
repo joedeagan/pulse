@@ -1520,7 +1520,8 @@ document.addEventListener('click', (e) => {
 
 // ── MENU BACKDROP (fixes mobile touch close) ──
 function closeAllMenus() {
-    document.getElementById('mobile-more-menu')?.classList.remove('open');
+    var mm = document.getElementById('mobile-more-menu');
+    if (mm) { mm.classList.remove('open'); mm.style.display = 'none'; }
     document.getElementById('settings-menu')?.classList.remove('open');
     document.getElementById('nav-more-menu')?.classList.remove('open');
     hideMenuBackdrop();
