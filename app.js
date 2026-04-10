@@ -5825,7 +5825,6 @@ function shouldShowOnboarding() {
 }
 
 function startOnboarding() {
-    if (!shouldShowOnboarding()) return;
     const steps = [
         {
             title: 'Welcome to Sygnal',
