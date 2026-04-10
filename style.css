@@ -3321,6 +3321,27 @@ body.light .mobile-more-menu a:hover { color: #1a1a2e; background: rgba(0,0,0,0.
     height: 1px;
     background: var(--border);
 }
+.auth-google-btn {
+    width: 100%;
+    padding: 12px;
+    background: #fff;
+    color: #333;
+    border: 1px solid #ddd;
+    border-radius: 10px;
+    font-family: var(--font);
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    transition: all 0.2s;
+    margin-bottom: 10px;
+}
+.auth-google-btn:hover { background: #f5f5f5; }
+body.light .auth-google-btn { border-color: #ccc; }
+
 .auth-pro-btn {
     width: 100%;
     padding: 12px;

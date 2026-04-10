@@ -5832,6 +5832,45 @@ function switchAuthTab(tab) {
     document.getElementById('auth-signin-form').style.display = tab === 'signin' ? '' : 'none';
 }
 
+// Google Client ID — replace with yours from console.cloud.google.com/apis/credentials
+const GOOGLE_CLIENT_ID = '';
+
+function googleSignIn() {
+    if (!GOOGLE_CLIENT_ID) {
+        showToast('Google Sign-In coming soon');
+        return;
+    }
+    google.accounts.id.initialize({
+        client_id: GOOGLE_CLIENT_ID,
+        callback: handleGoogleCredential,
+    });
+    google.accounts.id.prompt();
+}
+
+function handleGoogleCredential(response) {
+    // Decode the JWT to get email and name
+    try {
+        const payload = JSON.parse(atob(response.credential.split('.')[1]));
+        const email = payload.email;
+        const name = payload.name || '';
+        localStorage.setItem('sygnal-account-email', email);
+        if (name) localStorage.setItem('sygnal-account-name', name);
+        isPro(); // Check if Pro email
+        document.getElementById('auth-overlay').style.display = 'none';
+        showToast('Signed in as ' + email);
+        fetch((API_BASE || '') + '/api/signup', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, name, provider: 'google' }),
+        }).catch(() => {});
+        if (document.getElementById('profile-panel') && !document.getElementById('profile-panel').classList.contains('view-hidden')) {
+            buildProfilePanel();
+        }
+    } catch(e) {
+        showToast('Google sign-in failed');
+    }
+}
+
 function submitAuth(mode) {
     let email, name;
     if (mode === 'signup') {
