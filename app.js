@@ -1316,6 +1316,19 @@ let currentFilter = 'all';
 let showLowVolume = true; // Show all markets by default
 const MIN_VOLUME = 0;
 
+const MAX_DAYS_OUT = 30; // Hide markets expiring more than 30 days from now
+
+function isNearTerm(market) {
+    const closeTime = market.closeTime;
+    if (!closeTime) return true; // No date = show it
+    try {
+        const closeDate = new Date(closeTime);
+        const now = new Date();
+        const daysOut = (closeDate - now) / (1000 * 60 * 60 * 24);
+        return daysOut <= MAX_DAYS_OUT && daysOut > -1; // Within 30 days and not expired
+    } catch { return true; }
+}
+
 function filterMarkets() {
     const query = document.getElementById('search-input').value.toLowerCase();
     const wl = getWatchlist();
@@ -1329,11 +1342,10 @@ function filterMarkets() {
         } else if (currentFilter !== 'all') {
             matchesFilter = (market.category || categorize(market.question)) === currentFilter;
         }
-        // Volume filter — hide low volume unless toggled
-        const vol = market.volume || 0;
         const isStarred = wl.includes(market.ticker);
-        const passesVolume = showLowVolume || vol >= MIN_VOLUME || isStarred || currentFilter === 'watchlist';
-        const show = matchesSearch && matchesFilter && passesVolume;
+        // Date filter — hide markets months/years away
+        const passesDate = isNearTerm(market) || isStarred || currentFilter === 'watchlist';
+        const show = matchesSearch && matchesFilter && passesDate;
         card.style.display = show ? '' : 'none';
         if (show) visibleCount++;
     }
@@ -1358,7 +1370,7 @@ function setFilter(filter, btn) {
 }
 
 // ── SORT MARKETS ──
-let currentSort = 'default';
+let currentSort = 'sygnal-desc'; // Default to best Sygnal Score first
 // ── CUSTOM SORT DROPDOWN ──
 function toggleSortDropdown() {
     const dropdown = document.getElementById('sort-dropdown');

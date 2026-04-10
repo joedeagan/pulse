@@ -261,6 +261,7 @@ async def get_kalshi():
                         "source": "kalshi",
                         "category": categorize(title + " " + event_title),
                         "url": f"https://kalshi.com/markets/{series_ticker}/{event_ticker}",
+                        "closeTime": m.get("close_time", m.get("expiration_time", "")),
                         # Rich data for smarter scoring
                         "bestBid": yes_bid / 100 if yes_bid else 0,
                         "bestAsk": yes_ask_d / 100 if yes_ask_d else 0,
@@ -338,6 +339,7 @@ async def get_polymarket():
                     "volume1w": float(m.get("volume1wk", 0)),
                     "dayChange": float(m.get("oneDayPriceChange", 0)),
                     "weekChange": float(m.get("oneWeekPriceChange", 0)),
+                    "closeTime": m.get("endDate", ""),
                 })
 
             result.sort(key=lambda x: x["volume"], reverse=True)
@@ -565,6 +567,54 @@ async def get_sygnal_scores():
 
         scores.sort(key=lambda x: x["score"], reverse=True)
         return {"scores": scores, "count": len(scores)}
+    except Exception as e:
+        return {"error": str(e)}
+
+
+# ─── BOT RECOMMENDATIONS (Sygnal Score filtered) ───
+@app.get("/api/bot/recommendations")
+async def get_bot_recommendations(min_score: int = 50):
+    """Return markets the bot should consider trading.
+    Filtered by: near-term expiry, high Sygnal Score, strong signal, Kalshi only."""
+    try:
+        from datetime import datetime, timedelta
+        scores_data = await get_sygnal_scores()
+        scores = scores_data.get("scores", [])
+
+        recommendations = []
+        cutoff = (datetime.utcnow() + timedelta(days=14)).isoformat()
+
+        for s in scores:
+            # Only Kalshi (that's where the bot trades)
+            if s.get("platform") != "kalshi":
+                continue
+            # Only strong signals
+            if s.get("signal") not in ("BUY YES", "BUY NO"):
+                continue
+            # Only decent scores
+            if s.get("score", 0) < min_score:
+                continue
+
+            # Build why-to-bet reasoning
+            reasons = []
+            yes = s.get("yes", 50)
+            if s["signal"] == "BUY YES" and yes <= 40:
+                reasons.append(f"Cheap at {yes}c with upside")
+            elif s["signal"] == "BUY YES" and yes >= 60:
+                reasons.append(f"Strong conviction at {yes}c")
+            elif s["signal"] == "BUY NO":
+                reasons.append(f"YES overpriced at {yes}c")
+            if s.get("crossEdge", 0) >= 3:
+                reasons.append(f"{s['crossEdge']}c cross-platform edge")
+            reasons.append(f"Sygnal Score {s['score']}/99")
+
+            recommendations.append({
+                **s,
+                "reasons": reasons,
+            })
+
+        recommendations.sort(key=lambda x: x["score"], reverse=True)
+        return {"recommendations": recommendations[:10], "count": len(recommendations)}
     except Exception as e:
         return {"error": str(e)}
 
