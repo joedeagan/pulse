@@ -5979,17 +5979,19 @@ function isTrialActive() {
 }
 
 function buildProfilePanel() {
-    // If no account, show auth page instead
-    if (!localStorage.getItem('sygnal-account-email')) {
-        showAuthPage();
+    // Use Firebase user if available, else localStorage
+    const fbUser = typeof _currentUser !== 'undefined' ? _currentUser : null;
+    if (!fbUser && !localStorage.getItem('sygnal-account-email')) {
+        if (typeof openAuthModal === 'function') openAuthModal();
+        else if (typeof showAuthPage === 'function') showAuthPage();
         return;
     }
     const el = document.getElementById('profile-content');
     if (!el) return;
     try {
 
-    const email = localStorage.getItem('sygnal-account-email') || '';
-    const name = localStorage.getItem('sygnal-account-name') || '';
+    const email = (fbUser ? fbUser.email : localStorage.getItem('sygnal-account-email')) || '';
+    const name = (fbUser ? fbUser.displayName : localStorage.getItem('sygnal-account-name')) || '';
     const pro = isPro();
     const trialDays = getTrialDaysLeft();
     const trialActive = isTrialActive();
