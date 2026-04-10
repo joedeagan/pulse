@@ -1472,6 +1472,118 @@ async def start_autopilot():
         print("Autopilot scanner started (every 5 min)")
 
 
+# ─── DAILY DIGEST EMAIL ───
+@app.post("/api/digest/send")
+async def send_daily_digest():
+    """Generate and send daily digest email with top picks."""
+    if not SENDGRID_API_KEY:
+        return JSONResponse({"error": "SendGrid not configured"}, status_code=500)
+    try:
+        scores_data = await get_sygnal_scores()
+        scores = scores_data.get("scores", [])
+        top_picks = [s for s in scores if "BUY" in s.get("signal", "")][:5]
+
+        html = f"""
+        <div style="font-family:sans-serif;max-width:600px;margin:0 auto;background:#0a0a12;color:#fff;padding:32px;">
+            <h1 style="color:#0088ff;font-size:24px;">Sygnal Daily Digest</h1>
+            <p style="color:#888;font-size:14px;">Top {len(top_picks)} signals for today</p>
+            {''.join(f'''
+            <div style="border:1px solid #222;border-radius:10px;padding:16px;margin:12px 0;">
+                <div style="font-size:15px;font-weight:600;color:#fff;">{s.get("question","")[:60]}</div>
+                <div style="margin-top:8px;">
+                    <span style="color:{'#00d68f' if 'YES' in s['signal'] else '#ff3b5c'};font-weight:700;">{s['signal']}</span>
+                    <span style="color:#888;margin-left:12px;">YES {s.get("yes",50)}¢</span>
+                    <span style="color:#0088ff;margin-left:12px;">Score: {s.get("score",0)}/99</span>
+                </div>
+            </div>''' for s in top_picks)}
+            <div style="text-align:center;margin-top:24px;">
+                <a href="https://sygnalmarkets.com" style="background:#0088ff;color:#fff;padding:12px 32px;border-radius:8px;text-decoration:none;font-weight:700;">Open Sygnal</a>
+            </div>
+            <p style="color:#555;font-size:11px;text-align:center;margin-top:24px;">sygnalmarkets.com — Trade Smarter.</p>
+        </div>"""
+
+        from sendgrid import SendGridAPIClient
+        from sendgrid.helpers.mail import Mail
+        subs = load_subscribers()
+        sg = SendGridAPIClient(SENDGRID_API_KEY)
+        sent = 0
+        for email in subs:
+            msg = Mail(from_email=(SENDGRID_FROM_EMAIL, "Sygnal Markets"), to_emails=email,
+                      subject=f"Sygnal Daily: {len(top_picks)} Top Picks Today",
+                      html_content=html)
+            sg.send(msg)
+            sent += 1
+        return {"sent": sent, "picks": len(top_picks)}
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+
+# ─── NEWS SENTIMENT (GDELT) ───
+@app.get("/api/news/{query}")
+async def get_news_sentiment(query: str):
+    """Fetch news articles and sentiment from GDELT for a market topic."""
+    try:
+        async with httpx.AsyncClient() as client:
+            resp = await client.get(
+                "https://api.gdeltproject.org/api/v2/doc/doc",
+                params={"query": query, "mode": "artlist", "format": "json", "maxrecords": "10",
+                        "timespan": "3d", "sort": "DateDesc"},
+                timeout=10,
+            )
+            data = resp.json()
+            articles = []
+            for a in (data.get("articles") or [])[:10]:
+                articles.append({
+                    "title": a.get("title", ""),
+                    "url": a.get("url", ""),
+                    "source": a.get("domain", ""),
+                    "date": a.get("seendate", ""),
+                    "tone": a.get("tone", 0),
+                })
+            avg_tone = sum(a["tone"] for a in articles) / max(len(articles), 1)
+            return {"articles": articles, "avgTone": round(avg_tone, 2), "query": query}
+    except Exception as e:
+        return {"error": str(e)}
+
+
+# ─── REFERRAL TRACKING ───
+REFERRALS_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "referrals.json")
+
+def load_referrals():
+    try:
+        with open(REFERRALS_FILE, "r") as f: return json.load(f)
+    except: return {}
+
+def save_referrals(data):
+    with open(REFERRALS_FILE, "w") as f: json.dump(data, f)
+
+@app.post("/api/referral")
+async def track_referral(request: Request):
+    """Track a referral signup."""
+    try:
+        body = await request.json()
+        referrer = body.get("referrer", "")
+        referred = body.get("email", "")
+        if not referrer or not referred: return {"error": "missing fields"}
+        refs = load_referrals()
+        if referrer not in refs: refs[referrer] = {"count": 0, "emails": [], "pro_months_earned": 0}
+        if referred not in refs[referrer]["emails"]:
+            refs[referrer]["emails"].append(referred)
+            refs[referrer]["count"] += 1
+            # Every 3 referrals = 1 free Pro month
+            refs[referrer]["pro_months_earned"] = refs[referrer]["count"] // 3
+        save_referrals(refs)
+        return {"ok": True, "referrer_count": refs[referrer]["count"]}
+    except Exception as e:
+        return {"error": str(e)}
+
+@app.get("/api/referral/{email}")
+async def get_referral_stats(email: str):
+    refs = load_referrals()
+    data = refs.get(email, {"count": 0, "pro_months_earned": 0})
+    return {"count": data.get("count", 0), "pro_months_earned": data.get("pro_months_earned", 0)}
+
+
 if __name__ == "__main__":
     import uvicorn
     port = int(os.environ.get("PORT", 8095))

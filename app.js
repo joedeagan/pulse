@@ -2436,6 +2436,10 @@ function openDetail(market, platform) {
     }
     setTimeout(() => drawDetailChart(canvas, detailChartData), 50);
 
+    // Load news sentiment and order book
+    loadNewsSentiment(market);
+    loadOrderBook(market);
+
     // Sygnal Score history
     const scoreHistory = getSygnalScoreHistory(market.ticker);
     const histEl = document.getElementById('detail-sygnal-history');
@@ -5806,6 +5810,9 @@ setTimeout(() => {
     buildProPicks();
     buildBotTransparencyBanner();
     fetchResolutionData();
+    buildDailyChallengeWidget();
+    checkAchievements();
+    scheduleSmartNotifications();
     if (allMarketCards.length) detectSmartMoney(allMarketCards.map(c => c.market));
     setTimeout(addConversionTriggers, 2000);
 }, 3000);
@@ -5993,11 +6000,304 @@ function buildProfilePanel() {
             `).join('')}
         </div>
 
-        <div class="profile-actions">
+        ${buildAchievementsSection()}
+
+        <div class="profile-actions" style="display:flex;gap:10px;justify-content:center;">
+            ${email ? `<button class="profile-action-btn" onclick="showReferralPanel()">Invite Friends</button>` : ''}
             ${email ? `<button class="profile-action-btn" onclick="localStorage.removeItem('sygnal-account-email'); localStorage.removeItem('sygnal-account-name'); localStorage.removeItem('sygnal-pro'); buildProfilePanel(); showToast('Signed out');">Sign Out</button>` : ''}
         </div>
     `;
     } catch(e) { el.innerHTML = '<p style="color:var(--red);">Error loading profile: ' + e.message + '</p>'; }
+}
+
+// ══════════════════════════════════════════════
+// CATEGORY HUB PAGES
+// ══════════════════════════════════════════════
+function buildCategoryHub(category) {
+    const grid = document.querySelector('.market-grid');
+    if (!grid) return;
+    // Filter to category and sort by score
+    setFilter(category, document.querySelector(`.chip[onclick*="'${category}'"]`));
+    // Scroll to markets
+    document.getElementById('markets')?.scrollIntoView({ behavior: 'smooth' });
+}
+
+// ══════════════════════════════════════════════
+// REFERRAL PROGRAM
+// ══════════════════════════════════════════════
+function getReferralCode() {
+    const email = localStorage.getItem('sygnal-account-email');
+    if (!email) return null;
+    return btoa(email).replace(/=/g, '').substring(0, 12);
+}
+
+function getReferralLink() {
+    const code = getReferralCode();
+    if (!code) return 'https://sygnalmarkets.com';
+    return `https://sygnalmarkets.com?ref=${code}`;
+}
+
+function showReferralPanel() {
+    const email = localStorage.getItem('sygnal-account-email');
+    if (!email) { showAuthPage(); return; }
+    const code = getReferralCode();
+    const link = getReferralLink();
+
+    const existing = document.querySelector('.pro-modal');
+    if (existing) existing.remove();
+    const modal = document.createElement('div');
+    modal.className = 'pro-modal';
+    modal.innerHTML = `
+        <div class="pro-modal-content">
+            <div style="font-size:10px;letter-spacing:3px;color:var(--green);font-weight:700;margin-bottom:8px;">REFER & EARN</div>
+            <h3 style="margin:0 0 8px;font-size:18px;color:var(--text);">Invite Friends, Get Pro Free</h3>
+            <p style="color:var(--text-dim);font-size:13px;margin:0 0 16px;line-height:1.5;">Every 3 friends who sign up = 1 free month of Sygnal Pro.</p>
+            <div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:12px;margin-bottom:12px;word-break:break-all;font-size:12px;color:var(--accent);">${link}</div>
+            <button class="pro-btn" onclick="navigator.clipboard?.writeText('${link}'); showToast('Link copied!');">Copy Referral Link</button>
+            <button onclick="this.closest('.pro-modal').remove()" style="background:none;border:none;color:var(--text-dim);font-size:12px;cursor:pointer;margin-top:10px;">Close</button>
+        </div>
+    `;
+    document.body.appendChild(modal);
+}
+
+// Check for referral on load
+(function() {
+    const params = new URLSearchParams(window.location.search);
+    const ref = params.get('ref');
+    if (ref) {
+        localStorage.setItem('sygnal-referred-by', ref);
+        history.replaceState({}, '', '/');
+    }
+})();
+
+// ══════════════════════════════════════════════
+// ANNUAL PRICING
+// ══════════════════════════════════════════════
+function showPricingModal() {
+    const existing = document.querySelector('.pro-modal');
+    if (existing) existing.remove();
+    const modal = document.createElement('div');
+    modal.className = 'pro-modal';
+    modal.innerHTML = `
+        <div class="pro-modal-content" style="max-width:500px;">
+            <div style="font-size:10px;letter-spacing:3px;color:var(--accent);font-weight:700;margin-bottom:8px;">SYGNAL PRO</div>
+            <h3 style="margin:0 0 16px;font-size:18px;color:var(--text);">Choose Your Plan</h3>
+            <div style="display:flex;gap:12px;">
+                <div class="pricing-card" onclick="startProCheckout()" style="flex:1;padding:20px;border:1px solid var(--border);border-radius:12px;cursor:pointer;text-align:center;">
+                    <div style="font-size:12px;color:var(--text-dim);letter-spacing:1px;">MONTHLY</div>
+                    <div style="font-size:28px;font-weight:800;color:var(--text);margin:8px 0;">$9.99</div>
+                    <div style="font-size:12px;color:var(--text-dim);">/month</div>
+                </div>
+                <div class="pricing-card" onclick="startProCheckout()" style="flex:1;padding:20px;border:2px solid var(--accent);border-radius:12px;cursor:pointer;text-align:center;position:relative;">
+                    <div style="position:absolute;top:-10px;left:50%;transform:translateX(-50%);background:var(--accent);color:#fff;font-size:10px;font-weight:700;padding:2px 10px;border-radius:10px;">SAVE 33%</div>
+                    <div style="font-size:12px;color:var(--text-dim);letter-spacing:1px;">ANNUAL</div>
+                    <div style="font-size:28px;font-weight:800;color:var(--text);margin:8px 0;">$79</div>
+                    <div style="font-size:12px;color:var(--text-dim);">/year ($6.58/mo)</div>
+                </div>
+            </div>
+            <button onclick="this.closest('.pro-modal').remove()" style="background:none;border:none;color:var(--text-dim);font-size:12px;cursor:pointer;margin-top:16px;">Maybe later</button>
+        </div>
+    `;
+    document.body.appendChild(modal);
+}
+
+// ══════════════════════════════════════════════
+// NEWS SENTIMENT ON MARKET DETAIL
+// ══════════════════════════════════════════════
+async function loadNewsSentiment(market) {
+    const container = document.getElementById('detail-news');
+    if (!container) return;
+    const query = (market.question || '').split(' ').slice(0, 4).join(' ');
+    container.innerHTML = '<p style="color:var(--text-dim);font-size:12px;">Loading news...</p>';
+    try {
+        const resp = await fetch(API_BASE + '/api/news/' + encodeURIComponent(query));
+        if (!resp.ok) { container.innerHTML = ''; return; }
+        const data = await resp.json();
+        if (!data.articles || !data.articles.length) { container.innerHTML = ''; return; }
+        const toneColor = data.avgTone > 1 ? 'var(--green)' : data.avgTone < -1 ? 'var(--red)' : 'var(--text-dim)';
+        const toneLabel = data.avgTone > 1 ? 'Positive' : data.avgTone < -1 ? 'Negative' : 'Neutral';
+        container.innerHTML = `
+            <div class="news-sentiment-section">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+                    <h4 style="font-size:13px;color:var(--text-dim);letter-spacing:1px;margin:0;">NEWS SENTIMENT</h4>
+                    <span style="color:${toneColor};font-size:12px;font-weight:700;">${toneLabel} (${data.avgTone > 0 ? '+' : ''}${data.avgTone})</span>
+                </div>
+                ${data.articles.slice(0, 3).map(a => `
+                    <a href="${a.url}" target="_blank" class="news-article-row">
+                        <span class="news-article-title">${a.title.substring(0, 60)}${a.title.length > 60 ? '...' : ''}</span>
+                        <span class="news-article-source">${a.source}</span>
+                    </a>
+                `).join('')}
+            </div>
+        `;
+    } catch { container.innerHTML = ''; }
+}
+
+// ══════════════════════════════════════════════
+// ORDER BOOK VISUALIZATION
+// ══════════════════════════════════════════════
+async function loadOrderBook(market) {
+    if (!isPro()) return;
+    const container = document.getElementById('detail-orderbook');
+    if (!container || market.source !== 'kalshi') { if (container) container.innerHTML = ''; return; }
+    container.innerHTML = '<p style="color:var(--text-dim);font-size:12px;">Loading order book...</p>';
+    try {
+        const resp = await fetch(API_BASE + '/api/orderbook/' + market.ticker);
+        if (!resp.ok) { container.innerHTML = ''; return; }
+        const data = await resp.json();
+        const ob = data.orderbook || data;
+        const yesBids = (ob.yes || []).slice(0, 5);
+        const noBids = (ob.no || []).slice(0, 5);
+        if (!yesBids.length && !noBids.length) { container.innerHTML = ''; return; }
+        const maxQty = Math.max(...[...yesBids, ...noBids].map(l => l[1] || 0), 1);
+        container.innerHTML = `
+            <div class="orderbook-section">
+                <h4 style="font-size:13px;color:var(--text-dim);letter-spacing:1px;margin:0 0 8px;">ORDER BOOK</h4>
+                <div class="orderbook-grid">
+                    <div class="orderbook-side">
+                        <div class="orderbook-label" style="color:var(--green);">YES BIDS</div>
+                        ${yesBids.map(l => {
+                            const pct = (l[1] / maxQty * 100).toFixed(0);
+                            return `<div class="ob-row"><div class="ob-bar-bg"><div class="ob-bar yes" style="width:${pct}%"></div></div><span class="ob-price">${(l[0]*100).toFixed(0)}¢</span><span class="ob-qty">${l[1]}</span></div>`;
+                        }).join('')}
+                    </div>
+                    <div class="orderbook-side">
+                        <div class="orderbook-label" style="color:var(--red);">NO BIDS</div>
+                        ${noBids.map(l => {
+                            const pct = (l[1] / maxQty * 100).toFixed(0);
+                            return `<div class="ob-row"><div class="ob-bar-bg"><div class="ob-bar no" style="width:${pct}%"></div></div><span class="ob-price">${(l[0]*100).toFixed(0)}¢</span><span class="ob-qty">${l[1]}</span></div>`;
+                        }).join('')}
+                    </div>
+                </div>
+            </div>
+        `;
+    } catch { container.innerHTML = ''; }
+}
+
+// ══════════════════════════════════════════════
+// DAILY CHALLENGE
+// ══════════════════════════════════════════════
+function getDailyChallenge() {
+    const today = new Date().toISOString().split('T')[0];
+    const saved = JSON.parse(localStorage.getItem('sygnal-daily-challenge') || '{}');
+    if (saved.date === today) return saved;
+    return { date: today, picks: [], results: [] };
+}
+
+function saveDailyChallenge(data) {
+    localStorage.setItem('sygnal-daily-challenge', JSON.stringify(data));
+}
+
+function addDailyPick(market, side) {
+    const challenge = getDailyChallenge();
+    if (challenge.picks.length >= 3) { showToast('Already picked 3 today!'); return; }
+    if (challenge.picks.find(p => p.ticker === market.ticker)) { showToast('Already picked this market'); return; }
+    challenge.picks.push({ ticker: market.ticker, question: market.question, side, price: market.yes, time: Date.now() });
+    saveDailyChallenge(challenge);
+    showToast(`Pick ${challenge.picks.length}/3 added!`);
+    buildDailyChallengeWidget();
+}
+
+function buildDailyChallengeWidget() {
+    let widget = document.getElementById('daily-challenge-widget');
+    if (!widget) return;
+    const ch = getDailyChallenge();
+    const streak = parseInt(localStorage.getItem('sygnal-challenge-streak') || '0');
+    widget.innerHTML = `
+        <div class="daily-challenge">
+            <div class="dc-header">
+                <span class="dc-title">DAILY CHALLENGE</span>
+                <span class="dc-streak">${streak} day streak</span>
+            </div>
+            <p class="dc-desc">Pick 3 markets today. Track your accuracy.</p>
+            <div class="dc-picks">
+                ${[0,1,2].map(i => {
+                    const pick = ch.picks[i];
+                    if (pick) {
+                        return `<div class="dc-pick filled"><span class="dc-pick-side ${pick.side}">${pick.side.toUpperCase()}</span><span class="dc-pick-q">${shortenTitle(pick.question, 30)}</span></div>`;
+                    }
+                    return `<div class="dc-pick empty"><span class="dc-pick-num">${i + 1}</span><span class="dc-pick-q">Tap a market card to pick</span></div>`;
+                }).join('')}
+            </div>
+        </div>
+    `;
+}
+
+// ══════════════════════════════════════════════
+// ACHIEVEMENT BADGES
+// ══════════════════════════════════════════════
+function getAchievements() {
+    return JSON.parse(localStorage.getItem('sygnal-achievements') || '[]');
+}
+
+function checkAchievements() {
+    const earned = getAchievements();
+    const email = localStorage.getItem('sygnal-account-email');
+    const portfolio = getPaperPortfolio();
+    const watchlist = getWatchlist();
+    const challenge = getDailyChallenge();
+    const streak = parseInt(localStorage.getItem('sygnal-challenge-streak') || '0');
+
+    const badges = [
+        { id: 'first-visit', name: 'Explorer', desc: 'Visited Sygnal Markets', icon: '◆', check: () => true },
+        { id: 'account', name: 'Member', desc: 'Created an account', icon: '★', check: () => !!email },
+        { id: 'first-trade', name: 'Trader', desc: 'Made your first paper trade', icon: '▲', check: () => portfolio.trades.length > 0 },
+        { id: 'watchlist-5', name: 'Watchful', desc: 'Added 5 markets to watchlist', icon: '◎', check: () => watchlist.length >= 5 },
+        { id: '10-trades', name: 'Active Trader', desc: 'Made 10 paper trades', icon: '◇', check: () => portfolio.trades.length >= 10 },
+        { id: 'daily-3', name: 'Challenger', desc: 'Completed a daily challenge', icon: '▽', check: () => challenge.picks.length >= 3 },
+        { id: 'streak-3', name: 'Consistent', desc: '3-day challenge streak', icon: '◈', check: () => streak >= 3 },
+        { id: 'streak-7', name: 'Dedicated', desc: '7-day challenge streak', icon: '✦', check: () => streak >= 7 },
+        { id: 'pro', name: 'Pro Member', desc: 'Upgraded to Sygnal Pro', icon: '♛', check: () => isPro() },
+    ];
+
+    let newBadge = false;
+    for (const b of badges) {
+        if (!earned.includes(b.id) && b.check()) {
+            earned.push(b.id);
+            newBadge = true;
+            showToast(`Badge earned: ${b.name}!`);
+        }
+    }
+    if (newBadge) localStorage.setItem('sygnal-achievements', JSON.stringify(earned));
+    return badges.map(b => ({ ...b, earned: earned.includes(b.id) }));
+}
+
+function buildAchievementsSection() {
+    const badges = checkAchievements();
+    const earned = badges.filter(b => b.earned).length;
+    return `
+        <div class="achievements-section">
+            <h3 style="font-size:13px;letter-spacing:2px;color:var(--text-dim);margin-bottom:10px;">ACHIEVEMENTS (${earned}/${badges.length})</h3>
+            <div class="badge-grid">
+                ${badges.map(b => `
+                    <div class="badge-item ${b.earned ? 'earned' : 'locked'}">
+                        <span class="badge-icon">${b.icon}</span>
+                        <span class="badge-name">${b.name}</span>
+                        <span class="badge-desc">${b.earned ? b.desc : '???'}</span>
+                    </div>
+                `).join('')}
+            </div>
+        </div>
+    `;
+}
+
+// ══════════════════════════════════════════════
+// IMPROVED PUSH NOTIFICATIONS
+// ══════════════════════════════════════════════
+function scheduleSmartNotifications() {
+    if (!notificationsEnabled) return;
+    // High-score alert: notify when any market hits score 80+
+    for (const card of allMarketCards) {
+        const score = calcSygnalScore(card.market, 0);
+        const sig = getSygnalSignal(card.market.ticker);
+        if (score >= 80 && sig.signal.includes('BUY')) {
+            sendNotification(
+                `High Score Alert: ${score}/99`,
+                `${shortenTitle(card.market.question, 40)} — ${sig.signal}`,
+                'sygnal-highscore-' + card.market.ticker
+            );
+        }
+    }
 }
 
 // ── SERVICE WORKER (PWA) ──

@@ -88,6 +88,7 @@
             <div id="auth-signup-form" class="auth-form">
                 <input type="text" id="auth-name" class="auth-input" placeholder="Your name">
                 <input type="email" id="auth-email" class="auth-input" placeholder="Email address">
+                <input type="password" id="auth-password" class="auth-input" placeholder="Create password">
                 <button class="auth-btn" onclick="submitAuth('signup')">Create Free Account</button>
                 <p class="auth-note">30-day free trial included. No credit card required.</p>
             </div>
@@ -95,6 +96,7 @@
             <!-- Sign In Form -->
             <div id="auth-signin-form" class="auth-form" style="display:none;">
                 <input type="email" id="auth-signin-email" class="auth-input" placeholder="Email address">
+                <input type="password" id="auth-signin-password" class="auth-input" placeholder="Password">
                 <button class="auth-btn" onclick="submitAuth('signin')">Sign In</button>
             </div>
 
@@ -216,7 +218,6 @@
                     <a href="#" onclick="switchTabFromMore('correlations', this); return false;">Correlations</a>
                     <a href="#" onclick="switchTabFromMore('compare', this); return false;">Compare</a>
                     <a href="#" onclick="switchTabFromMore('alerts', this); return false;">Alerts</a>
-                    <a href="#" onclick="switchTabFromMore('profile', this); return false;">Profile</a>
                 </div>
             </div>
         </div>
@@ -419,6 +420,7 @@
 
     <!-- Accuracy Proof Banner -->
     <div id="accuracy-banner" class="accuracy-banner" style="display:none;"></div>
+    <div id="daily-challenge-widget"></div>
 
     <!-- Pro Picks -->
     <div id="pro-picks" style="display:none;"></div>
@@ -442,6 +444,8 @@
             <div id="detail-sygnal-history"></div>
             <div id="detail-paper-trade"></div>
             <div id="detail-alert-section"></div>
+            <div id="detail-news"></div>
+            <div id="detail-orderbook"></div>
         </div>
     </div>
 
@@ -755,7 +759,6 @@
                 <a href="#" onclick="switchTabMobile('correlations'); return false;">Correlations</a>
                 <a href="#" onclick="switchTabMobile('compare'); return false;">Compare</a>
                 <a href="#" onclick="switchTabMobile('alerts'); return false;">Alerts</a>
-                <a href="#" onclick="switchTabMobile('profile'); return false;">Profile</a>
             </div>
         </div>
     </nav>
