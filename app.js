@@ -157,6 +157,7 @@ function switchTab(tab, btn) {
 
     const compareEl = document.getElementById('compare-panel');
     const alertsEl = document.getElementById('alerts-panel');
+    const profileEl = document.getElementById('profile-panel');
     const newsFeedEl = document.getElementById('news-feed');
 
     const marketsView = [heroEl, statsEl, filtersEl, marketsEl, briefEl, explainerEl, signupEl, newsFeedEl];
@@ -168,7 +169,8 @@ function switchTab(tab, btn) {
     const leaguesView = [leaguesEl];
     const compareView = [compareEl];
     const alertsView = [alertsEl];
-    const allSections = [...marketsView, ...botView, ...portfolioView, ...arbView, ...corrView, ...trendingView, ...leaguesView, ...compareView, ...alertsView];
+    const profileView = [profileEl];
+    const allSections = [...marketsView, ...botView, ...portfolioView, ...arbView, ...corrView, ...trendingView, ...leaguesView, ...compareView, ...alertsView, ...profileView];
 
     // Hide everything
     allSections.forEach(el => { if (el) el.classList.add('view-hidden'); });
@@ -184,6 +186,7 @@ function switchTab(tab, btn) {
     else if (tab === 'leagues') { visible = leaguesView; buildLeaguePanel(); }
     else if (tab === 'compare') { visible = compareView; buildComparePanel(); }
     else if (tab === 'alerts') { visible = alertsView; renderAlertRules(); }
+    else if (tab === 'profile') { visible = profileView; buildProfilePanel(); }
 
     visible.forEach(el => { if (el) el.classList.remove('view-hidden'); });
 }
@@ -5718,6 +5721,92 @@ setInterval(() => {
     checkWatchlistAlerts();
     evaluateCustomAlertRules();
 }, 120000);
+
+// ── PROFILE PANEL ──
+function buildProfilePanel() {
+    const el = document.getElementById('profile-content');
+    if (!el) return;
+
+    const email = localStorage.getItem('sygnal-account-email') || '';
+    const name = localStorage.getItem('sygnal-account-name') || '';
+    const pro = isPro();
+    const trialDays = getTrialDaysLeft();
+    const trialActive = isTrialActive();
+
+    // Stats
+    const portfolio = getPaperPortfolio();
+    const trades = portfolio.trades || [];
+    const watchlist = getWatchlist();
+    const alerts = getCustomAlertRules();
+
+    // Accuracy
+    const record = getTrackRecord();
+    const correct = record.filter(r => r.correct).length;
+    const accuracy = record.length > 0 ? ((correct / record.length) * 100).toFixed(0) : '—';
+
+    const proFeatures = [
+        { name: 'Score Breakdown', desc: 'See all 5 factors behind every Sygnal Score', icon: '◆', free: false },
+        { name: 'Mispricing Detector', desc: 'Know when a market is underpriced or overpriced', icon: '▲', free: false },
+        { name: 'Pro Picks', desc: 'Top 3 highest-conviction signals daily', icon: '★', free: false },
+        { name: 'Smart Money Alerts', desc: 'Get notified when big volume flows in', icon: '◈', free: false },
+        { name: 'AI Analysis', desc: 'Deep AI analysis on any market', icon: '⚡', free: false },
+        { name: '30s Refresh', desc: '4x faster data updates (vs 2min free)', icon: '↻', free: false },
+        { name: 'Custom Alerts', desc: 'Build rules: score > 80, price drops 5¢, etc.', icon: '▽', free: false },
+        { name: 'Paper Trading', desc: 'Unlimited simulated trading', icon: '◇', free: '30-day trial' },
+        { name: 'Signal Export', desc: 'Download full signal history as CSV', icon: '↓', free: false },
+        { name: 'Bot Trade Feed', desc: 'See every bot trade with full P&L details', icon: '◎', free: false },
+    ];
+
+    el.innerHTML = `
+        <div class="profile-header">
+            <div class="profile-avatar">${(name || email || 'S').charAt(0).toUpperCase()}</div>
+            <div class="profile-info">
+                <h2 class="profile-name">${name || 'Sygnal User'}</h2>
+                <p class="profile-email">${email || 'No account yet'}</p>
+                <span class="profile-badge ${pro ? 'pro' : trialActive ? 'trial' : 'free'}">${pro ? 'PRO' : trialActive ? trialDays + ' DAYS LEFT' : 'FREE'}</span>
+            </div>
+        </div>
+
+        <div class="profile-stats">
+            <div class="profile-stat"><span class="profile-stat-val">${trades.length}</span><span class="profile-stat-label">Trades</span></div>
+            <div class="profile-stat"><span class="profile-stat-val">${watchlist.length}</span><span class="profile-stat-label">Watchlist</span></div>
+            <div class="profile-stat"><span class="profile-stat-val">${accuracy}%</span><span class="profile-stat-label">Accuracy</span></div>
+            <div class="profile-stat"><span class="profile-stat-val">${alerts.length}</span><span class="profile-stat-label">Alerts</span></div>
+        </div>
+
+        ${!email ? `<div class="profile-cta-card">
+            <h3>Create Your Account</h3>
+            <p>Save your watchlist, trade history, and alert rules across devices.</p>
+            <button class="pro-btn" onclick="showSignupPopup()">Sign Up Free</button>
+        </div>` : ''}
+
+        ${!pro ? `<div class="profile-cta-card pro-cta">
+            <div style="font-size:10px;letter-spacing:3px;color:var(--accent);font-weight:700;margin-bottom:6px;">SYGNAL PRO</div>
+            <h3>Unlock Everything</h3>
+            <p>Score breakdowns, mispricing detection, Pro Picks, smart money alerts, AI analysis, and more.</p>
+            <div style="font-size:24px;font-weight:800;color:var(--text);margin:12px 0;">$9.99<span style="font-size:13px;color:var(--text-dim);font-weight:400;">/month</span></div>
+            <button class="pro-btn" onclick="showProUpsell('Sygnal Pro')">Upgrade to Pro</button>
+        </div>` : ''}
+
+        <div class="profile-features">
+            <h3 style="font-size:13px;letter-spacing:2px;color:var(--text-dim);margin-bottom:12px;">${pro ? 'YOUR PRO FEATURES' : 'FREE vs PRO'}</h3>
+            ${proFeatures.map(f => `
+                <div class="profile-feature-row">
+                    <span class="profile-feature-icon" style="color:${pro ? 'var(--green)' : 'var(--text-dim)'}">${f.icon}</span>
+                    <div class="profile-feature-info">
+                        <span class="profile-feature-name">${f.name}</span>
+                        <span class="profile-feature-desc">${f.desc}</span>
+                    </div>
+                    <span class="profile-feature-status ${pro ? 'unlocked' : f.free ? 'trial' : 'locked'}">${pro ? '✓' : f.free || '🔒'}</span>
+                </div>
+            `).join('')}
+        </div>
+
+        <div class="profile-actions">
+            ${email ? `<button class="profile-action-btn" onclick="localStorage.removeItem('sygnal-account-email'); localStorage.removeItem('sygnal-account-name'); localStorage.removeItem('sygnal-pro'); buildProfilePanel(); showToast('Signed out');">Sign Out</button>` : ''}
+        </div>
+    `;
+}
 
 // ── SERVICE WORKER (PWA) ──
 if ('serviceWorker' in navigator) {
