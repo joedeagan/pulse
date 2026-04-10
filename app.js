@@ -2334,6 +2334,7 @@ function openDetail(market, platform) {
         </div>
         ${breakdownHtml}
         ${crossHtml}
+        ${getMispricingHtml(market)}
         <div class="detail-btn-row">
             <a class="detail-btn detail-btn-yes" href="${url}" target="_blank">Buy YES on ${platform === 'kalshi' ? 'Kalshi' : 'Polymarket'}</a>
             <a class="detail-btn detail-btn-no" href="${url}" target="_blank">Buy NO on ${platform === 'kalshi' ? 'Kalshi' : 'Polymarket'}</a>
@@ -5449,7 +5450,6 @@ async function fetchResolutionData() {
     try {
         const cached = localStorage.getItem('sygnal-resolutions');
         const cacheTime = localStorage.getItem('sygnal-resolutions-time');
-        // Only fetch once per day
         if (cached && cacheTime && Date.now() - parseInt(cacheTime) < 86400000) return;
 
         const resp = await fetch(API_BASE + '/api/resolutions?limit=200');
@@ -5458,33 +5458,232 @@ async function fetchResolutionData() {
         if (data.resolutions) {
             localStorage.setItem('sygnal-resolutions', JSON.stringify(data.resolutions));
             localStorage.setItem('sygnal-resolutions-time', Date.now().toString());
-
-            // Compute calibration: at each price level, how often does YES win?
-            const calibration = {};
-            for (const r of data.resolutions) {
-                const bucket = Math.round(r.lastPrice / 10) * 10; // 10-cent buckets
-                if (!calibration[bucket]) calibration[bucket] = { yes: 0, no: 0, total: 0 };
-                calibration[bucket].total++;
-                if (r.result === 'yes') calibration[bucket].yes++;
-                else calibration[bucket].no++;
-            }
-            localStorage.setItem('sygnal-calibration', JSON.stringify(calibration));
         }
     } catch(e) { console.log('Resolution fetch failed:', e); }
 }
 
-function getCalibrationAccuracy(price) {
+// ══════════════════════════════════════════════
+// MISPRICING DETECTOR — "Is this market fairly priced?"
+// ══════════════════════════════════════════════
+// Theoretical calibration: a perfectly calibrated market at X¢ should resolve YES X% of the time
+// Any deviation = mispricing = opportunity
+function getMispricingSignal(market) {
+    const yes = market.yes || 50;
+    const xp = _crossPlatformMap[market.ticker];
+
+    // Method 1: Cross-platform mispricing (strongest signal)
+    let crossMispricing = 0;
+    let cheaperPlatform = null;
+    if (xp) {
+        const otherYes = xp.match.yes || 50;
+        crossMispricing = otherYes - yes; // positive = underpriced here
+        if (Math.abs(crossMispricing) >= 3) {
+            cheaperPlatform = crossMispricing > 0 ? market.source : (market.source === 'kalshi' ? 'poly' : 'kalshi');
+        }
+    }
+
+    // Method 2: Volume-weighted fair value
+    // If huge volume at a price, the crowd has conviction. Low-volume outliers are likely mispriced
+    const vol = market.volume || 0;
+    const vol24h = market.volume24h || 0;
+    let volumeConfidence = 'low';
+    if (vol >= 500000 || vol24h >= 50000) volumeConfidence = 'high';
+    else if (vol >= 50000 || vol24h >= 10000) volumeConfidence = 'medium';
+
+    // Method 3: Spread-based mispricing
+    // Wide spread = uncertainty = possible mispricing
+    const spread = market.spread || 0;
+    let spreadSignal = 'neutral';
+    if (spread > 8) spreadSignal = 'wide — potential mispricing';
+    else if (spread > 4) spreadSignal = 'moderate';
+    else if (spread > 0 && spread <= 2) spreadSignal = 'tight — well-priced';
+
+    // Method 4: Day/week trend divergence
+    // If price moved 10%+ in a day but weekly trend is opposite, market may be overreacting
+    const dayChange = market.dayChange ? market.dayChange * 100 : 0;
+    const weekChange = market.weekChange ? market.weekChange * 100 : 0;
+    let overreaction = false;
+    if (Math.abs(dayChange) > 8 && weekChange !== 0 && Math.sign(dayChange) !== Math.sign(weekChange)) {
+        overreaction = true;
+    }
+
+    // Compute mispricing score (-100 to +100)
+    // Positive = underpriced YES, Negative = overpriced YES
+    let mispricingScore = 0;
+    if (crossMispricing) mispricingScore += crossMispricing * 3; // Strongest signal
+    if (overreaction) mispricingScore += dayChange > 0 ? -15 : 15; // Counter the overreaction
+    mispricingScore = Math.max(-100, Math.min(100, mispricingScore));
+
+    let verdict = 'FAIRLY PRICED';
+    if (mispricingScore >= 15) verdict = 'UNDERPRICED YES';
+    else if (mispricingScore <= -15) verdict = 'OVERPRICED YES';
+    else if (mispricingScore >= 8) verdict = 'SLIGHTLY CHEAP';
+    else if (mispricingScore <= -8) verdict = 'SLIGHTLY EXPENSIVE';
+
+    return {
+        verdict,
+        mispricingScore,
+        crossMispricing,
+        cheaperPlatform,
+        volumeConfidence,
+        spreadSignal,
+        overreaction,
+    };
+}
+
+// ══════════════════════════════════════════════
+// SMART MONEY DETECTION — Volume spike alerts
+// ══════════════════════════════════════════════
+let _volumeHistory = {};
+try { _volumeHistory = JSON.parse(localStorage.getItem('sygnal-volume-history') || '{}'); } catch {}
+
+function detectSmartMoney(allMarkets) {
+    const alerts = [];
+    const now = Date.now();
+
+    for (const m of allMarkets) {
+        if (!m.ticker) continue;
+        const vol = m.volume || 0;
+        const vol24h = m.volume24h || m.volume24h || 0;
+
+        // Track volume over time
+        if (!_volumeHistory[m.ticker]) _volumeHistory[m.ticker] = [];
+        const history = _volumeHistory[m.ticker];
+        const last = history[history.length - 1];
+
+        // Only record every 5 min
+        if (!last || now - last.t > 300000) {
+            history.push({ t: now, v: vol });
+            if (history.length > 24) history.shift(); // Keep 2 hours
+        }
+
+        // Detect spike: current volume >> average of last readings
+        if (history.length >= 4) {
+            const recentAvg = history.slice(-4, -1).reduce((s, h) => s + h.v, 0) / 3;
+            const current = vol;
+            if (recentAvg > 0 && current > recentAvg * 2.5) {
+                alerts.push({
+                    market: m,
+                    spike: ((current / recentAvg - 1) * 100).toFixed(0),
+                    volume: current,
+                    avgVolume: recentAvg,
+                });
+            }
+        }
+    }
+
+    localStorage.setItem('sygnal-volume-history', JSON.stringify(_volumeHistory));
+
+    // Send notifications for significant spikes
+    if (notificationsEnabled && alerts.length > 0) {
+        for (const a of alerts.slice(0, 3)) {
+            sendNotification(
+                `Smart Money Alert: ${shortenTitle(a.market.question, 35)}`,
+                `Volume spike +${a.spike}% — someone is moving big`,
+                'sygnal-smartmoney-' + a.market.ticker
+            );
+        }
+    }
+
+    return alerts;
+}
+
+// ══════════════════════════════════════════════
+// ENHANCED ARBITRAGE — Guaranteed profit calculator
+// ══════════════════════════════════════════════
+function calculateArbProfit(kalshiYes, polyYes, investment) {
+    // Buy YES where it's cheaper, buy NO where it's more expensive
+    // If kalshiYes < polyYes: buy YES on Kalshi at kalshiYes, buy NO on Poly at (100-polyYes)
+    const cheapYes = Math.min(kalshiYes, polyYes);
+    const cheapNo = 100 - Math.max(kalshiYes, polyYes);
+    const totalCost = (cheapYes + cheapNo) / 100; // Cost per $1 of exposure
+
+    if (totalCost >= 1) return null; // No arb
+
+    const profitPer = 1 - totalCost; // Guaranteed profit per $1
+    const profitPct = (profitPer / totalCost * 100).toFixed(1);
+    const profitDollars = ((investment / totalCost) * profitPer).toFixed(2);
+
+    return {
+        totalCost: (totalCost * 100).toFixed(1),
+        profitPct,
+        profitDollars,
+        cheapYesPlatform: kalshiYes < polyYes ? 'Kalshi' : 'Polymarket',
+        cheapYesPrice: cheapYes,
+        cheapNoPrice: cheapNo,
+    };
+}
+
+// ══════════════════════════════════════════════
+// BOT TRANSPARENCY FEED — Show live trades on main page
+// ══════════════════════════════════════════════
+async function buildBotTransparencyBanner() {
     try {
-        const cal = JSON.parse(localStorage.getItem('sygnal-calibration') || '{}');
-        const bucket = Math.round(price / 10) * 10;
-        const data = cal[bucket];
-        if (!data || data.total < 5) return null;
-        return {
-            yesRate: (data.yes / data.total * 100).toFixed(0),
-            noRate: (data.no / data.total * 100).toFixed(0),
-            sampleSize: data.total
-        };
-    } catch { return null; }
+        const resp = await fetch(API_BASE + '/api/bot/trades?limit=5');
+        if (!resp.ok) return;
+        const data = await resp.json();
+        const trades = data.trades || data || [];
+        if (!trades.length) return;
+
+        // Build a live banner showing recent bot activity
+        const banner = document.getElementById('accuracy-banner');
+        if (!banner) return;
+
+        const wins = trades.filter(t => (t.realized_pnl || t.pnl || 0) > 0).length;
+        const totalPnl = trades.reduce((s, t) => s + (t.realized_pnl || t.pnl || 0), 0);
+        const pnlStr = totalPnl >= 0 ? '+$' + totalPnl.toFixed(2) : '-$' + Math.abs(totalPnl).toFixed(2);
+        const pnlColor = totalPnl >= 0 ? 'var(--green)' : 'var(--red)';
+
+        const latestTrade = trades[0];
+        const latestTitle = shortenTitle(latestTrade.title || decodeTicker(latestTrade.ticker || ''), 30);
+        const latestSide = (latestTrade.side || '').toUpperCase();
+
+        banner.style.display = '';
+        banner.innerHTML = `
+            <div class="accuracy-content">
+                <span class="accuracy-stat" style="color:${pnlColor}">Bot: ${pnlStr}</span>
+                <span class="accuracy-text">Latest: ${latestSide} ${latestTitle}</span>
+                <span class="accuracy-text">${wins}/${trades.length} profitable</span>
+                <span class="accuracy-cta" onclick="switchTab('bot', document.querySelector('.nav-links > a:nth-child(3)'))">See All Trades →</span>
+            </div>
+        `;
+    } catch(e) {}
+}
+
+// ══════════════════════════════════════════════
+// ADD MISPRICING TO DETAIL VIEW
+// ══════════════════════════════════════════════
+function getMispricingHtml(market) {
+    const mp = getMispricingSignal(market);
+    const showDetail = isPro() || isTrialActive();
+
+    let verdictColor = 'var(--text-dim)';
+    if (mp.verdict.includes('UNDER')) verdictColor = 'var(--green)';
+    else if (mp.verdict.includes('OVER')) verdictColor = 'var(--red)';
+    else if (mp.verdict.includes('CHEAP')) verdictColor = 'var(--green)';
+    else if (mp.verdict.includes('EXPENSIVE')) verdictColor = 'var(--red)';
+
+    if (!showDetail) {
+        return `<div class="mispricing-row locked" onclick="showProUpsell('Mispricing Detector')">
+            <span class="mispricing-verdict" style="color:${verdictColor}">${mp.verdict}</span>
+            <span class="mispricing-lock">🔒 Pro</span>
+        </div>`;
+    }
+
+    let details = '';
+    if (mp.crossMispricing && Math.abs(mp.crossMispricing) >= 2) {
+        details += `<span class="mispricing-detail">Cross-platform gap: ${Math.abs(mp.crossMispricing)}¢</span>`;
+    }
+    if (mp.overreaction) {
+        details += `<span class="mispricing-detail" style="color:var(--gold)">⚠ Possible overreaction</span>`;
+    }
+    details += `<span class="mispricing-detail">Volume confidence: ${mp.volumeConfidence}</span>`;
+    details += `<span class="mispricing-detail">Spread: ${mp.spreadSignal}</span>`;
+
+    return `<div class="mispricing-row">
+        <span class="mispricing-verdict" style="color:${verdictColor}">${mp.verdict}</span>
+        <div class="mispricing-details">${details}</div>
+    </div>`;
 }
 
 // ══════════════════════════════════════════════
@@ -5494,10 +5693,16 @@ setTimeout(() => {
     loadBotPerformance();
     buildNewsFeed();
     buildProPicks();
-    buildAccuracyBanner();
+    buildBotTransparencyBanner();
     fetchResolutionData();
+    if (allMarketCards.length) detectSmartMoney(allMarketCards.map(c => c.market));
     setTimeout(addConversionTriggers, 2000);
 }, 3000);
+
+// Run smart money detection every 5 min
+setInterval(() => {
+    if (allMarketCards.length) detectSmartMoney(allMarketCards.map(c => c.market));
+}, 300000);
 
 // Run alert checks every 2 minutes
 setInterval(() => {

@@ -3191,6 +3191,46 @@ body.light .mobile-more-menu a:hover { color: #1a1a2e; background: rgba(0,0,0,0.
     .score-factor-name { min-width: 70px; font-size: 10px; }
 }
 
+/* ── MISPRICING DETECTOR ── */
+.mispricing-row {
+    margin: 10px 0;
+    padding: 10px 14px;
+    background: rgba(255,255,255,0.02);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+.mispricing-row.locked {
+    cursor: pointer;
+    justify-content: space-between;
+}
+.mispricing-row.locked:hover { background: rgba(255,255,255,0.04); }
+.mispricing-verdict {
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: 1px;
+    white-space: nowrap;
+}
+.mispricing-lock {
+    font-size: 11px;
+    color: var(--purple);
+    font-weight: 700;
+}
+.mispricing-details {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+.mispricing-detail {
+    font-size: 11px;
+    color: var(--text-dim);
+    padding: 2px 8px;
+    background: rgba(255,255,255,0.03);
+    border-radius: 4px;
+}
+
 /* ── TRIAL BADGE ── */
 .trial-badge {
     text-align: center;
