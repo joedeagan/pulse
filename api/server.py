@@ -617,7 +617,7 @@ async def generate_newsletter():
     top_markets = all_markets[:5]
     movers = sorted(all_markets, key=lambda x: abs(x.get("yes", 50) - 50), reverse=True)[:5]
 
-    SITE = "https://sygnal-markets.fly.dev"
+    SITE = "https://sygnalmarkets.com"
     date_str = datetime.now().strftime("%B %d, %Y")
 
     # Market rows
@@ -634,11 +634,11 @@ async def generate_newsletter():
         sc = "#00875a" if yes >= 70 else ("#cc2244" if yes <= 30 else "#997a00")
         url = m.get("url", SITE)
         market_rows += f"""<tr>
-<td style="padding:16px 0;border-bottom:1px solid #f0f0f0;">
+<td style="padding:14px 0;border-bottom:1px solid #1a1a2e;">
 <table width="100%" cellpadding="0" cellspacing="0"><tr>
-<td><span style="color:{pc};font-size:10px;font-weight:700;">{plat}</span> <span style="color:{sc};font-size:10px;font-weight:700;">{sig}</span>
-<br><a href="{url}" style="color:#1a1a1a;text-decoration:none;font-size:15px;font-weight:600;line-height:22px;">{m['question']}</a>
-<br><span style="color:{yc};font-size:18px;font-weight:700;">YES {yes}&#162;</span> &nbsp;<span style="color:{nc};font-size:18px;font-weight:700;">NO {no}&#162;</span> &nbsp;<span style="color:#999;font-size:12px;">{vol}</span></td>
+<td><span style="color:{pc};font-size:10px;font-weight:700;">{plat}</span>
+<br><a href="{url}" style="color:#e0e0e0;text-decoration:none;font-size:14px;font-weight:600;line-height:20px;">{m['question'][:60]}</a>
+<br><span style="color:#00d68f;font-size:15px;font-weight:700;">YES {yes}&#162;</span> &nbsp;<span style="color:#ff3b5c;font-size:15px;font-weight:700;">NO {no}&#162;</span> &nbsp;<span style="color:#555;font-size:11px;">{vol}</span></td>
 </tr></table>
 </td></tr>"""
 
@@ -667,60 +667,85 @@ async def generate_newsletter():
 <span style="float:right;color:{yc};font-size:16px;font-weight:700;">{yes}&#162; <span style="color:{sc};font-size:10px;">{sig}</span></span>
 </td></tr>"""
 
-    html = f"""<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"></head>
-<body style="margin:0;padding:0;background:#f5f5f5;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;">
-<table width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding:24px 16px;">
-<table width="560" cellpadding="0" cellspacing="0" style="max-width:560px;">
+    # Bot stats
+    bot_stats = ""
+    try:
+        import httpx as _hx
+        async with _hx.AsyncClient() as _c:
+            _br = await _c.get("https://web-production-c8a5b.up.railway.app/api/bot/status", timeout=5)
+            _bd = _br.json()
+            bot_equity = f"${_bd.get('equity_cents', 0) / 100:.2f}"
+            bot_running = "Running" if _bd.get("running") else "Stopped"
+            bot_stats = f'<tr><td style="padding:16px;background:#0a1628;border-radius:8px;margin-bottom:12px;"><table width="100%"><tr><td style="color:#0088ff;font-size:11px;font-weight:700;letter-spacing:2px;">BOT STATUS</td><td align="right" style="color:#00d68f;font-size:14px;font-weight:700;">{bot_running} &middot; {bot_equity}</td></tr></table></td></tr><tr><td style="height:12px;"></td></tr>'
+    except Exception:
+        pass
 
-<!-- Logo + Title -->
-<tr><td style="padding:0 0 20px;text-align:center;">
-<span style="font-size:28px;font-weight:800;color:#0066cc;letter-spacing:2px;">Sygnal</span>
-<br><span style="font-size:13px;color:#888;">{date_str} &middot; {len(all_markets)} markets tracked</span>
+    # Scored markets for newsletter
+    scored_rows = ""
+    scores = compute_sygnal_scores(kalshi, poly)
+    top_scored = sorted(scores, key=lambda x: x["score"], reverse=True)[:3]
+    for s in top_scored:
+        sc = s["score"]
+        sig = s["signal"]
+        sc_color = "#00d68f" if sc >= 60 else ("#f0b000" if sc >= 40 else "#ff3b5c")
+        sig_color = "#00d68f" if "YES" in sig else ("#ff3b5c" if "NO" in sig else "#888")
+        scored_rows += f'<tr><td style="padding:14px 0;border-bottom:1px solid #1a1a2e;"><table width="100%"><tr><td style="width:40px;vertical-align:top;"><div style="width:36px;height:36px;border-radius:50%;border:2px solid {sc_color};text-align:center;line-height:36px;color:{sc_color};font-size:14px;font-weight:800;">{sc}</div></td><td style="padding-left:12px;"><a href="{SITE}" style="color:#e0e0e0;text-decoration:none;font-size:14px;font-weight:600;">{s["question"][:55]}</a><br><span style="color:#00d68f;font-size:14px;font-weight:700;">YES {s["yes"]}&#162;</span> &nbsp;<span style="color:#ff3b5c;font-size:14px;font-weight:700;">NO {s["no"]}&#162;</span></td><td align="right" style="vertical-align:top;"><span style="color:{sig_color};font-size:11px;font-weight:700;background:rgba(0,0,0,0.3);padding:4px 8px;border-radius:4px;">{sig}</span></td></tr></table></td></tr>'
+
+    html = f"""<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"></head>
+<body style="margin:0;padding:0;background:#06060b;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;">
+<table width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding:24px 16px;">
+<table width="580" cellpadding="0" cellspacing="0" style="max-width:580px;">
+
+<!-- Header -->
+<tr><td style="padding:24px 0;text-align:center;">
+<span style="font-size:32px;font-weight:800;color:#ffffff;letter-spacing:3px;">SYGNAL</span>
+<br><span style="font-size:11px;color:#0088ff;font-weight:700;letter-spacing:4px;">WEEKLY MARKET DIGEST</span>
+<br><span style="font-size:12px;color:#555;">{date_str} &middot; {len(all_markets)} markets</span>
 </td></tr>
 
-<!-- Blue divider -->
-<tr><td style="padding:0;"><table width="100%" cellpadding="0" cellspacing="0"><tr><td style="height:3px;background:#0066cc;font-size:0;">&nbsp;</td></tr></table></td></tr>
+<!-- Accent line -->
+<tr><td><table width="100%"><tr><td style="height:2px;background:linear-gradient(90deg,#0088ff,#00d68f);font-size:0;">&nbsp;</td></tr></table></td></tr>
 
-<!-- Main card -->
-<tr><td bgcolor="#ffffff" style="padding:24px;">
+<!-- Main content -->
+<tr><td bgcolor="#0e0e1a" style="padding:24px;border-radius:0 0 12px 12px;">
 
-<!-- Top Markets -->
+<!-- Bot Stats -->
+{bot_stats}
+
+<!-- Top Scored Markets -->
 <table width="100%" cellpadding="0" cellspacing="0">
-<tr><td style="padding:0 0 12px;"><span style="font-size:12px;font-weight:700;color:#0066cc;letter-spacing:2px;">TOP MARKETS</span></td></tr>
+<tr><td style="padding:0 0 12px;"><span style="font-size:11px;font-weight:700;color:#0088ff;letter-spacing:2px;">TOP SYGNAL SCORES</span></td></tr>
+{scored_rows}
+</table>
+
+<tr><td style="height:20px;"></td></tr>
+
+<!-- Top Volume -->
+<table width="100%" cellpadding="0" cellspacing="0">
+<tr><td style="padding:0 0 12px;"><span style="font-size:11px;font-weight:700;color:#f0b000;letter-spacing:2px;">MOST ACTIVE</span></td></tr>
 {market_rows}
 </table>
 
-<!-- Spacer -->
-<table width="100%" cellpadding="0" cellspacing="0"><tr><td style="padding:20px 0 0;"></td></tr></table>
-
 <!-- Arbitrage -->
 <table width="100%" cellpadding="0" cellspacing="0">
-<tr><td style="padding:0 0 12px;"><span style="font-size:12px;font-weight:700;color:#997a00;letter-spacing:2px;">ARBITRAGE</span></td></tr>
+<tr><td style="padding:20px 0 12px;"><span style="font-size:11px;font-weight:700;color:#a78bfa;letter-spacing:2px;">CROSS-PLATFORM EDGE</span></td></tr>
 {arb_rows}
-</table>
-
-<!-- Spacer -->
-<table width="100%" cellpadding="0" cellspacing="0"><tr><td style="padding:20px 0 0;"></td></tr></table>
-
-<!-- Highest Conviction -->
-<table width="100%" cellpadding="0" cellspacing="0">
-<tr><td style="padding:0 0 12px;"><span style="font-size:12px;font-weight:700;color:#00875a;letter-spacing:2px;">HIGHEST CONVICTION</span></td></tr>
-{mover_rows}
 </table>
 
 <!-- CTA -->
 <table width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding:28px 0 8px;">
-<table cellpadding="0" cellspacing="0"><tr><td bgcolor="#0066cc" style="padding:12px 32px;">
-<a href="{SITE}" style="color:#fff;text-decoration:none;font-size:14px;font-weight:700;">Open Sygnal &#8594;</a>
+<table cellpadding="0" cellspacing="0"><tr><td bgcolor="#0088ff" style="padding:14px 40px;border-radius:8px;">
+<a href="{SITE}" style="color:#fff;text-decoration:none;font-size:14px;font-weight:700;letter-spacing:1px;">Open Dashboard &#8594;</a>
 </td></tr></table>
 </td></tr></table>
 
 </td></tr>
 
 <!-- Footer -->
-<tr><td style="padding:20px 0;text-align:center;">
-<span style="font-size:11px;color:#888;">You subscribed to Sygnal Market Digest.</span><br>
-<a href="{SITE}" style="font-size:11px;color:#0066cc;">Unsubscribe</a>
+<tr><td style="padding:24px 0;text-align:center;">
+<span style="font-size:11px;color:#444;">Sygnal Markets &middot; sygnalmarkets.com</span><br>
+<span style="font-size:10px;color:#333;">You received this because you signed up for Sygnal.</span><br>
+<a href="{SITE}/api/unsubscribe" style="font-size:10px;color:#0088ff;">Unsubscribe</a>
 </td></tr>
 
 </table>
