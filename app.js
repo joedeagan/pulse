@@ -3515,17 +3515,22 @@ function drawPortfolioChart() {
     ctx.clearRect(0, 0, w, h);
 
     const history = getPortfolioHistory();
-    if (history.length < 2) {
-        ctx.fillStyle = 'rgba(255,255,255,0.15)';
-        ctx.font = '13px Sora, sans-serif';
-        ctx.textAlign = 'center';
-        ctx.fillText('Portfolio chart will appear after a few refreshes', w/2, h/2);
+    const portfolio = getPaperPortfolio();
+    const trades = portfolio.trades || [];
+
+    // Hide chart entirely if no trades
+    if (trades.length === 0 || history.length < 2) {
+        canvas.parentElement.style.display = 'none';
         return;
     }
+    canvas.parentElement.style.display = '';
 
     const values = history.map(h => h.value);
-    const min = Math.min(...values) * 0.98;
-    const max = Math.max(...values) * 1.02;
+    const actualRange = Math.max(...values) - Math.min(...values);
+    // If all values are the same (flat line), pad more
+    const padding = actualRange < 10 ? 50 : actualRange * 0.1;
+    const min = Math.min(...values) - padding;
+    const max = Math.max(...values) + padding;
     const range = max - min || 1;
     const trending = values[values.length - 1] >= values[0];
     const color = trending ? '0, 214, 143' : '255, 59, 92';
