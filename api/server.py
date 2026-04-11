@@ -830,10 +830,6 @@ async def send_newsletter():
     if not html_template:
         html_template = newsletter_response.body.decode() if hasattr(newsletter_response, 'body') else str(newsletter_response)
 
-    from sendgrid import SendGridAPIClient
-    from sendgrid.helpers.mail import Mail, To
-
-    sg = SendGridAPIClient(SENDGRID_API_KEY)
     sent = 0
     errors = []
 
@@ -868,16 +864,26 @@ async def send_newsletter():
 
             personalized_html = html_template.replace("<!--USER_BOT_PLACEHOLDER-->", user_section)
 
-            message = Mail(
-                from_email=(SENDGRID_FROM_EMAIL, "Sygnal Markets"),
-                to_emails=email,
-                subject=f"Your Sygnal Weekly — {datetime.now().strftime('%B %d')}",
-                html_content=personalized_html,
-            )
-            sg.send(message)
+            # Use SendGrid v3 REST API directly (more reliable than SDK)
+            async with httpx.AsyncClient() as client:
+                resp = await client.post(
+                    "https://api.sendgrid.com/v3/mail/send",
+                    headers={
+                        "Authorization": f"Bearer {SENDGRID_API_KEY}",
+                        "Content-Type": "application/json",
+                    },
+                    json={
+                        "personalizations": [{"to": [{"email": email}]}],
+                        "from": {"email": SENDGRID_FROM_EMAIL, "name": "Sygnal Markets"},
+                        "subject": f"Your Sygnal Weekly — {datetime.now().strftime('%B %d')}",
+                        "content": [{"type": "text/html", "value": personalized_html}],
+                    },
+                )
+                if resp.status_code >= 400:
+                    raise Exception(f"SendGrid {resp.status_code}: {resp.text}")
             sent += 1
         except Exception as e:
-            errors.append({"email": str(sub), "error": str(e)})
+            errors.append({"email": email if 'email' in dir() else str(sub), "error": str(e)})
 
     return {
         "status": "sent",
