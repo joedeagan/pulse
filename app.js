@@ -411,20 +411,16 @@ function renderMarkets(kalshiMarkets, polyMarkets) {
     document.getElementById('arb-count').textContent = arbitrage.length || '0';
     document.getElementById('refresh-time').textContent = `Updated ${new Date().toLocaleTimeString([], {hour: 'numeric', minute: '2-digit'})}`;
 
-    // Fetch bot status for trust indicator
-    fetch(API_BASE + '/api/bot').then(function(r){return r.json();}).then(function(bot) {
+    // Fetch collective accuracy for trust indicator
+    fetch(API_BASE + '/api/collective/stats').then(function(r){return r.json();}).then(function(stats) {
         var el = document.getElementById('bot-accuracy-stat');
         if (!el) return;
-        var positions = (bot.positions || []).length;
-        if (positions > 0) {
-            el.textContent = positions + ' Active';
-            el.style.color = 'var(--green)';
-        } else if (bot.running) {
-            el.textContent = 'Scanning';
-            el.style.color = 'var(--accent)';
+        if (stats.total_trades >= 5) {
+            el.textContent = stats.overall_win_rate + '%';
+            el.style.color = stats.overall_win_rate >= 55 ? 'var(--green)' : 'var(--text)';
         } else {
-            el.textContent = 'Offline';
-            el.style.color = 'var(--red)';
+            // Hide the stat box until we have enough data
+            el.parentElement.style.display = 'none';
         }
     }).catch(function(){});
 
