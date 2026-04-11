@@ -180,7 +180,7 @@ function switchTab(tab, btn) {
     if (tab === 'markets') visible = marketsView;
     else if (tab === 'news') { visible = newsView; loadNews(); }
     else if (tab === 'bot') visible = botView;
-    else if (tab === 'portfolio') { visible = portfolioView; loadPortfolio(); }
+    else if (tab === 'portfolio') { visible = portfolioView; loadPortfolio(); loadAutobotOnPortfolio(); }
     else if (tab === 'arbitrage') visible = arbView;
     else if (tab === 'trending') { visible = trendingView; buildTrendingPanel(); }
     else if (tab === 'correlations') { visible = corrView; }
@@ -3153,30 +3153,8 @@ function loadAutobotOnPortfolio() {
             var losses = data.losses || 0;
             var winRate = data.win_rate || 0;
 
-            // Timeframe setting
-            var userMaxDays = (data.settings && data.settings.max_days !== undefined) ? data.settings.max_days : 30;
-            var tfOptions = [
-                {val: 0.5, label: '12 Hours'},
-                {val: 1, label: '24 Hours'},
-                {val: 3, label: '3 Days'},
-                {val: 7, label: '1 Week'},
-                {val: 14, label: '2 Weeks'},
-                {val: 30, label: '1 Month'},
-                {val: 90, label: '3 Months'},
-                {val: 0, label: 'Any'}
-            ];
-            var tfSelect = '<select id="bot-timeframe-select" style="background:var(--card-bg);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:4px 8px;font-size:11px;cursor:pointer;">';
-            tfOptions.forEach(function(o) {
-                tfSelect += '<option value="' + o.val + '"' + (o.val === userMaxDays ? ' selected' : '') + '>' + o.label + '</option>';
-            });
-            tfSelect += '</select>';
-
             var html = '<div style="margin-top:24px;padding-top:20px;border-top:1px solid var(--border);">' +
-                '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">' +
-                '<h3 style="font-size:13px;color:var(--text-dim);letter-spacing:2px;margin:0;">AUTO-BOT TRADES</h3>' +
-                '<div style="display:flex;align-items:center;gap:6px;">' +
-                '<span style="font-size:10px;color:var(--text-dim);">Max:</span>' + tfSelect +
-                '</div></div>' +
+                '<h3 style="font-size:13px;color:var(--text-dim);letter-spacing:2px;margin:0 0 4px;">AUTO-BOT TRADES</h3>' +
                 '<p style="font-size:11px;color:var(--text-dim);margin-bottom:12px;">Placed automatically by your Sygnal Score bot</p>';
 
             if (wins + losses > 0) {
@@ -3251,28 +3229,6 @@ function loadAutobotOnPortfolio() {
 
             html += '</div>';
             posDiv.innerHTML += html;
-
-            // Wire up timeframe dropdown
-            var tfEl = document.getElementById('bot-timeframe-select');
-            if (tfEl) {
-                tfEl.onchange = function() {
-                    var val = parseFloat(this.value);
-                    var userEmail = '';
-                    if (typeof _currentUser !== 'undefined' && _currentUser) userEmail = _currentUser.email || '';
-                    if (!userEmail) userEmail = localStorage.getItem('sygnal-account-email') || '';
-                    if (!userEmail) return;
-                    fetch(API_BASE + '/api/autobot/settings', {
-                        method: 'POST',
-                        headers: {'Content-Type': 'application/json'},
-                        body: JSON.stringify({email: userEmail, max_days: val})
-                    }).then(function(r) { return r.json(); }).then(function(d) {
-                        if (d.ok) {
-                            var label = tfEl.options[tfEl.selectedIndex].text;
-                            showToast('Bot timeframe set to ' + label);
-                        }
-                    });
-                };
-            }
 
             // Load timeframe performance chart
             loadTimeframePerformance();
