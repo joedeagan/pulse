@@ -55,18 +55,23 @@ function trackAffiliateClick(platform) {
 
 // ── NAV MORE DROPDOWN ──
 function toggleNavMore(e) {
-    e.stopPropagation();
-    const menu = document.getElementById('nav-more-menu');
-    const isOpen = menu.classList.contains('open');
-    closeAllMenus();
-    if (!isOpen) {
+    if (e) e.stopPropagation();
+    var menu = document.getElementById('nav-more-menu');
+    if (menu.classList.contains('open')) {
+        menu.classList.remove('open');
+    } else {
         menu.classList.add('open');
-        showMenuBackdrop(closeNavMore);
+        setTimeout(function() {
+            document.addEventListener('click', function handler() {
+                menu.classList.remove('open');
+                document.removeEventListener('click', handler);
+            });
+        }, 50);
     }
 }
 function closeNavMore() {
-    document.getElementById('nav-more-menu')?.classList.remove('open');
-    hideMenuBackdrop();
+    var menu = document.getElementById('nav-more-menu');
+    if (menu) menu.classList.remove('open');
 }
 function switchTabFromMore(tab, btn) {
     closeNavMore();
@@ -5777,20 +5782,22 @@ function startOnboarding() {
     if (accBanner) accBanner.style.display = 'none';
 
     function renderStep() {
-        const existing = document.getElementById('onboarding-overlay');
+        // Clear previous
+        clearHighlights();
+        var existing = document.getElementById('onboarding-overlay');
         if (existing) existing.remove();
 
-        const step = steps[currentStep];
-        const isLast = currentStep === steps.length - 1;
+        var step = steps[currentStep];
+        var isLast = currentStep === steps.length - 1;
 
         // Navigate to the right tab
         if (step.tab && typeof switchTab === 'function') {
             switchTab(step.tab, null);
         }
 
-        // Run step action (scroll, load data, etc.)
+        // Run step action
         if (step.action) {
-            setTimeout(step.action, 300);
+            try { step.action(); } catch(e) {}
         }
 
         const overlay = document.createElement('div');
@@ -6031,7 +6038,7 @@ function buildProfilePanel() {
     const rawRecord = getTrackRecord();
     const record = Array.isArray(rawRecord) ? rawRecord : (rawRecord.results || []);
     const correct = record.filter(r => r.correct).length;
-    const accuracy = record.length > 0 ? ((correct / record.length) * 100).toFixed(0) : '—';
+    const accuracy = record.length >= 3 ? ((correct / record.length) * 100).toFixed(0) : '—';
 
     const proFeatures = [
         { name: 'Score Breakdown', desc: 'See all 5 factors behind every Sygnal Score', icon: '◆', free: false },
@@ -6091,12 +6098,12 @@ function buildProfilePanel() {
             `).join('')}
         </div>
 
-        ${buildAchievementsSection()}
-
-        <div class="profile-actions" style="display:flex;gap:10px;justify-content:center;">
+        <div class="profile-actions" style="display:flex;gap:10px;justify-content:center;margin:24px 0;">
             ${email ? `<button class="profile-action-btn" onclick="showReferralPanel()">Invite Friends</button>` : ''}
-            ${email ? `<button class="profile-action-btn" onclick="localStorage.removeItem('sygnal-account-email'); localStorage.removeItem('sygnal-account-name'); localStorage.removeItem('sygnal-pro'); buildProfilePanel(); showToast('Signed out');">Sign Out</button>` : ''}
+            ${email ? `<button class="profile-action-btn" style="color:var(--red);border-color:rgba(255,59,92,0.2);" onclick="if(typeof firebase!=='undefined'&&firebase.auth)firebase.auth().signOut();localStorage.removeItem('sygnal-account-email');localStorage.removeItem('sygnal-account-name');localStorage.removeItem('sygnal-pro');switchTab('markets',null);showToast('Signed out');">Sign Out</button>` : ''}
         </div>
+
+        ${buildAchievementsSection()}
     `;
     } catch(e) { el.innerHTML = '<p style="color:var(--red);">Error loading profile: ' + e.message + '</p>'; }
 }
