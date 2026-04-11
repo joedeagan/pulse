@@ -1506,6 +1506,215 @@ async def get_collective_stats():
     }
 
 
+# ─── AUTO PAPER BOT (Per-User) ───
+
+AUTO_BOT_FILE = os.path.join(DATA_DIR, "auto_bot_trades.json")
+
+
+def load_auto_bot_trades():
+    try:
+        with open(AUTO_BOT_FILE, "r") as f:
+            return json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError):
+        return {}  # {user_email: [trades]}
+
+
+def save_auto_bot_trades(data):
+    with open(AUTO_BOT_FILE, "w") as f:
+        json.dump(data, f)
+
+
+@app.post("/api/autobot/scan")
+async def autobot_scan():
+    """Run auto paper bot scan — places paper trades for all Pro users using Sygnal Scores."""
+    try:
+        # Get scored markets
+        kalshi_data = await get_kalshi()
+        poly_data = await get_polymarket()
+        kalshi = kalshi_data.get("markets", [])
+        poly = poly_data.get("markets", [])
+        scores = compute_sygnal_scores(kalshi, poly)
+
+        # Only take actionable signals (LEAN or BUY, score >= 30)
+        actionable = [s for s in scores if s["signal"] in ("BUY YES", "BUY NO", "LEAN YES", "LEAN NO") and s["score"] >= 30]
+        actionable.sort(key=lambda s: s["score"], reverse=True)
+        top_picks = actionable[:5]  # Top 5 picks per scan
+
+        if not top_picks:
+            return {"ok": True, "picks": 0, "msg": "No actionable signals"}
+
+        # Get all pro users
+        pros = load_pro_users()
+        pros += ADMIN_PRO_EMAILS  # Include admins
+        pros = list(set(p.lower() for p in pros))
+
+        all_trades = load_auto_bot_trades()
+        new_trades = 0
+
+        for email in pros:
+            if email not in all_trades:
+                all_trades[email] = {"balance": 1000, "trades": [], "total_pnl": 0}
+
+            user = all_trades[email]
+            open_trades = [t for t in user["trades"] if not t.get("resolved")]
+
+            # Max 10 open positions per user
+            if len(open_trades) >= 10:
+                continue
+
+            for pick in top_picks:
+                # Skip if already holding this ticker
+                if any(t["ticker"] == pick["ticker"] and not t.get("resolved") for t in user["trades"]):
+                    continue
+
+                # Paper buy — 10% of balance per trade
+                bet_amount = min(user["balance"] * 0.10, 50)  # Max $50 per trade
+                if bet_amount < 1:
+                    continue
+
+                price = pick["yes"] if "YES" in pick["signal"] else pick["no"]
+                contracts = int(bet_amount / (price / 100)) if price > 0 else 0
+                if contracts <= 0:
+                    continue
+
+                cost = contracts * price / 100
+                user["balance"] -= cost
+
+                trade = {
+                    "ticker": pick["ticker"],
+                    "question": pick["question"][:80],
+                    "side": "yes" if "YES" in pick["signal"] else "no",
+                    "price": price,
+                    "contracts": contracts,
+                    "cost": round(cost, 2),
+                    "score": pick["score"],
+                    "signal": pick["signal"],
+                    "category": pick.get("source", "other"),
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                    "resolved": False,
+                }
+                user["trades"].append(trade)
+                new_trades += 1
+
+                # Keep last 50 trades per user
+                if len(user["trades"]) > 50:
+                    user["trades"] = user["trades"][-50:]
+
+                if len(open_trades) + 1 >= 10:
+                    break
+
+        save_auto_bot_trades(all_trades)
+        return {"ok": True, "picks": new_trades, "users": len(pros), "signals": len(top_picks)}
+
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+
+
+@app.post("/api/autobot/resolve")
+async def autobot_resolve():
+    """Check open auto-bot trades and resolve any that have moved significantly."""
+    try:
+        kalshi_data = await get_kalshi()
+        poly_data = await get_polymarket()
+        all_markets = kalshi_data.get("markets", []) + poly_data.get("markets", [])
+        price_map = {m.get("ticker", ""): m for m in all_markets}
+
+        all_trades = load_auto_bot_trades()
+        agg = load_trades_agg()
+        resolved_count = 0
+
+        for email, user in all_trades.items():
+            for trade in user["trades"]:
+                if trade.get("resolved"):
+                    continue
+
+                market = price_map.get(trade["ticker"])
+                if not market:
+                    # Market gone — check if old enough to auto-resolve
+                    ts = trade.get("timestamp", "")
+                    if ts:
+                        try:
+                            trade_dt = datetime.fromisoformat(ts.replace("Z", "+00:00"))
+                            age_hours = (datetime.now(timezone.utc) - trade_dt).total_seconds() / 3600
+                            if age_hours > 48:
+                                # Auto-resolve as loss after 48h if market disappeared
+                                trade["resolved"] = True
+                                trade["outcome"] = "loss"
+                                trade["pnl"] = -trade["cost"]
+                                user["total_pnl"] = user.get("total_pnl", 0) + trade["pnl"]
+                                resolved_count += 1
+                        except Exception:
+                            pass
+                    continue
+
+                current_price = market.get("yes", 50) if trade["side"] == "yes" else market.get("no", 50)
+                entry_price = trade["price"]
+                pnl_pct = (current_price - entry_price) / entry_price * 100 if entry_price > 0 else 0
+
+                # Resolve if: >20% profit, >30% loss, or >24h old
+                ts = trade.get("timestamp", "")
+                age_hours = 0
+                if ts:
+                    try:
+                        trade_dt = datetime.fromisoformat(ts.replace("Z", "+00:00"))
+                        age_hours = (datetime.now(timezone.utc) - trade_dt).total_seconds() / 3600
+                    except Exception:
+                        pass
+
+                should_resolve = pnl_pct >= 20 or pnl_pct <= -30 or age_hours >= 24
+
+                if should_resolve:
+                    trade["resolved"] = True
+                    pnl = (current_price - entry_price) * trade["contracts"] / 100
+                    trade["pnl"] = round(pnl, 2)
+                    trade["outcome"] = "win" if pnl >= 0 else "loss"
+                    trade["close_price"] = current_price
+                    user["balance"] += trade["contracts"] * current_price / 100
+                    user["total_pnl"] = user.get("total_pnl", 0) + pnl
+                    resolved_count += 1
+
+                    # Feed into collective learning
+                    agg["total"] += 1
+                    if trade["outcome"] == "win":
+                        agg["wins"] += 1
+                    score_range = f"{(trade['score'] // 20) * 20}-{(trade['score'] // 20) * 20 + 19}"
+                    if score_range not in agg["by_score_range"]:
+                        agg["by_score_range"][score_range] = {"total": 0, "wins": 0}
+                    agg["by_score_range"][score_range]["total"] += 1
+                    if trade["outcome"] == "win":
+                        agg["by_score_range"][score_range]["wins"] += 1
+
+        save_auto_bot_trades(all_trades)
+        save_trades_agg(agg)
+        return {"ok": True, "resolved": resolved_count}
+
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+
+
+@app.get("/api/autobot/portfolio")
+async def get_autobot_portfolio(email: str = ""):
+    """Get a user's auto-bot portfolio."""
+    if not email:
+        return {"error": "email required"}
+    all_trades = load_auto_bot_trades()
+    user = all_trades.get(email.lower(), {"balance": 1000, "trades": [], "total_pnl": 0})
+    open_trades = [t for t in user["trades"] if not t.get("resolved")]
+    resolved_trades = [t for t in user["trades"] if t.get("resolved")]
+    wins = sum(1 for t in resolved_trades if t.get("outcome") == "win")
+    losses = sum(1 for t in resolved_trades if t.get("outcome") == "loss")
+    return {
+        "balance": round(user["balance"], 2),
+        "total_pnl": round(user.get("total_pnl", 0), 2),
+        "open_positions": len(open_trades),
+        "open_trades": open_trades[-10:],
+        "resolved_count": len(resolved_trades),
+        "wins": wins,
+        "losses": losses,
+        "win_rate": round(wins / (wins + losses) * 100) if (wins + losses) > 0 else 0,
+    }
+
+
 # ─── Sygnal AUTOPILOT (Smart Alerts Scanner) ───
 
 ONESIGNAL_APP_ID = os.environ.get("ONESIGNAL_APP_ID", "")
@@ -1720,13 +1929,26 @@ async def autopilot_config():
 import asyncio
 
 async def autopilot_loop():
-    """Run autopilot scan every 5 minutes in the background."""
+    """Run autopilot scan + auto-bot every 5 minutes in the background."""
     await asyncio.sleep(30)  # Wait for server to fully start
     while True:
         try:
             await autopilot_scan()
         except Exception as e:
             print(f"Autopilot scan error: {e}")
+        # Run auto paper bot for Pro users
+        try:
+            result = await autobot_scan()
+            print(f"Auto-bot: {result.get('picks', 0)} new picks for {result.get('users', 0)} users")
+        except Exception as e:
+            print(f"Auto-bot scan error: {e}")
+        # Resolve old trades
+        try:
+            result = await autobot_resolve()
+            if result.get("resolved", 0) > 0:
+                print(f"Auto-bot: resolved {result['resolved']} trades")
+        except Exception as e:
+            print(f"Auto-bot resolve error: {e}")
         await asyncio.sleep(300)  # 5 minutes
 
 
