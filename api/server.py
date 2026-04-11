@@ -1036,7 +1036,7 @@ def compute_sygnal_scores(kalshi_markets, poly_markets):
         best, best_sim = None, 0
         for p in poly_markets:
             s = _word_similarity(k.get("question", ""), p.get("question", ""))
-            if s > best_sim and s >= 0.25:
+            if s > best_sim and s >= 0.35:
                 best_sim = s
                 best = p
         if best:

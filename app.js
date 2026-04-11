@@ -773,11 +773,34 @@ function buildCrossPlatformMap(allMarkets) {
     const sim = (a, b) => {
         const ae = extractEntities(a), be = extractEntities(b);
         if (!ae.size || !be.size) return 0;
+
+        // Count matching entities (skip single common words)
         let matches = 0;
-        for (const e of ae) if (be.has(e)) matches++;
-        // Weighted: category matches count double
-        const catMatches = [...ae].filter(e => e.startsWith('_') && be.has(e)).length;
-        const score = (matches + catMatches) / Math.min(ae.size, be.size);
+        let matchedWords = [];
+        for (const e of ae) {
+            if (be.has(e)) {
+                matches++;
+                matchedWords.push(e);
+            }
+        }
+
+        // Require at least 3 matching words OR 2 matching names/numbers
+        if (matches < 3) {
+            // Check if matched words are meaningful (names, not generic words)
+            const generic = ['will', 'market', 'price', 'win', 'team', 'game', 'next', 'year', 'make'];
+            const meaningful = matchedWords.filter(w => !generic.includes(w) && !w.startsWith('_') && w.length > 3);
+            if (meaningful.length < 2) return 0;
+        }
+
+        // Category must match (don't compare sports with politics)
+        const catA = [...ae].filter(e => e.startsWith('_'));
+        const catB = [...be].filter(e => e.startsWith('_'));
+        if (catA.length > 0 && catB.length > 0) {
+            const catOverlap = catA.some(c => catB.includes(c));
+            if (!catOverlap) return 0; // Different categories = no match
+        }
+
+        const score = matches / Math.min(ae.size, be.size);
         return score;
     };
 
@@ -787,7 +810,7 @@ function buildCrossPlatformMap(allMarkets) {
         let best = null, bestS = 0;
         for (const p of poly) {
             const s = sim(k.question, p.question);
-            if (s > bestS && s >= 0.2) { bestS = s; best = p; }
+            if (s > bestS && s >= 0.35) { bestS = s; best = p; }  // Higher threshold
         }
         if (best) {
             const d = Math.abs(k.yes - best.yes);
