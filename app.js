@@ -3035,6 +3035,34 @@ function loadAutobotOnPortfolio() {
         .then(function(data) {
             var openTrades = data.open_trades || [];
 
+            // Set portfolio timeframe dropdown from user settings
+            var ptfSelect = document.getElementById('portfolio-timeframe-select');
+            if (ptfSelect) {
+                var savedMax = (data.settings && data.settings.max_days !== undefined) ? data.settings.max_days : 30;
+                ptfSelect.value = String(savedMax);
+                // Wire change handler (only once)
+                if (!ptfSelect._wired) {
+                    ptfSelect._wired = true;
+                    ptfSelect.onchange = function() {
+                        var val = parseFloat(this.value);
+                        var userEmail = '';
+                        if (typeof _currentUser !== 'undefined' && _currentUser) userEmail = _currentUser.email || '';
+                        if (!userEmail) userEmail = localStorage.getItem('sygnal-account-email') || '';
+                        if (!userEmail) return;
+                        fetch(API_BASE + '/api/autobot/settings', {
+                            method: 'POST',
+                            headers: {'Content-Type': 'application/json'},
+                            body: JSON.stringify({email: userEmail, max_days: val})
+                        }).then(function(r) { return r.json(); }).then(function(d) {
+                            if (d.ok) {
+                                var label = ptfSelect.options[ptfSelect.selectedIndex].text;
+                                showToast('Bot timeframe set to ' + label);
+                            }
+                        });
+                    };
+                }
+            }
+
             // Update top stats with auto-bot data
             var balEl = document.getElementById('paper-balance');
             var investedEl = document.getElementById('paper-invested');

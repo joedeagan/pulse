@@ -67,7 +67,7 @@
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
 
-    <link rel="stylesheet" href="style.css?v=78">
+    <link rel="stylesheet" href="style.css?v=79">
     <link rel="manifest" href="/manifest.json">
     <link rel="icon" type="image/png" href="/icon-192.png">
     <link rel="apple-touch-icon" href="/icon-192.png">
@@ -511,6 +511,24 @@
             </div>
         </div>
 
+        <!-- Bot Timeframe Setting -->
+        <div id="bot-timeframe-card" style="background:var(--bg-card);border:1px solid var(--border);border-radius:12px;padding:16px 20px;margin-bottom:16px;display:flex;justify-content:space-between;align-items:center;">
+            <div>
+                <div style="font-size:10px;color:var(--accent);letter-spacing:2px;font-weight:700;margin-bottom:4px;">BOT TIMEFRAME</div>
+                <div style="font-size:12px;color:var(--text-dim);">Max time until trades close</div>
+            </div>
+            <select id="portfolio-timeframe-select" style="background:var(--bg-card);color:var(--text);border:1px solid var(--border);border-radius:8px;padding:8px 12px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;min-width:110px;">
+                <option value="0.5">12 Hours</option>
+                <option value="1">24 Hours</option>
+                <option value="3">3 Days</option>
+                <option value="7" selected>1 Week</option>
+                <option value="14">2 Weeks</option>
+                <option value="30">1 Month</option>
+                <option value="90">3 Months</option>
+                <option value="0">Any</option>
+            </select>
+        </div>
+
         <!-- Chart -->
         <div class="portfolio-chart-section" style="background:var(--bg-card);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:20px;">
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
@@ -854,6 +872,6 @@
         if (window.caches) caches.keys().then(function(k) { k.forEach(function(c) { caches.delete(c); }); });
     }
     </script>
-    <script src="app.js?v=78"></script>
+    <script src="app.js?v=79"></script>
 </body>
 </html>
