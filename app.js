@@ -3111,9 +3111,11 @@ function loadAutobotOnPortfolio() {
                     var scoreColor = t.score >= 60 ? '#00d68f' : t.score >= 40 ? '#f0b000' : '#ff3b5c';
                     var sigColor = t.signal.includes('BUY') ? '#00d68f' : '#f0b000';
                     var sigBg = t.signal.includes('BUY') ? 'rgba(0,214,143,0.1)' : 'rgba(240,176,0,0.1)';
-                    var platform = (t.category || 'kalshi').toUpperCase();
-                    var platColor = platform === 'KALSHI' ? 'rgba(0,136,255,0.15)' : 'rgba(0,214,143,0.15)';
-                    var platText = platform === 'KALSHI' ? '#0088ff' : '#00d68f';
+                    // Detect platform from ticker format
+                    var isKalshi = (t.ticker || '').startsWith('KX') || (t.ticker || '').startsWith('kx');
+                    var platform = isKalshi ? 'KALSHI' : 'POLY';
+                    var platColor = isKalshi ? 'rgba(0,136,255,0.15)' : 'rgba(0,214,143,0.15)';
+                    var platText = isKalshi ? '#0088ff' : '#00d68f';
                     var timeAgo = '';
                     try {
                         var mins = Math.floor((Date.now() - new Date(t.timestamp).getTime()) / 60000);
