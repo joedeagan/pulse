@@ -824,7 +824,7 @@ async def send_newsletter():
 
     for sub in subs:
         try:
-            email = sub["email"] if isinstance(sub, dict) else sub
+            email = sub.get("email", sub) if isinstance(sub, dict) else str(sub)
             # Personalize with user's bot data
             user_section = ""
             user_data = all_bot_trades.get(email.lower(), {})
@@ -1670,8 +1670,13 @@ async def autobot_scan():
                 continue
             # Prefer markets that resolve soon (within 7 days)
             days_left = s.get("days_left", -1)
-            if days_left > 30 or days_left == -1:
-                continue  # Skip long-dated or unknown-date markets
+            # Skip markets with known close dates > 90 days
+            if days_left > 90 and days_left != -1:
+                continue
+            # Skip obviously long-term markets by keywords
+            q_lower = s.get("question", "").lower()
+            if any(w in q_lower for w in ["before 2030", "before 2029", "before 2028", "by 2030", "by 2029", "by 2028", "billionaire", "trillionaire"]):
+                continue
             q = s.get("question", "")
             # Skip confusing sub-option markets
             if ": " in q and not q.startswith("Will") and not q.startswith("How"):
