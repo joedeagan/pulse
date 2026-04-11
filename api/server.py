@@ -1128,7 +1128,7 @@ async def grant_pro(request: Request):
 
 
 # Admin emails that always have Pro (survives deploys)
-ADMIN_PRO_EMAILS = ["joeydeagan2010@gmail.com"]
+ADMIN_PRO_EMAILS = ["joeydeagan2010@gmail.com", "briandeagan@gmail.com"]
 
 @app.post("/api/pro/verify-checkout")
 async def verify_checkout(request: Request):
