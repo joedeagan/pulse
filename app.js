@@ -408,7 +408,9 @@ function renderMarkets(kalshiMarkets, polyMarkets) {
 
     const total = kalshiMarkets.length + polyMarkets.length;
     document.getElementById('market-count').textContent = total;
-    document.getElementById('arb-count').textContent = arbitrage.length || '0';
+    // Count BUY/LEAN signals
+    var signalCount = Object.values(_sygnalSignalCache).filter(function(s) { return s.signal && s.signal !== 'HOLD'; }).length;
+    document.getElementById('arb-count').textContent = signalCount || '0';
     document.getElementById('refresh-time').textContent = `Updated ${new Date().toLocaleTimeString([], {hour: 'numeric', minute: '2-digit'})}`;
 
     // Fetch collective accuracy for trust indicator
