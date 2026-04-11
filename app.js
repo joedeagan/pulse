@@ -409,6 +409,13 @@ function renderMarkets(kalshiMarkets, polyMarkets) {
     document.getElementById('arb-count').textContent = arbitrage.length || '0';
     document.getElementById('refresh-time').textContent = `Updated ${new Date().toLocaleTimeString([], {hour: 'numeric', minute: '2-digit'})}`;
 
+    // Fetch bot equity for trust indicator
+    fetch(API_BASE + '/api/bot').then(r => r.json()).then(bot => {
+        var eq = (bot.portfolio_value || 0) + (bot.balance || 0);
+        var el = document.getElementById('bot-equity-stat');
+        if (el && eq > 0) el.textContent = '$' + eq.toFixed(2);
+    }).catch(() => {});
+
     // Apply volume filter
     filterMarkets();
 
@@ -2768,6 +2775,22 @@ function savePaperPortfolio(portfolio) {
 
 function placePaperTrade() {
     if (!currentDetailMarket) return;
+
+    // Free user paper trading limits
+    if (!isPro()) {
+        const portfolio = getPaperPortfolio();
+        const openPositions = (portfolio.trades || []).filter(t => !t.closed).length;
+        const trialDays = getTrialDaysLeft();
+        if (trialDays <= 0) {
+            showProUpsell('Paper Trading — Trial Expired');
+            return;
+        }
+        if (openPositions >= 5) {
+            showProUpsell('Paper Trading — Free Limit Reached (5 positions). Upgrade for unlimited.');
+            return;
+        }
+    }
+
     const side = document.getElementById('paper-side').value;
     const amount = parseInt(document.getElementById('paper-amount').value) || 0;
     if (amount <= 0) return;
