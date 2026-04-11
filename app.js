@@ -3081,21 +3081,44 @@ function loadAutobotOnPortfolio() {
             }
 
             if (openTrades.length > 0) {
-                html += openTrades.map(function(t) {
-                    var sideColor = t.side === 'yes' ? 'var(--green)' : 'var(--red)';
-                    return '<div style="display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid rgba(255,255,255,0.04);">' +
-                        '<div style="flex:1;min-width:0;">' +
-                            '<div style="font-size:14px;font-weight:600;color:var(--text);white-space:normal;line-height:1.4;">' + (t.question || t.ticker) + '</div>' +
-                            '<div style="font-size:12px;color:var(--text-dim);margin-top:4px;">' + t.side.toUpperCase() + ' · ' + t.contracts + ' contracts @ ' + t.price + '¢</div>' +
+                html += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px;">' +
+                openTrades.map(function(t) {
+                    var sideColor = t.side === 'yes' ? '#00d68f' : '#ff3b5c';
+                    var sideBg = t.side === 'yes' ? 'rgba(0,214,143,0.08)' : 'rgba(255,59,92,0.08)';
+                    var sigColor = t.signal.includes('BUY') ? '#00d68f' : '#f0b000';
+                    var sigBg = t.signal.includes('BUY') ? 'rgba(0,214,143,0.1)' : 'rgba(240,176,0,0.1)';
+                    var scoreColor = t.score >= 60 ? '#00d68f' : t.score >= 40 ? '#f0b000' : '#ff3b5c';
+                    var timeAgo = '';
+                    try {
+                        var mins = Math.floor((Date.now() - new Date(t.timestamp).getTime()) / 60000);
+                        if (mins < 60) timeAgo = mins + 'm ago';
+                        else if (mins < 1440) timeAgo = Math.floor(mins/60) + 'h ago';
+                        else timeAgo = Math.floor(mins/1440) + 'd ago';
+                    } catch(e) {}
+
+                    return '<div style="background:var(--bg-card);border:1px solid var(--border);border-radius:12px;padding:16px;">' +
+                        '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">' +
+                            '<span style="background:' + sigBg + ';color:' + sigColor + ';padding:3px 10px;border-radius:6px;font-size:10px;font-weight:800;letter-spacing:0.5px;">' + t.signal + '</span>' +
+                            '<span style="font-size:10px;color:var(--text-dim);">' + timeAgo + '</span>' +
                         '</div>' +
-                        '<div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex-shrink:0;">' +
-                            '<span style="background:rgba(0,136,255,0.1);color:var(--accent);padding:4px 10px;border-radius:6px;font-size:11px;font-weight:700;">' + t.signal + '</span>' +
-                            '<span style="font-size:11px;color:var(--text-dim);">Score ' + t.score + '</span>' +
+                        '<div style="font-size:14px;font-weight:600;color:var(--text);line-height:1.4;margin-bottom:10px;">' + (t.question || t.ticker) + '</div>' +
+                        '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">' +
+                            '<div style="display:flex;gap:12px;">' +
+                                '<span style="color:' + sideColor + ';font-weight:700;font-size:14px;">' + t.side.toUpperCase() + ' ' + t.price + '¢</span>' +
+                                '<span style="color:var(--text-dim);font-size:13px;">' + t.contracts + ' contracts</span>' +
+                            '</div>' +
+                        '</div>' +
+                        '<div style="display:flex;justify-content:space-between;align-items:center;">' +
+                            '<div style="display:flex;align-items:center;gap:6px;">' +
+                                '<div style="width:28px;height:28px;border-radius:50%;border:2px solid ' + scoreColor + ';display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;color:' + scoreColor + ';">' + t.score + '</div>' +
+                                '<span style="font-size:10px;color:var(--text-dim);">SYGNAL</span>' +
+                            '</div>' +
+                            '<span style="font-size:11px;color:var(--text-dim);">$' + (t.cost || (t.contracts * t.price / 100)).toFixed(2) + ' invested</span>' +
                         '</div>' +
                     '</div>';
-                }).join('');
+                }).join('') + '</div>';
             } else {
-                html += '<p style="color:var(--text-dim);font-size:13px;">No open auto-bot positions</p>';
+                html += '<p style="color:var(--text-dim);font-size:13px;">No open auto-bot positions — bot is scanning for opportunities.</p>';
             }
 
             html += '</div>';
