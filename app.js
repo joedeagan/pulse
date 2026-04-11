@@ -6102,6 +6102,11 @@ async function startProCheckout() {
     if (typeof _currentUser !== 'undefined' && _currentUser) {
         email = _currentUser.email || '';
     }
+    if (!email) {
+        showToast('Sign in first to get Pro');
+        openAuthModal();
+        return;
+    }
     try {
         var resp = await fetch(API_BASE + '/api/pro/checkout', {
             method: 'POST',
