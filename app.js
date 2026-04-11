@@ -722,21 +722,53 @@ let _crossPlatformMap = {};
 
 function buildCrossPlatformMap(allMarkets) {
     _crossPlatformMap = {};
-    const stop = new Set(['the','a','an','in','on','at','to','for','of','is','will','be','by','and','or','this','that','it','as','with','from','who','what','when','where','how','next','new','first','last']);
-    const kw = t => (t||'').toLowerCase().replace(/[^a-z0-9\s]/g,'').split(/\s+/).filter(w => w.length > 2 && !stop.has(w));
-    const sim = (a, b) => {
-        const aw = new Set(kw(a)), bw = new Set(kw(b));
-        if (!aw.size || !bw.size) return 0;
-        let m = 0; for (const w of aw) if (bw.has(w)) m++;
-        return m / Math.min(aw.size, bw.size);
+
+    // Extract key entities from a market question
+    const extractEntities = (text) => {
+        const t = (text || '').toLowerCase();
+        const entities = new Set();
+
+        // Extract names (capitalized words from original)
+        const names = (text || '').match(/[A-Z][a-z]{2,}/g) || [];
+        names.forEach(n => entities.add(n.toLowerCase()));
+
+        // Extract numbers (prices, percentages, dates)
+        const nums = t.match(/\d[\d,.]+/g) || [];
+        nums.forEach(n => entities.add(n.replace(/,/g, '')));
+
+        // Key topic words (not stop words)
+        const stop = 'the a an in on at to for of is will be by and or this that it as with from who what when where how next new first last does did do has have are were was than more less before after above below between during'.split(' ');
+        const words = t.replace(/[^a-z0-9\s]/g, '').split(/\s+/).filter(w => w.length > 2 && !stop.includes(w));
+        words.forEach(w => entities.add(w));
+
+        // Category keywords
+        if (/bitcoin|btc|crypto|ethereum|eth/i.test(t)) entities.add('_crypto');
+        if (/nba|nfl|mlb|nhl|soccer|football|basketball|baseball/i.test(t)) entities.add('_sports');
+        if (/trump|biden|election|president|congress|senate|governor/i.test(t)) entities.add('_politics');
+        if (/rain|snow|weather|temperature|hurricane|storm/i.test(t)) entities.add('_weather');
+        if (/fed|inflation|gdp|unemployment|jobs|economy|rate/i.test(t)) entities.add('_economics');
+
+        return entities;
     };
+
+    const sim = (a, b) => {
+        const ae = extractEntities(a), be = extractEntities(b);
+        if (!ae.size || !be.size) return 0;
+        let matches = 0;
+        for (const e of ae) if (be.has(e)) matches++;
+        // Weighted: category matches count double
+        const catMatches = [...ae].filter(e => e.startsWith('_') && be.has(e)).length;
+        const score = (matches + catMatches) / Math.min(ae.size, be.size);
+        return score;
+    };
+
     const kalshi = allMarkets.filter(m => m.source === 'kalshi');
     const poly = allMarkets.filter(m => m.source === 'poly');
     for (const k of kalshi) {
         let best = null, bestS = 0;
         for (const p of poly) {
             const s = sim(k.question, p.question);
-            if (s > bestS && s >= 0.25) { bestS = s; best = p; }
+            if (s > bestS && s >= 0.2) { bestS = s; best = p; }
         }
         if (best) {
             const d = Math.abs(k.yes - best.yes);
@@ -745,6 +777,21 @@ function buildCrossPlatformMap(allMarkets) {
         }
     }
 }
+
+// Vegas odds cache
+var _vegasOdds = null;
+function fetchVegasOdds() {
+    if (_vegasOdds) return;
+    fetch(API_BASE + '/api/intelligence').then(r => r.json()).then(data => {
+        _vegasOdds = data.sports_odds || [];
+        // Re-score if we have odds now
+        if (_vegasOdds.length > 0 && allMarketCards.length > 0) {
+            computeAllSygnalScores(allMarketCards.map(c => c.market));
+        }
+    }).catch(() => {});
+}
+// Fetch odds on load
+setTimeout(fetchVegasOdds, 5000);
 
 function computeAllSygnalScores(allMarkets) {
     _sygnalScoreCache = {};
@@ -771,12 +818,36 @@ function computeAllSygnalScores(allMarkets) {
         let edgeDirection = 'NEUTRAL';
         let edgeSize = 0;
 
+        // Cross-platform edge (Kalshi vs Polymarket)
         if (xp) {
             const otherYes = xp.match.yes || 50;
             edgeSize = Math.abs(yes - otherYes);
             if (edgeSize >= 3) edgeScore = Math.min(Math.round(30 * (edgeSize / 12)), 30);
             if (yes < otherYes - 2) edgeDirection = 'YES';
             else if (yes > otherYes + 2) edgeDirection = 'NO';
+        }
+
+        // Vegas odds edge (sports markets)
+        if (_vegasOdds && _vegasOdds.length > 0) {
+            const q = (m.question || '').toLowerCase();
+            for (const game of _vegasOdds) {
+                const home = (game.home || '').toLowerCase();
+                const away = (game.away || '').toLowerCase();
+                if (q.includes(home) || q.includes(away) ||
+                    home.split(' ').some(w => w.length > 3 && q.includes(w)) ||
+                    away.split(' ').some(w => w.length > 3 && q.includes(w))) {
+                    // Found a matching game — compare Vegas prob vs market price
+                    const vegasProb = q.includes(home) ? game.home_prob : game.away_prob;
+                    const vegasEdge = Math.abs(vegasProb - yes);
+                    if (vegasEdge > edgeSize) {
+                        edgeSize = vegasEdge;
+                        edgeScore = Math.min(Math.round(30 * (vegasEdge / 12)), 30);
+                        if (yes < vegasProb - 2) edgeDirection = 'YES';
+                        else if (yes > vegasProb + 2) edgeDirection = 'NO';
+                    }
+                    break;
+                }
+            }
         }
 
         // 2. VALUE (0-30): Is the payout worth the risk?
