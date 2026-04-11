@@ -3117,11 +3117,23 @@ function loadAutobotOnPortfolio() {
         return;
     }
 
-    // Update the top stats with auto-bot data too
+    // Render cached data instantly while fresh data loads
+    var cachedData = null;
+    try { cachedData = JSON.parse(localStorage.getItem('sygnal-bot-cache-' + email)); } catch(e) {}
+    if (cachedData && cachedData.open_trades) {
+        var balEl = document.getElementById('paper-balance');
+        if (balEl) balEl.textContent = '$' + (cachedData.balance || 0).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+    }
 
-    fetch(API_BASE + '/api/autobot/portfolio?email=' + encodeURIComponent(email))
-        .then(function(r) { return r.json(); })
+    // Use AbortController for 8-second timeout
+    var controller = new AbortController();
+    var timeoutId = setTimeout(function() { controller.abort(); }, 8000);
+
+    fetch(API_BASE + '/api/autobot/portfolio?email=' + encodeURIComponent(email), {signal: controller.signal})
+        .then(function(r) { clearTimeout(timeoutId); return r.json(); })
         .then(function(data) {
+            // Cache for instant load next time
+            try { localStorage.setItem('sygnal-bot-cache-' + email, JSON.stringify(data)); } catch(e) {}
             var openTrades = data.open_trades || [];
 
             // Populate all bot settings dropdowns
@@ -3403,7 +3415,18 @@ function loadAutobotOnPortfolio() {
             loadTimeframePerformance();
             _autobotLoading = false;
         })
-        .catch(function() { _autobotLoading = false; });
+        .catch(function() {
+            _autobotLoading = false;
+            // Use cached data on timeout/error
+            var cached = null;
+            try { cached = JSON.parse(localStorage.getItem('sygnal-bot-cache-' + email)); } catch(e) {}
+            if (cached && cached.open_trades && cached.open_trades.length > 0) {
+                var posDiv2 = document.getElementById('paper-positions');
+                if (posDiv2) {
+                    posDiv2.innerHTML = '<p style="color:var(--text-dim);font-size:12px;text-align:center;padding:8px;">Showing cached data — server is loading...</p>';
+                }
+            }
+        });
 }
 
 
