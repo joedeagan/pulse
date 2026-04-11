@@ -1426,6 +1426,86 @@ async def resolve_bot_pick(request: Request):
     return {"ok": True}
 
 
+# ─── COLLECTIVE LEARNING (Paper Trades Aggregation) ───
+
+TRADES_AGG_FILE = os.path.join(DATA_DIR, "trades_aggregate.json")
+
+
+def load_trades_agg():
+    try:
+        with open(TRADES_AGG_FILE, "r") as f:
+            return json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError):
+        return {"total": 0, "wins": 0, "by_score_range": {}, "by_category": {}}
+
+
+def save_trades_agg(agg):
+    with open(TRADES_AGG_FILE, "w") as f:
+        json.dump(agg, f)
+
+
+@app.post("/api/collective/trade")
+async def record_collective_trade(request: Request):
+    """Record a resolved paper trade for collective learning."""
+    body = await request.json()
+    ticker = body.get("ticker", "")
+    side = body.get("side", "")
+    score = body.get("score", 0)
+    category = body.get("category", "other")
+    outcome = body.get("outcome", "")  # "win" or "loss"
+    signal = body.get("signal", "")
+
+    if not outcome or outcome not in ("win", "loss"):
+        return {"error": "outcome must be win or loss"}
+
+    agg = load_trades_agg()
+    agg["total"] += 1
+    if outcome == "win":
+        agg["wins"] += 1
+
+    # Track by score range (0-19, 20-39, 40-59, 60-79, 80-99)
+    score_range = f"{(score // 20) * 20}-{(score // 20) * 20 + 19}"
+    if score_range not in agg["by_score_range"]:
+        agg["by_score_range"][score_range] = {"total": 0, "wins": 0}
+    agg["by_score_range"][score_range]["total"] += 1
+    if outcome == "win":
+        agg["by_score_range"][score_range]["wins"] += 1
+
+    # Track by category
+    if category not in agg["by_category"]:
+        agg["by_category"][category] = {"total": 0, "wins": 0}
+    agg["by_category"][category]["total"] += 1
+    if outcome == "win":
+        agg["by_category"][category]["wins"] += 1
+
+    save_trades_agg(agg)
+    return {"ok": True}
+
+
+@app.get("/api/collective/stats")
+async def get_collective_stats():
+    """Get aggregate stats from all user paper trades — powers the score."""
+    agg = load_trades_agg()
+    win_rate = round(agg["wins"] / agg["total"] * 100) if agg["total"] > 0 else 0
+
+    # Win rate by score range
+    score_accuracy = {}
+    for range_key, data in agg.get("by_score_range", {}).items():
+        if data["total"] >= 3:
+            score_accuracy[range_key] = {
+                "win_rate": round(data["wins"] / data["total"] * 100),
+                "trades": data["total"],
+            }
+
+    return {
+        "total_trades": agg["total"],
+        "overall_win_rate": win_rate,
+        "score_accuracy": score_accuracy,
+        "by_category": agg.get("by_category", {}),
+        "enough_data": agg["total"] >= 10,
+    }
+
+
 # ─── Sygnal AUTOPILOT (Smart Alerts Scanner) ───
 
 ONESIGNAL_APP_ID = os.environ.get("ONESIGNAL_APP_ID", "")

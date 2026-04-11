@@ -2819,6 +2819,61 @@ function savePaperPortfolio(portfolio) {
     localStorage.setItem('sygnal-portfolio', JSON.stringify(portfolio));
 }
 
+function closePaperTrade(index) {
+    var portfolio = getPaperPortfolio();
+    var trade = portfolio.trades[index];
+    if (!trade || trade.closed) return;
+
+    // Get current price from cached market data
+    var currentPrice = trade.entryPrice; // default to entry if can't find
+    var market = allMarketCards.find(function(c) { return c.market.ticker === trade.ticker; });
+    if (market) {
+        currentPrice = trade.side === 'yes' ? market.market.yes : market.market.no;
+    }
+
+    var pnl = (currentPrice - trade.entryPrice) * trade.amount / 100;
+    if (trade.side === 'no') pnl = (trade.entryPrice - currentPrice) * trade.amount / 100;
+    var outcome = pnl >= 0 ? 'win' : 'loss';
+
+    trade.closed = true;
+    trade.closePrice = currentPrice;
+    trade.pnl = pnl;
+    trade.outcome = outcome;
+    trade.closedAt = Date.now();
+    portfolio.balance += (trade.amount * currentPrice / 100);
+    savePaperPortfolio(portfolio);
+
+    // Report to collective learning
+    fetch(API_BASE + '/api/collective/trade', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            ticker: trade.ticker,
+            side: trade.side,
+            score: trade.score || 0,
+            category: trade.category || 'other',
+            outcome: outcome,
+            signal: trade.signal || '',
+        })
+    }).catch(function() {});
+
+    // Sync to Firestore if logged in
+    if (typeof _currentUser !== 'undefined' && _currentUser && typeof _db !== 'undefined' && _db) {
+        _db.collection('collective_trades').add({
+            uid: _currentUser.uid,
+            ticker: trade.ticker,
+            side: trade.side,
+            score: trade.score || 0,
+            outcome: outcome,
+            pnl: pnl,
+            timestamp: new Date().toISOString(),
+        }).catch(function() {});
+    }
+
+    loadPortfolio();
+    showToast(outcome === 'win' ? 'Trade closed — profit!' : 'Trade closed');
+}
+
 function placePaperTrade() {
     if (!currentDetailMarket) return;
 
@@ -2851,6 +2906,8 @@ function placePaperTrade() {
     }
 
     portfolio.balance -= cost;
+    var sig = getSygnalSignal(currentDetailMarket.ticker);
+    var score = _sygnalScoreCache[currentDetailMarket.ticker] || 0;
     portfolio.trades.push({
         ticker: currentDetailMarket.ticker,
         question: currentDetailMarket.question,
@@ -2860,6 +2917,10 @@ function placePaperTrade() {
         cost: cost,
         timestamp: Date.now(),
         platform: currentDetailMarket.source || 'unknown',
+        score: score,
+        signal: sig ? sig.signal : '',
+        category: categorize(currentDetailMarket.question || ''),
+        amount: amount,
         settled: false,
     });
 
