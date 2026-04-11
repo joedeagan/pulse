@@ -5721,10 +5721,19 @@ function updateProUI() {
 }
 
 async function upgradeToPro() {
+    // Show Pro benefits page — no sign-in required to browse
+    var proSection = document.getElementById('pro-section');
+    if (proSection) {
+        proSection.style.display = '';
+        proSection.scrollIntoView({ behavior: 'smooth' });
+    }
+
+    // If not signed in, show Pro section but don't force auth
     if (!_currentUser) {
-        openAuthModal();
+        // Show a checkout prompt within the Pro section
         return;
     }
+
     try {
         const resp = await fetch(API_BASE + '/api/pro/checkout', {
             method: 'POST',
@@ -5733,12 +5742,39 @@ async function upgradeToPro() {
         });
         const data = await resp.json();
         if (data.url) {
-            window.open(data.url, '_blank');
+            window.location.href = data.url;  // redirect instead of popup
         } else {
             alert(data.error || 'Checkout failed');
         }
     } catch (e) {
         alert('Checkout error: ' + e.message);
+    }
+}
+
+// Pro checkout — works with or without sign-in
+async function startProCheckout() {
+    var email = '';
+    if (typeof _currentUser !== 'undefined' && _currentUser) {
+        email = _currentUser.email || '';
+    }
+    if (!email) {
+        email = prompt('Enter your email to get started with Pro:');
+        if (!email) return;
+    }
+    try {
+        var resp = await fetch(API_BASE + '/api/pro/checkout', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email: email })
+        });
+        var data = await resp.json();
+        if (data.url) {
+            window.location.href = data.url;
+        } else {
+            alert(data.error || 'Checkout unavailable. Try again later.');
+        }
+    } catch(e) {
+        alert('Checkout error. Please try again.');
     }
 }
 
