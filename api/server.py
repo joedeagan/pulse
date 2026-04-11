@@ -1574,14 +1574,17 @@ async def autobot_scan():
         poly = poly_data.get("markets", [])
         scores = compute_sygnal_scores(kalshi, poly)
 
-        # Only take actionable signals (LEAN or BUY, score >= 30)
-        # Filter out confusing multi-option titles (contain colons like "Who will X: Option Y")
+        # Only take actionable signals — prefer short-term markets
         actionable = []
         for s in scores:
             if s["signal"] not in ("BUY YES", "BUY NO", "LEAN YES", "LEAN NO"):
                 continue
             if s["score"] < 30:
                 continue
+            # Prefer markets that resolve soon (within 7 days)
+            days_left = s.get("days_left", -1)
+            if days_left > 7 and days_left != -1:
+                continue  # Skip long-dated markets
             q = s.get("question", "")
             # Skip confusing sub-option markets
             if ": " in q and not q.startswith("Will") and not q.startswith("How"):
@@ -1747,7 +1750,12 @@ async def autobot_resolve():
                     except Exception:
                         pass
 
-                should_resolve = pnl_pct >= 20 or pnl_pct <= -30 or age_hours >= 24
+                # Hold to resolution — only close if market price hits extreme (resolved)
+                # or if position is very old (market expired/forgotten)
+                should_resolve = (
+                    current_price >= 95 or current_price <= 5 or  # Market essentially resolved
+                    age_hours >= 168  # 7 days max hold
+                )
 
                 if should_resolve:
                     trade["resolved"] = True

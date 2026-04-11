@@ -3039,7 +3039,7 @@ function loadAutobotOnPortfolio() {
             var pnlEl = document.getElementById('paper-pnl');
             var tradesEl = document.getElementById('paper-trades');
             // Big balance number
-            if (balEl) balEl.textContent = '$' + (data.balance || 0).toLocaleString('en-US', {maximumFractionDigits: 0});
+            if (balEl) balEl.textContent = '$' + (data.balance || 0).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
 
             // P&L — calculate unrealized from current prices
             if (pnlEl) {
@@ -3061,7 +3061,7 @@ function loadAutobotOnPortfolio() {
                 // Also update the balance to reflect unrealized
                 if (balEl && unrealizedPnl !== 0) {
                     var adjustedBal = (data.balance || 0) + unrealizedPnl;
-                    balEl.textContent = '$' + Math.round(adjustedBal).toLocaleString('en-US');
+                    balEl.textContent = '$' + adjustedBal.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
                 }
             }
 
@@ -3152,7 +3152,10 @@ function loadAutobotOnPortfolio() {
                                 '<div style="width:32px;height:32px;border-radius:50%;border:2px solid ' + scoreColor + ';display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;color:' + scoreColor + ';">' + t.score + '</div>' +
                                 '<span style="background:' + sigBg + ';color:' + sigColor + ';padding:3px 10px;border-radius:6px;font-size:10px;font-weight:800;">' + t.signal + '</span>' +
                             '</div>' +
-                            '<span style="font-size:11px;color:var(--text-dim);">' + t.contracts + 'x @ ' + t.price + '¢</span>' +
+                            '<div style="text-align:right;">' +
+                                '<span style="font-size:11px;color:var(--text-dim);">' + t.contracts + 'x @ ' + t.price + '¢</span>' +
+                                '<div style="font-size:10px;color:var(--green);margin-top:2px;">If ' + t.side.toUpperCase() + ': win $' + ((100 - t.price) * t.contracts / 100).toFixed(2) + '</div>' +
+                            '</div>' +
                         '</div>' +
                     '</div>';
                 }).join('');
