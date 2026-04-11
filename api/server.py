@@ -1924,6 +1924,30 @@ async def autobot_scan():
         vegas = await get_vegas_odds()
         scores = compute_sygnal_scores(kalshi, poly, vegas_odds=vegas)
 
+        # Include external picks from Railway Kalshi bot (baseball, etc.)
+        ext_picks = load_bot_picks()
+        ext_open = [p for p in ext_picks if not p.get("resolved") and p.get("ticker")]
+        for ep in ext_open:
+            # Add as high-priority BUY signal if not already in scores
+            if not any(s["ticker"] == ep["ticker"] for s in scores):
+                scores.append({
+                    "ticker": ep["ticker"],
+                    "question": ep.get("question", ""),
+                    "source": "kalshi",
+                    "yes": ep.get("price", 50) if ep.get("side") == "yes" else 100 - ep.get("price", 50),
+                    "no": 100 - ep.get("price", 50) if ep.get("side") == "yes" else ep.get("price", 50),
+                    "volume": 10000,
+                    "score": max(ep.get("score", 60), 60),  # Treat external picks as high confidence
+                    "signal": "BUY YES" if ep.get("side") == "yes" else "BUY NO",
+                    "cross_edge": 10,
+                    "edge_direction": "YES" if ep.get("side") == "yes" else "NO",
+                    "best_roi": 1.0,
+                    "days_left": 0,
+                    "close_time": "",
+                    "breakdown": {"edge": 20, "value": 15, "momentum": 10, "confidence": 10, "timing": 5},
+                    "from_kalshi_bot": True,
+                })
+
         # Only take actionable signals — prioritize BUY over LEAN
         buy_picks = []
         lean_picks = []
