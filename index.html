@@ -810,16 +810,15 @@
     <!-- More menu outside nav -->
     <div class="mobile-more-menu" id="mobile-more-menu" style="display:none;">
         <a href="javascript:void(0)" ontouchend="event.preventDefault();document.getElementById('mobile-more-menu').style.display='none'" onclick="document.getElementById('mobile-more-menu').style.display='none'" style="color:#555;font-size:14px;margin-bottom:8px;">Close</a>
+        <a href="javascript:void(0)" ontouchend="event.preventDefault();document.getElementById('mobile-more-menu').style.display='none';switchTab('pro',null)" onclick="document.getElementById('mobile-more-menu').style.display='none';switchTab('pro',null)" style="color:#0088ff;font-weight:700;">Sygnal Pro</a>
+        <a href="javascript:void(0)" ontouchend="event.preventDefault();document.getElementById('mobile-more-menu').style.display='none';switchTab('profile',null)" onclick="document.getElementById('mobile-more-menu').style.display='none';switchTab('profile',null)">Profile</a>
         <a href="javascript:void(0)" ontouchend="event.preventDefault();document.getElementById('mobile-more-menu').style.display='none';switchTab('trending',null)" onclick="document.getElementById('mobile-more-menu').style.display='none';switchTab('trending',null)">Trending</a>
         <a href="javascript:void(0)" ontouchend="event.preventDefault();document.getElementById('mobile-more-menu').style.display='none';switchTab('news',null)" onclick="document.getElementById('mobile-more-menu').style.display='none';switchTab('news',null)">News</a>
-        <a href="javascript:void(0)" ontouchend="event.preventDefault();document.getElementById('mobile-more-menu').style.display='none';switchTab('arbitrage',null)" onclick="document.getElementById('mobile-more-menu').style.display='none';switchTab('arbitrage',null)">Arbitrage</a>
-        <a href="javascript:void(0)" ontouchend="event.preventDefault();document.getElementById('mobile-more-menu').style.display='none';switchTab('leagues',null)" onclick="document.getElementById('mobile-more-menu').style.display='none';switchTab('leagues',null)">Leagues</a>
-        <a href="javascript:void(0)" ontouchend="event.preventDefault();document.getElementById('mobile-more-menu').style.display='none';switchTab('compare',null)" onclick="document.getElementById('mobile-more-menu').style.display='none';switchTab('compare',null)">Compare</a>
         <a href="javascript:void(0)" ontouchend="event.preventDefault();document.getElementById('mobile-more-menu').style.display='none';switchTab('alerts',null)" onclick="document.getElementById('mobile-more-menu').style.display='none';switchTab('alerts',null)">Alerts</a>
-        <a href="javascript:void(0)" ontouchend="event.preventDefault();document.getElementById('mobile-more-menu').style.display='none';switchTab('profile',null)" onclick="document.getElementById('mobile-more-menu').style.display='none';switchTab('profile',null)">Profile</a>
-        <a href="javascript:void(0)" ontouchend="event.preventDefault();document.getElementById('mobile-more-menu').style.display='none';setTimeout(function(){toggleSettings()},100)" onclick="document.getElementById('mobile-more-menu').style.display='none';setTimeout(function(){toggleSettings()},100)">Settings</a>
-        <a href="javascript:void(0)" ontouchend="event.preventDefault();document.getElementById('mobile-more-menu').style.display='none';upgradeToPro()" onclick="document.getElementById('mobile-more-menu').style.display='none';upgradeToPro()" style="color:#0088ff;font-weight:700;">Sygnal Pro</a>
+        <a href="javascript:void(0)" ontouchend="event.preventDefault();document.getElementById('mobile-more-menu').style.display='none';switchTab('arbitrage',null)" onclick="document.getElementById('mobile-more-menu').style.display='none';switchTab('arbitrage',null)">Arbitrage</a>
+        <a href="javascript:void(0)" ontouchend="event.preventDefault();document.getElementById('mobile-more-menu').style.display='none';switchTab('compare',null)" onclick="document.getElementById('mobile-more-menu').style.display='none';switchTab('compare',null)">Compare</a>
         <a href="javascript:void(0)" ontouchend="event.preventDefault();document.getElementById('mobile-more-menu').style.display='none';localStorage.removeItem('sygnal-onboarding-done');startOnboarding()" onclick="document.getElementById('mobile-more-menu').style.display='none';localStorage.removeItem('sygnal-onboarding-done');startOnboarding()">Replay Tour</a>
+        <a href="javascript:void(0)" ontouchend="event.preventDefault();document.getElementById('mobile-more-menu').style.display='none';setTimeout(function(){toggleSettings()},100)" onclick="document.getElementById('mobile-more-menu').style.display='none';setTimeout(function(){toggleSettings()},100)" style="color:#555;">Settings</a>
     </div>
 
     <script>
@@ -831,6 +830,6 @@
         if (window.caches) caches.keys().then(function(k) { k.forEach(function(c) { caches.delete(c); }); });
     }
     </script>
-    <script src="app.js?v=36"></script>
+    <script src="app.js?v=37"></script>
 </body>
 </html>
