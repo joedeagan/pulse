@@ -4989,22 +4989,7 @@ function showProUpsell(feature) {
     setTimeout(function() { if (toast.parentElement) toast.remove(); }, 5000);
 }
 
-async function startProCheckout() {
-    try {
-        const resp = await fetch((API_BASE || '') + '/api/pro/checkout', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({}),
-        });
-        const data = await resp.json();
-        if (data.url) {
-            window.open(data.url, '_blank');
-        } else {
-            showToast(data.error || 'Stripe not configured yet — coming soon!');
-        }
-    } catch {
-        showToast('Pro subscriptions coming soon!');
-    }
+// Old startProCheckout removed — using the one defined later with email support
     const modal = document.querySelector('.pro-modal');
     if (modal) modal.remove();
 }
