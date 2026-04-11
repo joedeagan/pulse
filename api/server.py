@@ -1668,8 +1668,8 @@ async def autobot_scan():
                 continue
             # Prefer markets that resolve soon (within 7 days)
             days_left = s.get("days_left", -1)
-            if days_left > 7 and days_left != -1:
-                continue  # Skip long-dated markets
+            if days_left > 30 or days_left == -1:
+                continue  # Skip long-dated or unknown-date markets
             q = s.get("question", "")
             # Skip confusing sub-option markets
             if ": " in q and not q.startswith("Will") and not q.startswith("How"):
