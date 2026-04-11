@@ -794,8 +794,12 @@ async def generate_newsletter():
 </tr></table>
 </td></tr></table>'''
 
-    html = html.replace("<!--USER_BOT_PLACEHOLDER-->", user_bot_html)
-    return HTMLResponse(content=html)
+    # For preview: inject admin bot data; for send: keep placeholder for per-user personalization
+    preview_html = html.replace("<!--USER_BOT_PLACEHOLDER-->", user_bot_html)
+    # Store raw template (with placeholder) as attribute for send_newsletter to use
+    resp = HTMLResponse(content=preview_html)
+    resp._raw_template = html  # template with placeholder intact
+    return resp
 
 
 @app.get("/api/newsletter/preview")
@@ -821,7 +825,10 @@ async def send_newsletter():
 
     # Generate the newsletter HTML
     newsletter_response = await generate_newsletter()
-    html_content = newsletter_response.body.decode() if hasattr(newsletter_response, 'body') else str(newsletter_response)
+    # Use raw template (with placeholder) for per-user personalization
+    html_template = getattr(newsletter_response, '_raw_template', None)
+    if not html_template:
+        html_template = newsletter_response.body.decode() if hasattr(newsletter_response, 'body') else str(newsletter_response)
 
     from sendgrid import SendGridAPIClient
     from sendgrid.helpers.mail import Mail, To
@@ -848,18 +855,18 @@ async def send_newsletter():
                 pnl_color = "#00d68f" if total_pnl >= 0 else "#ff3b5c"
                 pnl_str = f"+${total_pnl:.2f}" if total_pnl >= 0 else f"-${abs(total_pnl):.2f}"
 
-                user_section = f'''<table width="100%" cellpadding="0" cellspacing="0" style="background:#0a1628;border:1px solid #1a2a4a;border-radius:10px;margin-bottom:16px;">
+                user_section = f'''<table width="100%" cellpadding="0" cellspacing="0" style="background:#eef3ff;border:1px solid #d0d8e8;border-radius:10px;margin-bottom:16px;" class="email-bot-bg">
 <tr><td style="padding:16px;">
 <div style="font-size:11px;font-weight:700;color:#0088ff;letter-spacing:2px;margin-bottom:10px;">YOUR BOT THIS WEEK</div>
 <table width="100%"><tr>
-<td style="text-align:center;"><div style="font-size:22px;font-weight:800;color:#fff;">${balance:.0f}</div><div style="font-size:9px;color:#555;letter-spacing:1px;">BALANCE</div></td>
-<td style="text-align:center;"><div style="font-size:22px;font-weight:800;color:{pnl_color};">{pnl_str}</div><div style="font-size:9px;color:#555;letter-spacing:1px;">P&amp;L</div></td>
-<td style="text-align:center;"><div style="font-size:22px;font-weight:800;color:#fff;">{len(open_trades)}</div><div style="font-size:9px;color:#555;letter-spacing:1px;">OPEN</div></td>
-<td style="text-align:center;"><div style="font-size:22px;font-weight:800;color:#fff;">{wins}W/{losses}L</div><div style="font-size:9px;color:#555;letter-spacing:1px;">RECORD</div></td>
+<td style="text-align:center;width:25%;"><div style="font-size:20px;font-weight:800;color:#1a1a1a;" class="email-text">${balance:,.0f}</div><div style="font-size:9px;color:#888;letter-spacing:1px;margin-top:2px;">BALANCE</div></td>
+<td style="text-align:center;width:25%;"><div style="font-size:20px;font-weight:800;color:{pnl_color};">{pnl_str}</div><div style="font-size:9px;color:#888;letter-spacing:1px;margin-top:2px;">P&amp;L</div></td>
+<td style="text-align:center;width:25%;"><div style="font-size:20px;font-weight:800;color:#1a1a1a;" class="email-text">{len(open_trades)}</div><div style="font-size:9px;color:#888;letter-spacing:1px;margin-top:2px;">OPEN</div></td>
+<td style="text-align:center;width:25%;"><div style="font-size:20px;font-weight:800;color:#1a1a1a;" class="email-text">{wins}W/{losses}L</div><div style="font-size:9px;color:#888;letter-spacing:1px;margin-top:2px;">RECORD</div></td>
 </tr></table>
 </td></tr></table>'''
 
-            personalized_html = html_content.replace("{{USER_BOT_SECTION}}", user_section)
+            personalized_html = html_template.replace("<!--USER_BOT_PLACEHOLDER-->", user_section)
 
             message = Mail(
                 from_email=(SENDGRID_FROM_EMAIL, "Sygnal Markets"),
