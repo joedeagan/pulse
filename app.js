@@ -3017,10 +3017,27 @@ function loadAutobotOnPortfolio() {
     if (!email) email = localStorage.getItem('sygnal-account-email') || '';
     if (!email) return;
 
+    // Update the top stats with auto-bot data too
+
     fetch(API_BASE + '/api/autobot/portfolio?email=' + encodeURIComponent(email))
         .then(function(r) { return r.json(); })
         .then(function(data) {
             var openTrades = data.open_trades || [];
+
+            // Update top stats with auto-bot data
+            var balEl = document.getElementById('paper-balance');
+            var investedEl = document.getElementById('paper-invested');
+            var pnlEl = document.getElementById('paper-pnl');
+            var tradesEl = document.getElementById('paper-trades');
+            if (balEl) balEl.textContent = '$' + (data.balance || 0).toFixed(2);
+            if (investedEl) investedEl.textContent = '$' + ((1000 - (data.balance || 1000))).toFixed(2);
+            if (pnlEl) {
+                var pnl = data.total_pnl || 0;
+                pnlEl.textContent = (pnl >= 0 ? '+$' : '-$') + Math.abs(pnl).toFixed(2);
+                pnlEl.className = 'bot-stat-value ' + (pnl >= 0 ? 'running' : 'stopped');
+            }
+            if (tradesEl) tradesEl.textContent = openTrades.length + (data.resolved_count || 0);
+
             if (openTrades.length === 0 && data.resolved_count === 0) return;
 
             var wins = data.wins || 0;
