@@ -1290,6 +1290,8 @@ def compute_sygnal_scores(kalshi_markets, poly_markets):
             "cross_edge": edge_size,
             "edge_direction": edge_direction,
             "best_roi": round(best_roi, 2),
+            "days_left": m.get("days_left", -1),
+            "close_time": m.get("close_time", ""),
             "breakdown": {
                 "edge": edge_score,
                 "value": value_score,
