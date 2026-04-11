@@ -233,21 +233,26 @@ async def get_kalshi():
                     if e["event_ticker"] not in seen:
                         all_events.append(e)
 
-            # Also fetch by specific sports series tickers
-            for series in ["KXMLB", "KXNBA", "KXNHL", "KXNFL", "KXSOCCER", "KXMMA", "KXTENNIS", "KXGOLF"]:
+            # Also fetch sports series tickers in parallel
+            import asyncio
+            sports_series = ["KXMLB", "KXNBA", "KXNHL", "KXNFL", "KXSOCCER", "KXMMA"]
+            async def _fetch_series(s):
                 try:
-                    sresp = await client.get(
+                    r = await client.get(
                         "https://api.elections.kalshi.com/trade-api/v2/events",
-                        params={"series_ticker": series, "limit": 20, "status": "open"},
-                        timeout=8,
+                        params={"series_ticker": s, "limit": 20, "status": "open"},
+                        timeout=5,
                     )
-                    sevts = sresp.json().get("events", [])
-                    seen = {e["event_ticker"] for e in all_events}
-                    for e in sevts:
-                        if e["event_ticker"] not in seen:
-                            all_events.append(e)
+                    return r.json().get("events", [])
                 except Exception:
-                    pass
+                    return []
+            sports_results = await asyncio.gather(*[_fetch_series(s) for s in sports_series])
+            seen = {e["event_ticker"] for e in all_events}
+            for evts in sports_results:
+                for e in evts:
+                    if e["event_ticker"] not in seen:
+                        all_events.append(e)
+                        seen.add(e["event_ticker"])
 
             events = all_events
 
@@ -1464,15 +1469,21 @@ def compute_sygnal_scores(kalshi_markets, poly_markets, vegas_odds=None):
     return results
 
 
+_scores_cache = {"scores": [], "ts": 0}
+
 @app.get("/api/scores")
 async def get_scores(min_score: int = 0):
-    """Get Sygnal Scores for all markets. Bot uses this as a signal source."""
-    kalshi_data = await get_kalshi()
-    poly_data = await get_polymarket()
-    kalshi = kalshi_data.get("markets", [])
-    poly = poly_data.get("markets", [])
-    vegas = await get_vegas_odds()
-    scores = compute_sygnal_scores(kalshi, poly, vegas_odds=vegas)
+    """Get Sygnal Scores for all markets. Cached for 2 minutes."""
+    now = datetime.now(timezone.utc).timestamp()
+    if not _scores_cache["scores"] or now - _scores_cache["ts"] > 120:
+        kalshi_data = await get_kalshi()
+        poly_data = await get_polymarket()
+        kalshi = kalshi_data.get("markets", [])
+        poly = poly_data.get("markets", [])
+        vegas = await get_vegas_odds()
+        _scores_cache["scores"] = compute_sygnal_scores(kalshi, poly, vegas_odds=vegas)
+        _scores_cache["ts"] = now
+    scores = _scores_cache["scores"]
     if min_score > 0:
         scores = [s for s in scores if s["score"] >= min_score]
     return {"scores": scores, "count": len(scores)}
