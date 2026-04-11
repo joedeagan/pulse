@@ -169,7 +169,8 @@ function switchTab(tab, btn) {
     const newsView = [newsPanelEl];
     const profileEl = document.getElementById('profile-panel');
     const profileView = [profileEl];
-    const allSections = [...marketsView, ...botView, ...portfolioView, ...arbView, ...corrView, ...trendingView, ...leaguesView, ...compareView, ...alertsView, ...newsView, ...profileView];
+    const proPageEl = document.getElementById('pro-page');
+    const allSections = [...marketsView, ...botView, ...portfolioView, ...arbView, ...corrView, ...trendingView, ...leaguesView, ...compareView, ...alertsView, ...newsView, ...profileView, proPageEl].filter(Boolean);
 
     // Hide everything
     allSections.forEach(el => { if (el) el.classList.add('view-hidden'); });
@@ -187,6 +188,7 @@ function switchTab(tab, btn) {
     else if (tab === 'compare') { visible = compareView; buildComparePanel(); }
     else if (tab === 'alerts') { visible = alertsView; renderAlertRules(); }
     else if (tab === 'profile') { visible = profileView; if (typeof buildProfilePanel === 'function') buildProfilePanel(); }
+    else if (tab === 'pro') { var proPage = document.getElementById('pro-page'); if (proPage) { visible = [proPage]; buildProPage(); } }
 
     visible.forEach(el => { if (el) el.classList.remove('view-hidden'); });
 
@@ -5721,16 +5723,85 @@ function updateProUI() {
 }
 
 async function upgradeToPro() {
-    // Show Pro benefits page — no sign-in required to browse
-    var proSection = document.getElementById('pro-section');
-    if (proSection) {
-        proSection.style.display = '';
-        proSection.scrollIntoView({ behavior: 'smooth' });
-    }
+    // Show full Pro page
+    switchTab('pro', null);
+    return;
+}
 
-    // If not signed in, show Pro section but don't force auth
+function buildProPage() {
+    var el = document.getElementById('pro-page-content');
+    if (!el) return;
+    var alreadyPro = isPro();
+    el.innerHTML = `
+        <div style="max-width:700px;margin:0 auto;padding:40px 0;">
+            <div style="text-align:center;margin-bottom:32px;">
+                <div style="font-size:10px;letter-spacing:4px;color:var(--accent);font-weight:700;margin-bottom:8px;">SYGNAL</div>
+                <h2 style="font-size:32px;font-weight:800;color:var(--text);margin:0 0 8px;">Pro</h2>
+                <p style="color:var(--text-dim);font-size:15px;line-height:1.6;">Everything you need to trade prediction markets with confidence.</p>
+                ${alreadyPro ? '<div style="margin-top:12px;"><span style="background:var(--accent);color:#fff;padding:6px 16px;border-radius:20px;font-size:12px;font-weight:700;letter-spacing:1px;">YOU HAVE PRO</span></div>' : ''}
+            </div>
+
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:32px;">
+                <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:14px;padding:20px;">
+                    <div style="font-size:20px;margin-bottom:8px;">◆</div>
+                    <h4 style="color:var(--text);font-size:15px;margin:0 0 4px;">Score Breakdown</h4>
+                    <p style="color:var(--text-dim);font-size:12px;margin:0;line-height:1.5;">See all 5 factors behind every Sygnal Score — Edge, Value, Momentum, Confidence, Timing.</p>
+                </div>
+                <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:14px;padding:20px;">
+                    <div style="font-size:20px;margin-bottom:8px;">▲</div>
+                    <h4 style="color:var(--text);font-size:15px;margin:0 0 4px;">Signal Explanations</h4>
+                    <p style="color:var(--text-dim);font-size:12px;margin:0;line-height:1.5;">Know WHY every BUY signal fires. "7¢ cross-platform gap + 212% return potential."</p>
+                </div>
+                <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:14px;padding:20px;">
+                    <div style="font-size:20px;margin-bottom:8px;">★</div>
+                    <h4 style="color:var(--text);font-size:15px;margin:0 0 4px;">Vegas Odds Comparison</h4>
+                    <p style="color:var(--text-dim);font-size:12px;margin:0;line-height:1.5;">Compare Kalshi prices against DraftKings, FanDuel, and 40+ bookmakers. Instant edge detection.</p>
+                </div>
+                <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:14px;padding:20px;">
+                    <div style="font-size:20px;margin-bottom:8px;">◇</div>
+                    <h4 style="color:var(--text);font-size:15px;margin:0 0 4px;">Unlimited Paper Trading</h4>
+                    <p style="color:var(--text-dim);font-size:12px;margin:0;line-height:1.5;">Practice with unlimited positions. Free users get 5 positions for 30 days.</p>
+                </div>
+                <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:14px;padding:20px;">
+                    <div style="font-size:20px;margin-bottom:8px;">◎</div>
+                    <h4 style="color:var(--text);font-size:15px;margin:0 0 4px;">Push Alerts</h4>
+                    <p style="color:var(--text-dim);font-size:12px;margin:0;line-height:1.5;">Get notified instantly when Score 60+ opportunities appear. Never miss a trade.</p>
+                </div>
+                <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:14px;padding:20px;">
+                    <div style="font-size:20px;margin-bottom:8px;">◈</div>
+                    <h4 style="color:var(--text);font-size:15px;margin:0 0 4px;">AI Market Analysis</h4>
+                    <p style="color:var(--text-dim);font-size:12px;margin:0;line-height:1.5;">Deep AI-powered analysis on any market. Conviction level, risk assessment, and trade recommendation.</p>
+                </div>
+            </div>
+
+            <div style="background:linear-gradient(135deg,rgba(0,136,255,0.08),rgba(0,214,143,0.05));border:1px solid rgba(0,136,255,0.15);border-radius:16px;padding:28px;text-align:center;margin-bottom:24px;">
+                <div style="font-size:11px;letter-spacing:3px;color:var(--accent);font-weight:700;margin-bottom:8px;">COMPARE PLANS</div>
+                <div style="display:flex;justify-content:center;gap:40px;margin:20px 0;">
+                    <div>
+                        <div style="font-size:13px;color:var(--text-dim);font-weight:600;margin-bottom:8px;">FREE</div>
+                        <div style="font-size:28px;font-weight:800;color:var(--text);">$0</div>
+                        <div style="font-size:11px;color:var(--text-dim);margin-top:4px;">5 paper trades<br>Basic signals<br>30-day trial</div>
+                    </div>
+                    <div style="width:1px;background:var(--border);"></div>
+                    <div>
+                        <div style="font-size:13px;color:var(--accent);font-weight:600;margin-bottom:8px;">PRO</div>
+                        <div style="font-size:28px;font-weight:800;color:var(--green);">$9.99</div>
+                        <div style="font-size:11px;color:var(--text-dim);margin-top:4px;">/month<br>Everything unlocked<br>Cancel anytime</div>
+                    </div>
+                </div>
+                ${alreadyPro ? '' : '<button class="pro-cta-btn" onclick="startProCheckout()" style="margin-top:12px;padding:14px 40px;font-size:16px;">Get Pro Now</button>'}
+            </div>
+
+            <div style="text-align:center;color:var(--text-dim);font-size:12px;">
+                <p>Our bot trades real money using these same signals.</p>
+                <p style="margin-top:4px;">Cancel anytime. No questions asked.</p>
+            </div>
+        </div>
+    `;
+}
+
+async function _oldUpgradeToPro() {
     if (!_currentUser) {
-        // Show a checkout prompt within the Pro section
         return;
     }
 
@@ -5756,10 +5827,6 @@ async function startProCheckout() {
     var email = '';
     if (typeof _currentUser !== 'undefined' && _currentUser) {
         email = _currentUser.email || '';
-    }
-    if (!email) {
-        email = prompt('Enter your email to get started with Pro:');
-        if (!email) return;
     }
     try {
         var resp = await fetch(API_BASE + '/api/pro/checkout', {
