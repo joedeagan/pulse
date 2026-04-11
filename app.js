@@ -4916,11 +4916,44 @@ async function startProCheckout() {
     if (modal) modal.remove();
 }
 
-// Check for pro=success in URL
+// Check for pro=success in URL (returned from Stripe checkout)
 if (window.location.search.includes('pro=success')) {
-    localStorage.setItem('sygnal-pro', 'true');
-    showToast('Welcome to Sygnal Pro!');
     history.replaceState({}, '', '/');
+
+    // Verify with Stripe server-side (don't trust URL alone)
+    var proEmail = '';
+    if (typeof _currentUser !== 'undefined' && _currentUser) proEmail = _currentUser.email;
+    if (!proEmail) proEmail = localStorage.getItem('sygnal-account-email');
+    if (proEmail) {
+        fetch(API_BASE + '/api/pro/verify-checkout', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email: proEmail })
+        }).then(function(r) { return r.json(); }).then(function(data) {
+            if (data.pro) {
+                localStorage.setItem('sygnal-pro', 'true');
+                _isPro = true;
+                updateProUI();
+                showToast('Welcome to Sygnal Pro!');
+                // Reset auto-bot to Pro balance
+                fetch(API_BASE + '/api/autobot/reset', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email: proEmail })
+                }).catch(function(){});
+            } else {
+                showToast('Payment verification pending — Pro will activate shortly.');
+            }
+        }).catch(function() {
+            showToast('Verifying payment...');
+        });
+    }
+}
+
+// Handle cancel
+if (window.location.search.includes('pro=cancel')) {
+    history.replaceState({}, '', '/');
+    showToast('Checkout cancelled');
 }
 
 // ── SYGNAL AUTOPILOT ──

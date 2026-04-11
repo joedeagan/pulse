@@ -963,6 +963,37 @@ async def grant_pro(request: Request):
 # Admin emails that always have Pro (survives deploys)
 ADMIN_PRO_EMAILS = ["joeydeagan2010@gmail.com"]
 
+@app.post("/api/pro/verify-checkout")
+async def verify_checkout(request: Request):
+    """Verify a completed Stripe checkout and grant Pro. Called client-side after redirect."""
+    try:
+        import stripe
+        stripe.api_key = STRIPE_SECRET_KEY
+        body = await request.json()
+        email = body.get("email", "").lower().strip()
+        if not email:
+            return {"error": "email required"}
+
+        # Check Stripe for recent completed checkouts for this email
+        sessions = stripe.checkout.Session.list(
+            customer_details={"email": email},
+            limit=5,
+        )
+        for session in sessions.data:
+            if session.status == "complete" and session.payment_status == "paid":
+                # Grant Pro
+                pros = load_pro_users()
+                if email not in pros:
+                    pros.append(email)
+                    with open(PRO_USERS_FILE, "w") as f:
+                        json.dump(pros, f)
+                return {"pro": True, "verified": True}
+
+        return {"pro": False, "verified": False}
+    except Exception as e:
+        return {"error": str(e)}
+
+
 @app.get("/api/pro/check")
 async def check_pro(email: str = ""):
     """Check if email is a pro user."""
