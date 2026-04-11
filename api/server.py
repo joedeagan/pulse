@@ -1646,11 +1646,23 @@ async def get_collective_stats():
                 "trades": data["total"],
             }
 
+    # Win rate by timeframe bucket
+    timeframe_perf = {}
+    for bucket, data in agg.get("by_timeframe", {}).items():
+        if data["total"] >= 1:
+            timeframe_perf[bucket] = {
+                "win_rate": round(data["wins"] / data["total"] * 100) if data["total"] > 0 else 0,
+                "trades": data["total"],
+                "total_pnl": data.get("total_pnl", 0),
+                "roi": round(data.get("total_pnl", 0) / max(data["total"], 1), 2),
+            }
+
     return {
         "total_trades": agg["total"],
         "overall_win_rate": win_rate,
         "score_accuracy": score_accuracy,
         "by_category": agg.get("by_category", {}),
+        "by_timeframe": timeframe_perf,
         "enough_data": agg["total"] >= 10,
     }
 
@@ -1803,6 +1815,7 @@ async def autobot_scan():
                     "score": pick["score"],
                     "signal": pick["signal"],
                     "category": pick.get("source", "other"),
+                    "days_left": pick.get("days_left", -1),
                     "timestamp": datetime.now(timezone.utc).isoformat(),
                     "resolved": False,
                 }
@@ -1902,6 +1915,37 @@ async def autobot_resolve():
                     if trade["outcome"] == "win":
                         agg["by_score_range"][score_range]["wins"] += 1
 
+                    # Track performance by timeframe bucket
+                    trade_days = trade.get("days_left", -1)
+                    if trade_days == -1:
+                        bucket = "unknown"
+                    elif trade_days <= 0.5:
+                        bucket = "12h"
+                    elif trade_days <= 1:
+                        bucket = "24h"
+                    elif trade_days <= 3:
+                        bucket = "3d"
+                    elif trade_days <= 7:
+                        bucket = "1w"
+                    elif trade_days <= 14:
+                        bucket = "2w"
+                    elif trade_days <= 30:
+                        bucket = "1m"
+                    elif trade_days <= 90:
+                        bucket = "3m"
+                    else:
+                        bucket = "3m+"
+                    trade["timeframe_bucket"] = bucket
+
+                    if "by_timeframe" not in agg:
+                        agg["by_timeframe"] = {}
+                    if bucket not in agg["by_timeframe"]:
+                        agg["by_timeframe"][bucket] = {"total": 0, "wins": 0, "total_pnl": 0}
+                    agg["by_timeframe"][bucket]["total"] += 1
+                    if trade["outcome"] == "win":
+                        agg["by_timeframe"][bucket]["wins"] += 1
+                    agg["by_timeframe"][bucket]["total_pnl"] = round(agg["by_timeframe"][bucket].get("total_pnl", 0) + pnl, 2)
+
         save_auto_bot_trades(all_trades)
         save_trades_agg(agg)
         return {"ok": True, "resolved": resolved_count}
@@ -1964,11 +2008,14 @@ async def set_autobot_settings(request: Request):
 
     settings = all_trades[email].get("settings", {})
 
-    # Max days for trade timeframe: 7, 14, 30, 60, 90, 365, 0 (any)
+    # Max days for trade timeframe: 1 (24h), 3, 7, 14, 30, 60, 90, 365, 0 (any)
     if "max_days" in body:
-        max_days = int(body["max_days"])
-        if max_days not in (7, 14, 30, 60, 90, 365, 0):
-            return {"error": "max_days must be 7, 14, 30, 60, 90, 365, or 0 (any)"}
+        max_days = body["max_days"]
+        # Accept float for sub-day (0.5 = 12h)
+        max_days = float(max_days) if '.' in str(max_days) else int(max_days)
+        valid = (0.5, 1, 3, 7, 14, 30, 60, 90, 365, 0)
+        if max_days not in valid:
+            return {"error": f"max_days must be one of {valid}"}
         settings["max_days"] = max_days
 
     all_trades[email]["settings"] = settings

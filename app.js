@@ -3128,10 +3128,12 @@ function loadAutobotOnPortfolio() {
             // Timeframe setting
             var userMaxDays = (data.settings && data.settings.max_days !== undefined) ? data.settings.max_days : 30;
             var tfOptions = [
+                {val: 0.5, label: '12 Hours'},
+                {val: 1, label: '24 Hours'},
+                {val: 3, label: '3 Days'},
                 {val: 7, label: '1 Week'},
                 {val: 14, label: '2 Weeks'},
                 {val: 30, label: '1 Month'},
-                {val: 60, label: '2 Months'},
                 {val: 90, label: '3 Months'},
                 {val: 0, label: 'Any'}
             ];
@@ -3156,6 +3158,9 @@ function loadAutobotOnPortfolio() {
                     '<span style="color:' + (data.total_pnl >= 0 ? 'var(--green)' : 'var(--red)') + ';font-weight:600;">' + (data.total_pnl >= 0 ? '+' : '') + '$' + (data.total_pnl || 0).toFixed(2) + '</span>' +
                 '</div>';
             }
+
+            // Timeframe performance breakdown
+            html += '<div id="timeframe-perf-section"></div>';
 
             if (openTrades.length > 0) {
                 html += '<div class="market-grid" style="margin-top:12px;">';
@@ -3223,7 +3228,7 @@ function loadAutobotOnPortfolio() {
             var tfEl = document.getElementById('bot-timeframe-select');
             if (tfEl) {
                 tfEl.onchange = function() {
-                    var val = parseInt(this.value);
+                    var val = parseFloat(this.value);
                     var userEmail = '';
                     if (typeof _currentUser !== 'undefined' && _currentUser) userEmail = _currentUser.email || '';
                     if (!userEmail) userEmail = localStorage.getItem('sygnal-account-email') || '';
@@ -3240,6 +3245,63 @@ function loadAutobotOnPortfolio() {
                     });
                 };
             }
+
+            // Load timeframe performance chart
+            loadTimeframePerformance();
+        })
+        .catch(function() {});
+}
+
+
+function loadTimeframePerformance() {
+    var section = document.getElementById('timeframe-perf-section');
+    if (!section) return;
+
+    fetch(API_BASE + '/api/collective/stats')
+        .then(function(r) { return r.json(); })
+        .then(function(stats) {
+            var tf = stats.by_timeframe || {};
+            var bucketOrder = ['12h', '24h', '3d', '1w', '2w', '1m', '3m', '3m+'];
+            var bucketLabels = {'12h':'12H','24h':'24H','3d':'3D','1w':'1W','2w':'2W','1m':'1M','3m':'3M','3m+':'3M+'};
+            var hasTfData = false;
+            bucketOrder.forEach(function(b) { if (tf[b] && tf[b].trades > 0) hasTfData = true; });
+
+            if (!hasTfData) {
+                section.innerHTML = '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:16px;">' +
+                    '<div style="font-size:11px;font-weight:700;color:#0088ff;letter-spacing:2px;margin-bottom:8px;">TIMEFRAME PERFORMANCE</div>' +
+                    '<p style="font-size:12px;color:var(--text-dim);">Waiting for trades to resolve to show which timeframes perform best...</p>' +
+                '</div>';
+                return;
+            }
+
+            var maxTrades = 1;
+            bucketOrder.forEach(function(b) { if (tf[b]) maxTrades = Math.max(maxTrades, tf[b].trades); });
+
+            var bars = '';
+            bucketOrder.forEach(function(b) {
+                var d = tf[b] || {trades: 0, win_rate: 0, total_pnl: 0};
+                if (d.trades === 0) return;
+                var wr = d.win_rate;
+                var barColor = wr >= 60 ? '#00d68f' : wr >= 45 ? '#f0b000' : '#ff3b5c';
+                var barWidth = Math.max(10, (d.trades / maxTrades) * 100);
+                var pnlStr = d.total_pnl >= 0 ? '+$' + d.total_pnl.toFixed(0) : '-$' + Math.abs(d.total_pnl).toFixed(0);
+                var pnlColor = d.total_pnl >= 0 ? '#00d68f' : '#ff3b5c';
+                bars += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">' +
+                    '<span style="font-size:11px;color:var(--text-dim);width:28px;text-align:right;font-weight:600;">' + bucketLabels[b] + '</span>' +
+                    '<div style="flex:1;height:22px;background:rgba(255,255,255,0.04);border-radius:4px;position:relative;overflow:hidden;">' +
+                        '<div style="width:' + barWidth + '%;height:100%;background:' + barColor + ';border-radius:4px;opacity:0.8;"></div>' +
+                        '<span style="position:absolute;left:8px;top:3px;font-size:11px;color:#fff;font-weight:700;">' + wr + '%</span>' +
+                    '</div>' +
+                    '<span style="font-size:10px;color:var(--text-dim);width:35px;text-align:right;">' + d.trades + ' tr</span>' +
+                    '<span style="font-size:10px;color:' + pnlColor + ';width:40px;text-align:right;font-weight:600;">' + pnlStr + '</span>' +
+                '</div>';
+            });
+
+            section.innerHTML = '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:16px;">' +
+                '<div style="font-size:11px;font-weight:700;color:#0088ff;letter-spacing:2px;margin-bottom:10px;">TIMEFRAME PERFORMANCE</div>' +
+                bars +
+                '<p style="font-size:10px;color:var(--text-dim);margin-top:8px;">Set your timeframe above to focus on the best-performing window</p>' +
+            '</div>';
         })
         .catch(function() {});
 }
