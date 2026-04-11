@@ -3165,10 +3165,32 @@ function loadAutobotOnPortfolio() {
             // Stop Loss
             populateSelect('bot-sl-select', [{val:15,label:'15%'},{val:20,label:'20%'},{val:30,label:'30% (Default)'},{val:40,label:'40%'},{val:50,label:'50%'}], s.stop_loss || 30);
 
-            // Enable Pro selects if Pro
-            ['bot-risk-select','bot-category-select','bot-minscore-select','bot-signal-select','bot-tp-select','bot-sl-select'].forEach(function(id) {
+            // Enable Pro selects if Pro, add click-to-upgrade for free
+            var proSelectIds = ['bot-risk-select','bot-category-select','bot-minscore-select','bot-signal-select','bot-tp-select','bot-sl-select'];
+            proSelectIds.forEach(function(id) {
                 var el = document.getElementById(id);
-                if (el) el.disabled = !userIsPro;
+                if (!el) return;
+                if (userIsPro) {
+                    el.disabled = false;
+                } else {
+                    el.disabled = true;
+                    // Wrap in clickable div that shows upgrade prompt
+                    var row = el.closest('.bot-setting-row');
+                    if (row && !row._proWired) {
+                        row._proWired = true;
+                        row.style.cursor = 'pointer';
+                        row.addEventListener('click', function(e) {
+                            if (!isPro()) {
+                                var status = document.getElementById('bot-settings-status');
+                                if (status) {
+                                    status.style.display = 'inline';
+                                    status.innerHTML = '<span style="color:#ff3b5c;">Pro required</span> — <a href="#" onclick="switchTab(\'pro\',null);return false;" style="color:var(--accent);text-decoration:none;">Upgrade to unlock</a>';
+                                }
+                                showToast('Upgrade to Pro to change this setting');
+                            }
+                        });
+                    }
+                }
             });
             // Hide PRO tags if user is Pro
             if (userIsPro) {
