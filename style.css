@@ -1365,6 +1365,34 @@ body.light .buy-no:hover { background: #e53e3e; color: #fff; }
 }
 
 /* Toast notification */
+/* Bot settings dropdowns */
+.bot-select {
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+    background: var(--bg-card);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px 32px 8px 12px;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    font-family: inherit;
+    min-width: 120px;
+    background-image: url('data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2210%22 height=%2210%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23666%22 stroke-width=%222.5%22><polyline points=%226 9 12 15 18 9%22/></svg>');
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+    background-size: 10px;
+    transition: border-color 0.2s;
+}
+.bot-select:hover { border-color: var(--border-hover); }
+.bot-select:focus { border-color: var(--accent); outline: none; }
+.bot-select:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
 .toast {
     position: fixed;
     bottom: 24px;

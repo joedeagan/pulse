@@ -1862,21 +1862,40 @@ async def autobot_scan():
                         pass
 
             open_trades = [t for t in user["trades"] if not t.get("resolved")]
-            max_positions = 10  # Same for all users
+            max_positions = 15 if is_pro else 5
+            user_settings = user.get("settings", {})
 
             if len(open_trades) >= max_positions:
                 continue
 
-            # Per-user timeframe filter
-            user_max_days = user.get("settings", {}).get("max_days", 30)  # Default 30 days
+            # Per-user settings
+            user_max_days = user_settings.get("max_days", 30)
             if user_max_days == 0:
-                user_max_days = 99999  # "Any" = no filter
+                user_max_days = 99999
+            user_min_score = user_settings.get("min_score", 30) if is_pro else 30
+            user_signal_filter = user_settings.get("signal_filter", "all") if is_pro else "all"
+            user_categories = user_settings.get("categories", ["all"]) if is_pro else ["all"]
+            risk_level = user_settings.get("risk_level", "moderate") if is_pro else "moderate"
+            kelly_multiplier = {"conservative": 0.15, "moderate": 0.25, "aggressive": 0.40}.get(risk_level, 0.25)
 
             for pick in top_picks:
                 # Skip markets beyond user's preferred timeframe
                 pick_days = pick.get("days_left", -1)
                 if pick_days != -1 and pick_days > user_max_days:
                     continue
+                # Skip below user's min score
+                if pick["score"] < user_min_score:
+                    continue
+                # Signal filter (Pro): buy_only skips LEAN signals
+                if user_signal_filter == "buy_only" and "LEAN" in pick["signal"]:
+                    continue
+                # Category filter (Pro)
+                if "all" not in user_categories:
+                    pick_cat = pick.get("category", "other")
+                    if isinstance(pick_cat, str):
+                        pick_cat = pick_cat.lower()
+                    if pick_cat not in user_categories and pick.get("source", "") not in user_categories:
+                        continue
                 # Skip if already holding this ticker
                 if any(t["ticker"] == pick["ticker"] and not t.get("resolved") for t in user["trades"]):
                     continue
@@ -1886,48 +1905,38 @@ async def autobot_scan():
                     continue
 
                 # --- Kelly Criterion Position Sizing ---
-                # Market implied probability
                 market_prob = price / 100.0
-                # Our estimated probability based on Sygnal Score
-                # Score 50 = market is fair, 60 = 10% edge, 70 = 20% edge, etc.
-                # Convert score to an edge: higher score = we think our side wins more often
                 score = pick["score"]
                 cross_edge = pick.get("cross_edge", 0)
 
-                # Estimate our probability: market_prob + edge from score
-                # BUY signal = strong conviction, LEAN = moderate
                 is_buy_signal = "BUY" in pick["signal"]
                 if is_buy_signal:
                     edge_pct = 0.05 + (score - 30) * 0.003 + min(cross_edge, 15) * 0.005
                 else:
                     edge_pct = 0.03 + (score - 50) * 0.002 + min(cross_edge, 15) * 0.003
-                edge_pct = max(0.02, min(edge_pct, 0.25))  # Cap edge 2-25%
+                edge_pct = max(0.02, min(edge_pct, 0.25))
 
                 our_prob = min(0.90, market_prob + edge_pct)
 
-                # Expected Value check: EV = (our_prob * profit) - ((1-our_prob) * cost)
-                # Per $1 risked: EV = our_prob * (1/market_prob - 1) - (1 - our_prob)
-                payout_ratio = (1.0 / market_prob) - 1.0  # e.g. 40c → 1.5x payout
+                payout_ratio = (1.0 / market_prob) - 1.0
                 ev_per_dollar = our_prob * payout_ratio - (1 - our_prob)
                 if ev_per_dollar < 0.05:
-                    continue  # Skip bets with EV under 5 cents per dollar
+                    continue
 
-                # Kelly fraction: f = (b*p - q) / b
                 b = payout_ratio
                 p = our_prob
                 q = 1 - our_prob
                 kelly_full = (b * p - q) / b if b > 0 else 0
-                kelly_full = max(0, min(kelly_full, 0.25))  # Cap full Kelly at 25%
+                kelly_full = max(0, min(kelly_full, 0.25))
 
-                # Use quarter Kelly for safety
-                kelly_fraction = kelly_full * 0.25
+                # Risk level controls Kelly multiplier
+                kelly_fraction = kelly_full * kelly_multiplier
 
-                # Size the bet
                 max_bet = 500 if is_pro else 100
                 bet_amount = min(user["balance"] * kelly_fraction, max_bet)
-                bet_amount = max(bet_amount, 5)  # Minimum $5 bet
+                bet_amount = max(bet_amount, 5)
                 if bet_amount > user["balance"] * 0.15:
-                    bet_amount = user["balance"] * 0.15  # Never more than 15% of bankroll
+                    bet_amount = user["balance"] * 0.15
                 if bet_amount < 1 or user["balance"] < 10:
                     continue
 
@@ -2014,7 +2023,6 @@ async def autobot_resolve():
                 entry_price = trade["price"]
                 pnl_pct = (current_price - entry_price) / entry_price * 100 if entry_price > 0 else 0
 
-                # Resolve if: >20% profit, >30% loss, or >24h old
                 ts = trade.get("timestamp", "")
                 age_hours = 0
                 if ts:
@@ -2024,11 +2032,16 @@ async def autobot_resolve():
                     except Exception:
                         pass
 
-                # Hold to resolution — only close if market price hits extreme (resolved)
-                # or if position is very old (market expired/forgotten)
+                # Per-user take profit / stop loss (Pro), defaults for free
+                u_settings = user.get("settings", {})
+                take_profit_pct = u_settings.get("take_profit", 20)
+                stop_loss_pct = u_settings.get("stop_loss", 30)
+
                 should_resolve = (
-                    current_price >= 95 or current_price <= 5 or  # Market essentially resolved
-                    age_hours >= 168  # 7 days max hold
+                    current_price >= 95 or current_price <= 5 or  # Market resolved
+                    pnl_pct >= take_profit_pct or                 # Hit take profit
+                    pnl_pct <= -stop_loss_pct or                  # Hit stop loss
+                    age_hours >= 168                              # 7 days max hold
                 )
 
                 if should_resolve:
@@ -2133,11 +2146,15 @@ async def get_autobot_portfolio(email: str = ""):
 
 @app.post("/api/autobot/settings")
 async def set_autobot_settings(request: Request):
-    """Update a user's auto-bot settings (e.g., max trade timeframe)."""
+    """Update a user's auto-bot settings. Pro users get all options."""
     body = await request.json()
     email = body.get("email", "").lower()
     if not email:
         return {"error": "email required"}
+
+    # Check Pro status
+    pros = load_pro_users() + ADMIN_PRO_EMAILS
+    is_pro = email in [p.lower() for p in pros]
 
     all_trades = load_auto_bot_trades()
     if email not in all_trades:
@@ -2145,19 +2162,78 @@ async def set_autobot_settings(request: Request):
 
     settings = all_trades[email].get("settings", {})
 
-    # Max days for trade timeframe: 1 (24h), 3, 7, 14, 30, 60, 90, 365, 0 (any)
+    # -- Timeframe (Free: 7 or 30 only, Pro: all) --
     if "max_days" in body:
         max_days = body["max_days"]
-        # Accept float for sub-day (0.5 = 12h)
         max_days = float(max_days) if '.' in str(max_days) else int(max_days)
-        valid = (0.5, 1, 3, 7, 14, 30, 60, 90, 365, 0)
+        free_options = (7, 30)
+        pro_options = (0.5, 1, 3, 7, 14, 30, 60, 90, 0)
+        valid = pro_options if is_pro else free_options
         if max_days not in valid:
+            if not is_pro:
+                return {"error": "Upgrade to Pro to unlock all timeframes", "pro_required": True}
             return {"error": f"max_days must be one of {valid}"}
         settings["max_days"] = max_days
 
+    # -- Risk Level (Pro only): conservative / moderate / aggressive --
+    if "risk_level" in body:
+        if not is_pro:
+            return {"error": "Upgrade to Pro to change risk level", "pro_required": True}
+        rl = body["risk_level"]
+        if rl not in ("conservative", "moderate", "aggressive"):
+            return {"error": "risk_level must be conservative, moderate, or aggressive"}
+        settings["risk_level"] = rl
+
+    # -- Category Filter (Pro only): sports, politics, crypto, entertainment, all --
+    if "categories" in body:
+        if not is_pro:
+            return {"error": "Upgrade to Pro to filter categories", "pro_required": True}
+        cats = body["categories"]
+        if not isinstance(cats, list):
+            return {"error": "categories must be a list"}
+        valid_cats = ["sports", "politics", "crypto", "entertainment", "world", "science", "all"]
+        cats = [c for c in cats if c in valid_cats]
+        settings["categories"] = cats
+
+    # -- Minimum Score Threshold (Pro only): 30-70 --
+    if "min_score" in body:
+        if not is_pro:
+            return {"error": "Upgrade to Pro to set score threshold", "pro_required": True}
+        ms = int(body["min_score"])
+        if ms < 20 or ms > 80:
+            return {"error": "min_score must be between 20 and 80"}
+        settings["min_score"] = ms
+
+    # -- Signal Filter (Pro only): buy_only or all --
+    if "signal_filter" in body:
+        if not is_pro:
+            return {"error": "Upgrade to Pro to filter signals", "pro_required": True}
+        sf = body["signal_filter"]
+        if sf not in ("buy_only", "all"):
+            return {"error": "signal_filter must be buy_only or all"}
+        settings["signal_filter"] = sf
+
+    # -- Take Profit % (Pro only): 10-50 --
+    if "take_profit" in body:
+        if not is_pro:
+            return {"error": "Upgrade to Pro to set take profit", "pro_required": True}
+        tp = int(body["take_profit"])
+        if tp < 5 or tp > 80:
+            return {"error": "take_profit must be between 5 and 80"}
+        settings["take_profit"] = tp
+
+    # -- Stop Loss % (Pro only): 10-50 --
+    if "stop_loss" in body:
+        if not is_pro:
+            return {"error": "Upgrade to Pro to set stop loss", "pro_required": True}
+        sl = int(body["stop_loss"])
+        if sl < 5 or sl > 80:
+            return {"error": "stop_loss must be between 5 and 80"}
+        settings["stop_loss"] = sl
+
     all_trades[email]["settings"] = settings
     save_auto_bot_trades(all_trades)
-    return {"ok": True, "settings": settings}
+    return {"ok": True, "settings": settings, "is_pro": is_pro}
 
 
 # ─── Sygnal AUTOPILOT (Smart Alerts Scanner) ───

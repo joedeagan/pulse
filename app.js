@@ -3039,10 +3039,23 @@ function saveBotSettings() {
 
     var btn = document.getElementById('bot-settings-save');
     var status = document.getElementById('bot-settings-status');
-    var ptfSelect = document.getElementById('portfolio-timeframe-select');
-    if (!ptfSelect) return;
 
-    var val = parseFloat(ptfSelect.value);
+    // Gather all settings
+    var payload = {email: email};
+    var tf = document.getElementById('portfolio-timeframe-select');
+    if (tf) payload.max_days = parseFloat(tf.value);
+    var risk = document.getElementById('bot-risk-select');
+    if (risk && !risk.disabled) payload.risk_level = risk.value;
+    var cat = document.getElementById('bot-category-select');
+    if (cat && !cat.disabled) payload.categories = [cat.value];
+    var ms = document.getElementById('bot-minscore-select');
+    if (ms && !ms.disabled) payload.min_score = parseInt(ms.value);
+    var sig = document.getElementById('bot-signal-select');
+    if (sig && !sig.disabled) payload.signal_filter = sig.value;
+    var tp = document.getElementById('bot-tp-select');
+    if (tp && !tp.disabled) payload.take_profit = parseInt(tp.value);
+    var sl = document.getElementById('bot-sl-select');
+    if (sl && !sl.disabled) payload.stop_loss = parseInt(sl.value);
 
     // Show saving state
     if (btn) { btn.textContent = 'Saving...'; btn.style.background = 'rgba(0,136,255,0.5)'; btn.disabled = true; }
@@ -3050,20 +3063,22 @@ function saveBotSettings() {
     fetch(API_BASE + '/api/autobot/settings', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({email: email, max_days: val})
+        body: JSON.stringify(payload)
     }).then(function(r) { return r.json(); }).then(function(d) {
         if (d.ok) {
-            var label = ptfSelect.options[ptfSelect.selectedIndex].text;
-            ptfSelect._savedValue = String(val);
             if (btn) { btn.textContent = '✓ Saved'; btn.style.background = '#00d68f'; btn.disabled = false; }
-            if (status) { status.textContent = 'Applied — bot will use ' + label; status.style.color = '#00d68f'; status.style.display = 'inline'; }
-            showToast('Bot timeframe set to ' + label);
-            // Reset button after 2s
+            if (status) { status.textContent = 'Settings applied to your bot'; status.style.color = '#00d68f'; status.style.display = 'inline'; }
+            showToast('Bot settings saved');
             setTimeout(function() {
                 if (btn) { btn.textContent = 'Save Changes'; btn.style.background = 'var(--accent)'; }
             }, 2000);
         } else {
-            if (btn) { btn.textContent = 'Error — Try Again'; btn.style.background = '#ff3b5c'; btn.disabled = false; }
+            var msg = d.error || 'Error saving';
+            if (d.pro_required) msg = d.error;
+            if (btn) { btn.textContent = msg; btn.style.background = '#ff3b5c'; btn.disabled = false; }
+            setTimeout(function() {
+                if (btn) { btn.textContent = 'Save Changes'; btn.style.background = 'var(--accent)'; }
+            }, 3000);
         }
     }).catch(function() {
         if (btn) { btn.textContent = 'Error — Try Again'; btn.style.background = '#ff3b5c'; btn.disabled = false; }
@@ -3108,27 +3123,67 @@ function loadAutobotOnPortfolio() {
         .then(function(data) {
             var openTrades = data.open_trades || [];
 
-            // Set portfolio timeframe dropdown from user settings
-            var ptfSelect = document.getElementById('portfolio-timeframe-select');
-            if (ptfSelect) {
-                var savedMax = (data.settings && data.settings.max_days !== undefined) ? data.settings.max_days : 30;
-                ptfSelect.value = String(savedMax);
-                ptfSelect._savedValue = String(savedMax);
-                // Show unsaved indicator when changed
-                if (!ptfSelect._wired) {
-                    ptfSelect._wired = true;
-                    ptfSelect.onchange = function() {
-                        var btn = document.getElementById('bot-settings-save');
-                        var status = document.getElementById('bot-settings-status');
-                        if (this.value !== this._savedValue) {
-                            if (btn) { btn.style.background = 'var(--accent)'; btn.textContent = 'Save Changes'; }
-                            if (status) { status.style.display = 'inline'; status.textContent = 'Unsaved changes'; status.style.color = '#f0b000'; }
-                        } else {
-                            if (status) status.style.display = 'none';
-                        }
-                    };
-                }
+            // Populate all bot settings dropdowns
+            var s = data.settings || {};
+            var userIsPro = isPro();
+
+            // Helper to populate a select
+            function populateSelect(id, options, savedVal) {
+                var el = document.getElementById(id);
+                if (!el) return;
+                el.innerHTML = '';
+                options.forEach(function(o) {
+                    var opt = document.createElement('option');
+                    opt.value = o.val;
+                    opt.textContent = o.label;
+                    if (String(o.val) === String(savedVal)) opt.selected = true;
+                    el.appendChild(opt);
+                });
             }
+
+            // Timeframe — free gets 7/30, Pro gets all
+            var tfOpts = userIsPro
+                ? [{val:0.5,label:'12 Hours'},{val:1,label:'24 Hours'},{val:3,label:'3 Days'},{val:7,label:'1 Week'},{val:14,label:'2 Weeks'},{val:30,label:'1 Month'},{val:90,label:'3 Months'},{val:0,label:'Any'}]
+                : [{val:7,label:'1 Week'},{val:30,label:'1 Month'}];
+            populateSelect('portfolio-timeframe-select', tfOpts, s.max_days !== undefined ? s.max_days : 30);
+
+            // Risk Level
+            populateSelect('bot-risk-select', [{val:'conservative',label:'Conservative'},{val:'moderate',label:'Moderate'},{val:'aggressive',label:'Aggressive'}], s.risk_level || 'moderate');
+
+            // Categories
+            populateSelect('bot-category-select', [{val:'all',label:'All Markets'},{val:'sports',label:'Sports'},{val:'politics',label:'Politics'},{val:'crypto',label:'Crypto'},{val:'entertainment',label:'Entertainment'}], (s.categories && s.categories[0]) || 'all');
+
+            // Min Score
+            populateSelect('bot-minscore-select', [{val:30,label:'30+ (Default)'},{val:40,label:'40+'},{val:50,label:'50+'},{val:60,label:'60+'},{val:70,label:'70+ (Strict)'}], s.min_score || 30);
+
+            // Signal Filter
+            populateSelect('bot-signal-select', [{val:'all',label:'BUY + LEAN'},{val:'buy_only',label:'BUY Only'}], s.signal_filter || 'all');
+
+            // Take Profit
+            populateSelect('bot-tp-select', [{val:10,label:'10%'},{val:15,label:'15%'},{val:20,label:'20% (Default)'},{val:30,label:'30%'},{val:50,label:'50%'}], s.take_profit || 20);
+
+            // Stop Loss
+            populateSelect('bot-sl-select', [{val:15,label:'15%'},{val:20,label:'20%'},{val:30,label:'30% (Default)'},{val:40,label:'40%'},{val:50,label:'50%'}], s.stop_loss || 30);
+
+            // Enable Pro selects if Pro
+            ['bot-risk-select','bot-category-select','bot-minscore-select','bot-signal-select','bot-tp-select','bot-sl-select'].forEach(function(id) {
+                var el = document.getElementById(id);
+                if (el) el.disabled = !userIsPro;
+            });
+            // Hide PRO tags if user is Pro
+            if (userIsPro) {
+                document.querySelectorAll('.pro-setting-tag').forEach(function(t) { t.style.display = 'none'; });
+            }
+
+            // Wire unsaved changes indicator on any dropdown change
+            document.querySelectorAll('.bot-select').forEach(function(sel) {
+                sel.onchange = function() {
+                    var btn = document.getElementById('bot-settings-save');
+                    var status = document.getElementById('bot-settings-status');
+                    if (btn) { btn.style.background = 'var(--accent)'; btn.textContent = 'Save Changes'; }
+                    if (status) { status.style.display = 'inline'; status.textContent = 'Unsaved changes'; status.style.color = '#f0b000'; }
+                };
+            });
 
             // Update top stats with auto-bot data
             var balEl = document.getElementById('paper-balance');

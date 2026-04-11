@@ -67,7 +67,7 @@
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
 
-    <link rel="stylesheet" href="style.css?v=86">
+    <link rel="stylesheet" href="style.css?v=89">
     <link rel="manifest" href="/manifest.json">
     <link rel="icon" type="image/png" href="/icon-192.png">
     <link rel="apple-touch-icon" href="/icon-192.png">
@@ -517,22 +517,47 @@
                 <div style="font-size:10px;color:var(--accent);letter-spacing:2px;font-weight:700;">BOT SETTINGS</div>
                 <span id="bot-settings-status" style="font-size:10px;color:var(--text-dim);display:none;"></span>
             </div>
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
-                <div>
-                    <div style="font-size:13px;color:var(--text);font-weight:600;margin-bottom:2px;">Max Timeframe</div>
-                    <div style="font-size:11px;color:var(--text-dim);">How long until trades can close</div>
-                </div>
-                <select id="portfolio-timeframe-select" style="-webkit-appearance:none;-moz-appearance:none;appearance:none;background:var(--bg-card);color:var(--text);border:1px solid var(--border);border-radius:8px;padding:8px 32px 8px 14px;font-size:13px;font-weight:500;cursor:pointer;font-family:inherit;min-width:120px;background-image:url('data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2210%22 height=%2210%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23666%22 stroke-width=%222.5%22><polyline points=%226 9 12 15 18 9%22/></svg>');background-repeat:no-repeat;background-position:right 10px center;background-size:10px;">
-                    <option value="0.5">12 Hours</option>
-                    <option value="1">24 Hours</option>
-                    <option value="3">3 Days</option>
-                    <option value="7">1 Week</option>
-                    <option value="14">2 Weeks</option>
-                    <option value="30" selected>1 Month</option>
-                    <option value="90">3 Months</option>
-                    <option value="0">Any</option>
-                </select>
+
+            <!-- Timeframe (all users) -->
+            <div class="bot-setting-row" style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--border);">
+                <div><div style="font-size:13px;color:var(--text);font-weight:600;">Max Timeframe</div><div style="font-size:11px;color:var(--text-dim);">How long until trades close</div></div>
+                <select id="portfolio-timeframe-select" class="bot-select"></select>
             </div>
+
+            <!-- Risk Level (Pro) -->
+            <div class="bot-setting-row" style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--border);">
+                <div><div style="font-size:13px;color:var(--text);font-weight:600;">Risk Level <span id="risk-pro-tag" class="pro-setting-tag" style="font-size:9px;background:rgba(0,136,255,0.1);color:var(--accent);padding:2px 6px;border-radius:4px;font-weight:700;margin-left:4px;">PRO</span></div><div style="font-size:11px;color:var(--text-dim);">Controls bet sizing aggressiveness</div></div>
+                <select id="bot-risk-select" class="bot-select" disabled></select>
+            </div>
+
+            <!-- Category Filter (Pro) -->
+            <div class="bot-setting-row" style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--border);">
+                <div><div style="font-size:13px;color:var(--text);font-weight:600;">Categories <span class="pro-setting-tag" style="font-size:9px;background:rgba(0,136,255,0.1);color:var(--accent);padding:2px 6px;border-radius:4px;font-weight:700;margin-left:4px;">PRO</span></div><div style="font-size:11px;color:var(--text-dim);">Which markets to bet on</div></div>
+                <select id="bot-category-select" class="bot-select" disabled></select>
+            </div>
+
+            <!-- Min Score (Pro) -->
+            <div class="bot-setting-row" style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--border);">
+                <div><div style="font-size:13px;color:var(--text);font-weight:600;">Min Score <span class="pro-setting-tag" style="font-size:9px;background:rgba(0,136,255,0.1);color:var(--accent);padding:2px 6px;border-radius:4px;font-weight:700;margin-left:4px;">PRO</span></div><div style="font-size:11px;color:var(--text-dim);">Only trade above this score</div></div>
+                <select id="bot-minscore-select" class="bot-select" disabled></select>
+            </div>
+
+            <!-- Signal Filter (Pro) -->
+            <div class="bot-setting-row" style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--border);">
+                <div><div style="font-size:13px;color:var(--text);font-weight:600;">Signal Filter <span class="pro-setting-tag" style="font-size:9px;background:rgba(0,136,255,0.1);color:var(--accent);padding:2px 6px;border-radius:4px;font-weight:700;margin-left:4px;">PRO</span></div><div style="font-size:11px;color:var(--text-dim);">BUY only or include LEAN</div></div>
+                <select id="bot-signal-select" class="bot-select" disabled></select>
+            </div>
+
+            <!-- Take Profit / Stop Loss (Pro) -->
+            <div class="bot-setting-row" style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--border);">
+                <div><div style="font-size:13px;color:var(--text);font-weight:600;">Take Profit <span class="pro-setting-tag" style="font-size:9px;background:rgba(0,136,255,0.1);color:var(--accent);padding:2px 6px;border-radius:4px;font-weight:700;margin-left:4px;">PRO</span></div><div style="font-size:11px;color:var(--text-dim);">Auto-close when up this %</div></div>
+                <select id="bot-tp-select" class="bot-select" disabled></select>
+            </div>
+            <div class="bot-setting-row" style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;margin-bottom:16px;">
+                <div><div style="font-size:13px;color:var(--text);font-weight:600;">Stop Loss <span class="pro-setting-tag" style="font-size:9px;background:rgba(0,136,255,0.1);color:var(--accent);padding:2px 6px;border-radius:4px;font-weight:700;margin-left:4px;">PRO</span></div><div style="font-size:11px;color:var(--text-dim);">Auto-close when down this %</div></div>
+                <select id="bot-sl-select" class="bot-select" disabled></select>
+            </div>
+
             <button id="bot-settings-save" onclick="saveBotSettings()" style="width:100%;padding:12px;border-radius:10px;background:var(--accent);color:#fff;border:none;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;letter-spacing:0.5px;transition:all 0.2s;">Save Changes</button>
         </div>
 
@@ -879,6 +904,6 @@
         if (window.caches) caches.keys().then(function(k) { k.forEach(function(c) { caches.delete(c); }); });
     }
     </script>
-    <script src="app.js?v=88"></script>
+    <script src="app.js?v=89"></script>
 </body>
 </html>
