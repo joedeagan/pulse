@@ -6390,6 +6390,49 @@ function buildProPage() {
                 </div>
             </div>
 
+            <!-- Bot Controls Preview -->
+            <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:14px;padding:24px;margin-bottom:32px;">
+                <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px;">
+                    <span style="font-size:10px;letter-spacing:2px;color:var(--accent);font-weight:700;">PRO BOT CONTROLS</span>
+                    ${alreadyPro ? '' : '<span style="background:rgba(0,136,255,0.1);color:var(--accent);padding:2px 8px;border-radius:4px;font-size:9px;font-weight:700;">LOCKED</span>'}
+                </div>
+                <p style="color:var(--text-dim);font-size:13px;margin:0 0 16px;line-height:1.5;">Fine-tune your auto-bot with advanced controls. Free users get basic settings only.</p>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+                    <div style="background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:10px;padding:14px;">
+                        <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:2px;">Risk Level</div>
+                        <div style="font-size:11px;color:var(--text-dim);">Conservative · Moderate · Aggressive</div>
+                    </div>
+                    <div style="background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:10px;padding:14px;">
+                        <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:2px;">Category Filter</div>
+                        <div style="font-size:11px;color:var(--text-dim);">Sports · Politics · Crypto · All</div>
+                    </div>
+                    <div style="background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:10px;padding:14px;">
+                        <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:2px;">Score Threshold</div>
+                        <div style="font-size:11px;color:var(--text-dim);">Set minimum score from 30 to 70</div>
+                    </div>
+                    <div style="background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:10px;padding:14px;">
+                        <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:2px;">Signal Filter</div>
+                        <div style="font-size:11px;color:var(--text-dim);">BUY only or BUY + LEAN</div>
+                    </div>
+                    <div style="background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:10px;padding:14px;">
+                        <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:2px;">Take Profit</div>
+                        <div style="font-size:11px;color:var(--text-dim);">Auto-close at 10–50% profit</div>
+                    </div>
+                    <div style="background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:10px;padding:14px;">
+                        <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:2px;">Stop Loss</div>
+                        <div style="font-size:11px;color:var(--text-dim);">Auto-close at 15–50% loss</div>
+                    </div>
+                    <div style="background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:10px;padding:14px;">
+                        <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:2px;">All Timeframes</div>
+                        <div style="font-size:11px;color:var(--text-dim);">12h · 24h · 3d · 1w · 2w · 1m · 3m</div>
+                    </div>
+                    <div style="background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:10px;padding:14px;">
+                        <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:2px;">15 Positions</div>
+                        <div style="font-size:11px;color:var(--text-dim);">3x more positions than free (5)</div>
+                    </div>
+                </div>
+            </div>
+
             <div style="background:linear-gradient(135deg,rgba(0,136,255,0.08),rgba(0,214,143,0.05));border:1px solid rgba(0,136,255,0.15);border-radius:16px;padding:28px;text-align:center;margin-bottom:24px;">
                 <div style="font-size:11px;letter-spacing:3px;color:var(--accent);font-weight:700;margin-bottom:16px;">COMPARE PLANS</div>
 
@@ -6404,9 +6447,29 @@ function buildProPage() {
                     <div style="padding:10px 16px;text-align:center;color:var(--text-dim);border-bottom:1px solid rgba(255,255,255,0.03);">30-day trial</div>
                     <div style="padding:10px 16px;text-align:center;color:var(--green);border-bottom:1px solid rgba(255,255,255,0.03);background:rgba(0,136,255,0.04);">Unlimited</div>
 
+                    <div style="padding:10px 16px;color:var(--text);border-bottom:1px solid rgba(255,255,255,0.03);">Max Positions</div>
+                    <div style="padding:10px 16px;text-align:center;color:var(--text-dim);border-bottom:1px solid rgba(255,255,255,0.03);">5</div>
+                    <div style="padding:10px 16px;text-align:center;color:var(--green);border-bottom:1px solid rgba(255,255,255,0.03);background:rgba(0,136,255,0.04);">15</div>
+
+                    <div style="padding:10px 16px;color:var(--text);border-bottom:1px solid rgba(255,255,255,0.03);">Timeframes</div>
+                    <div style="padding:10px 16px;text-align:center;color:var(--text-dim);border-bottom:1px solid rgba(255,255,255,0.03);">1W / 1M</div>
+                    <div style="padding:10px 16px;text-align:center;color:var(--green);border-bottom:1px solid rgba(255,255,255,0.03);background:rgba(0,136,255,0.04);">12h – Any</div>
+
+                    <div style="padding:10px 16px;color:var(--text);border-bottom:1px solid rgba(255,255,255,0.03);">Risk Level / Kelly Sizing</div>
+                    <div style="padding:10px 16px;text-align:center;color:var(--text-dim);border-bottom:1px solid rgba(255,255,255,0.03);">&#128274;</div>
+                    <div style="padding:10px 16px;text-align:center;color:var(--green);border-bottom:1px solid rgba(255,255,255,0.03);background:rgba(0,136,255,0.04);">&#10003;</div>
+
+                    <div style="padding:10px 16px;color:var(--text);border-bottom:1px solid rgba(255,255,255,0.03);">Category & Signal Filters</div>
+                    <div style="padding:10px 16px;text-align:center;color:var(--text-dim);border-bottom:1px solid rgba(255,255,255,0.03);">&#128274;</div>
+                    <div style="padding:10px 16px;text-align:center;color:var(--green);border-bottom:1px solid rgba(255,255,255,0.03);background:rgba(0,136,255,0.04);">&#10003;</div>
+
+                    <div style="padding:10px 16px;color:var(--text);border-bottom:1px solid rgba(255,255,255,0.03);">Take Profit / Stop Loss</div>
+                    <div style="padding:10px 16px;text-align:center;color:var(--text-dim);border-bottom:1px solid rgba(255,255,255,0.03);">&#128274;</div>
+                    <div style="padding:10px 16px;text-align:center;color:var(--green);border-bottom:1px solid rgba(255,255,255,0.03);background:rgba(0,136,255,0.04);">&#10003;</div>
+
                     <div style="padding:10px 16px;color:var(--text);border-bottom:1px solid rgba(255,255,255,0.03);">Paper Balance</div>
                     <div style="padding:10px 16px;text-align:center;color:var(--text-dim);border-bottom:1px solid rgba(255,255,255,0.03);">$10,000</div>
-                    <div style="padding:10px 16px;text-align:center;color:var(--green);border-bottom:1px solid rgba(255,255,255,0.03);background:rgba(0,136,255,0.04);">$10,000 + weekly refill</div>
+                    <div style="padding:10px 16px;text-align:center;color:var(--green);border-bottom:1px solid rgba(255,255,255,0.03);background:rgba(0,136,255,0.04);">$10K + refill</div>
 
                     <div style="padding:10px 16px;color:var(--text);border-bottom:1px solid rgba(255,255,255,0.03);">Sygnal Score</div>
                     <div style="padding:10px 16px;text-align:center;color:var(--green);border-bottom:1px solid rgba(255,255,255,0.03);">&#10003;</div>
