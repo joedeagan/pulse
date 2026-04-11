@@ -4990,9 +4990,6 @@ function showProUpsell(feature) {
 }
 
 // Old startProCheckout removed — using the one defined later with email support
-    const modal = document.querySelector('.pro-modal');
-    if (modal) modal.remove();
-}
 
 // Check for pro=success in URL (returned from Stripe checkout)
 if (window.location.search.includes('pro=success')) {
