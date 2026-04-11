@@ -5920,6 +5920,28 @@ function buildProPage() {
                 <p>Our bot trades real money using these same signals.</p>
                 <p style="margin-top:4px;">Cancel anytime. No questions asked.</p>
             </div>
+
+            <div style="max-width:700px;margin:32px auto 0;">
+                <h3 style="font-size:13px;letter-spacing:2px;color:var(--text-dim);margin-bottom:16px;text-align:center;">FREQUENTLY ASKED</h3>
+                <div style="display:flex;flex-direction:column;gap:12px;">
+                    <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:16px;">
+                        <div style="font-size:14px;font-weight:600;color:var(--text);margin-bottom:6px;">How does the auto paper bot work?</div>
+                        <div style="font-size:13px;color:var(--text-dim);line-height:1.5;">Every 5 minutes, our algorithm scans all markets and places paper trades on the best opportunities using your personal $1,000 paper balance. You can track your bot's performance in your Profile.</div>
+                    </div>
+                    <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:16px;">
+                        <div style="font-size:14px;font-weight:600;color:var(--text);margin-bottom:6px;">What makes Sygnal different?</div>
+                        <div style="font-size:13px;color:var(--text-dim);line-height:1.5;">We see both Kalshi AND Polymarket simultaneously, plus Vegas odds from 40+ bookmakers. When prices disagree across platforms, that's real edge. No other tool does this.</div>
+                    </div>
+                    <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:16px;">
+                        <div style="font-size:14px;font-weight:600;color:var(--text);margin-bottom:6px;">Does the bot learn?</div>
+                        <div style="font-size:13px;color:var(--text-dim);line-height:1.5;">Yes. Every paper trade outcome from every user feeds into our collective learning system. The more users trade, the smarter the Sygnal Score gets. Your bot improves from everyone's results.</div>
+                    </div>
+                    <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:16px;">
+                        <div style="font-size:14px;font-weight:600;color:var(--text);margin-bottom:6px;">Can I cancel anytime?</div>
+                        <div style="font-size:13px;color:var(--text-dim);line-height:1.5;">Yes. Cancel your subscription anytime from your Stripe account. No questions, no tricks.</div>
+                    </div>
+                </div>
+            </div>
         </div>
     `;
 }
@@ -5943,6 +5965,29 @@ async function _oldUpgradeToPro() {
         }
     } catch (e) {
         alert('Checkout error: ' + e.message);
+    }
+}
+
+// Share paper trading results
+function shareResults() {
+    var portfolio = getPaperPortfolio();
+    var trades = portfolio.trades || [];
+    var wins = trades.filter(function(t) { return t.outcome === 'win'; }).length;
+    var losses = trades.filter(function(t) { return t.outcome === 'loss'; }).length;
+    var totalPnl = trades.reduce(function(sum, t) { return sum + (t.pnl || 0); }, 0);
+    var winRate = (wins + losses) > 0 ? Math.round(wins / (wins + losses) * 100) : 0;
+
+    var text = 'My Sygnal paper trading results:\n' +
+        (wins + losses > 0 ? winRate + '% win rate (' + wins + 'W / ' + losses + 'L)\n' : trades.length + ' open trades\n') +
+        'P&L: ' + (totalPnl >= 0 ? '+' : '') + '$' + totalPnl.toFixed(2) + '\n\n' +
+        'Try it free at sygnalmarkets.com';
+
+    if (navigator.share) {
+        navigator.share({ title: 'My Sygnal Results', text: text, url: 'https://sygnalmarkets.com' }).catch(function(){});
+    } else {
+        navigator.clipboard.writeText(text).then(function() { showToast('Copied to clipboard!'); }).catch(function() {
+            prompt('Copy this:', text);
+        });
     }
 }
 
@@ -6412,12 +6457,74 @@ function buildProfilePanel() {
 
         <div class="profile-actions" style="display:flex;gap:10px;justify-content:center;margin:24px 0;">
             ${email ? `<button class="profile-action-btn" onclick="showReferralPanel()">Invite Friends</button>` : ''}
+            <button class="profile-action-btn" style="color:var(--accent);border-color:rgba(0,136,255,0.2);" onclick="shareResults()">Share Results</button>
             ${email ? `<button class="profile-action-btn" style="color:var(--red);border-color:rgba(255,59,92,0.2);" onclick="if(typeof firebase!=='undefined'&&firebase.auth)firebase.auth().signOut();localStorage.removeItem('sygnal-account-email');localStorage.removeItem('sygnal-account-name');localStorage.removeItem('sygnal-pro');switchTab('markets',null);showToast('Signed out');">Sign Out</button>` : ''}
+        </div>
+
+        <div id="autobot-portfolio-section" style="margin-bottom:24px;">
+            <h3 style="font-size:13px;letter-spacing:2px;color:var(--text-dim);margin-bottom:12px;">YOUR AUTO-BOT</h3>
+            <div id="autobot-portfolio-content" style="color:var(--text-dim);font-size:13px;">Loading bot portfolio...</div>
         </div>
 
         ${buildAchievementsSection()}
     `;
+
+    // Load auto-bot portfolio
+    loadAutobotPortfolio(email);
+
     } catch(e) { el.innerHTML = '<p style="color:var(--red);">Error loading profile: ' + e.message + '</p>'; }
+}
+
+function loadAutobotPortfolio(email) {
+    var el = document.getElementById('autobot-portfolio-content');
+    if (!el || !email) return;
+
+    fetch(API_BASE + '/api/autobot/portfolio?email=' + encodeURIComponent(email))
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            var openTrades = data.open_trades || [];
+            var wins = data.wins || 0;
+            var losses = data.losses || 0;
+            var winRate = data.win_rate || 0;
+            var totalPnl = data.total_pnl || 0;
+            var balance = data.balance || 1000;
+
+            var statsHtml = '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px;">' +
+                '<div style="background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:12px;text-align:center;">' +
+                    '<div style="font-size:18px;font-weight:700;color:var(--text);">$' + balance.toFixed(0) + '</div>' +
+                    '<div style="font-size:9px;color:var(--text-dim);letter-spacing:1px;text-transform:uppercase;">Balance</div></div>' +
+                '<div style="background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:12px;text-align:center;">' +
+                    '<div style="font-size:18px;font-weight:700;color:' + (totalPnl >= 0 ? 'var(--green)' : 'var(--red)') + ';">' + (totalPnl >= 0 ? '+' : '') + '$' + totalPnl.toFixed(2) + '</div>' +
+                    '<div style="font-size:9px;color:var(--text-dim);letter-spacing:1px;text-transform:uppercase;">Total P&L</div></div>' +
+                '<div style="background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:12px;text-align:center;">' +
+                    '<div style="font-size:18px;font-weight:700;color:var(--text);">' + data.open_positions + '</div>' +
+                    '<div style="font-size:9px;color:var(--text-dim);letter-spacing:1px;text-transform:uppercase;">Open</div></div>' +
+                '<div style="background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:12px;text-align:center;">' +
+                    '<div style="font-size:18px;font-weight:700;color:' + (winRate >= 55 ? 'var(--green)' : 'var(--text)') + ';">' + (wins + losses > 0 ? winRate + '%' : '—') + '</div>' +
+                    '<div style="font-size:9px;color:var(--text-dim);letter-spacing:1px;text-transform:uppercase;">Win Rate</div></div>' +
+            '</div>';
+
+            var tradesHtml = '';
+            if (openTrades.length > 0) {
+                tradesHtml = '<div style="font-size:11px;color:var(--text-dim);letter-spacing:1px;margin-bottom:8px;">OPEN POSITIONS</div>' +
+                    openTrades.map(function(t) {
+                        var sideColor = t.side === 'yes' ? 'var(--green)' : 'var(--red)';
+                        return '<div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.04);">' +
+                            '<span style="color:' + sideColor + ';font-weight:700;font-size:11px;min-width:30px;">' + t.side.toUpperCase() + '</span>' +
+                            '<span style="flex:1;color:var(--text);font-size:13px;">' + (t.question || t.ticker).substring(0, 35) + '</span>' +
+                            '<span style="color:var(--text-dim);font-size:11px;">' + t.price + '¢</span>' +
+                            '<span style="background:rgba(0,136,255,0.1);color:var(--accent);padding:2px 6px;border-radius:4px;font-size:10px;font-weight:600;">' + t.score + '</span>' +
+                        '</div>';
+                    }).join('');
+            } else {
+                tradesHtml = '<p style="color:var(--text-dim);font-size:13px;">Bot is scanning for opportunities...</p>';
+            }
+
+            el.innerHTML = statsHtml + tradesHtml;
+        })
+        .catch(function() {
+            el.innerHTML = '<p style="color:var(--text-dim);font-size:13px;">Bot portfolio unavailable</p>';
+        });
 }
 
 // ══════════════════════════════════════════════
