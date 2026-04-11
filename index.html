@@ -191,7 +191,7 @@
             <a href="#" onclick="switchTab('trending', this); return false;">Trending</a>
             <a href="#" onclick="switchTab('news', this); return false;">News</a>
             <a href="#" onclick="switchTab('bot', this); return false;">Bot</a>
-            <a href="#" onclick="switchTab('portfolio', this); return false;">Portfolio</a>
+            <a href="#" onclick="switchTab('portfolio', this); return false;">Paper Trade</a>
             <div class="nav-more">
                 <button class="nav-more-btn" onclick="toggleNavMore(event)">
                     <span class="hamburger-icon"><span></span><span></span><span></span></span>
@@ -869,7 +869,7 @@
         </a>
         <a href="#" class="mobile-nav-item" onclick="switchTab('portfolio', this); return false;">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12V7H5a2 2 0 010-4h14v4"/><path d="M3 5v14a2 2 0 002 2h16v-5"/><path d="M18 12a2 2 0 100 4 2 2 0 000-4z"/></svg>
-            <span>Portfolio</span>
+            <span>Paper Trade</span>
         </a>
         <a href="#" class="mobile-nav-item" onclick="var m=document.getElementById('mobile-more-menu');m.style.display=m.style.display==='flex'?'none':'flex'; return false;">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="5" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="12" cy="19" r="1.5"/></svg>
@@ -899,6 +899,6 @@
         if (window.caches) caches.keys().then(function(k) { k.forEach(function(c) { caches.delete(c); }); });
     }
     </script>
-    <script src="app.js?v=98"></script>
+    <script src="app.js?v=99"></script>
 </body>
 </html>
