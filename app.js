@@ -6034,8 +6034,7 @@ function updateProUI() {
         el.style.display = _isPro ? '' : 'none';
     });
     // Hide Pro upsell section for Pro users
-    var proSection = document.getElementById('pro-section');
-    if (proSection) proSection.style.display = (_isPro || isPro()) ? 'none' : '';
+    // Pro section removed from markets page — dedicated Pro tab handles upsell
 }
 
 async function upgradeToPro() {
