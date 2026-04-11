@@ -558,7 +558,7 @@
                 <select id="bot-sl-select" class="bot-select" disabled></select>
             </div>
 
-            <button id="bot-settings-save" onclick="saveBotSettings()" style="width:100%;padding:12px;border-radius:10px;background:var(--accent);color:#fff;border:none;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;letter-spacing:0.5px;transition:all 0.2s;">Save Changes</button>
+            <button id="bot-settings-save" onclick="saveBotSettings()" style="width:100%;padding:12px;border-radius:10px;background:var(--accent);color:#fff;border:none;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;letter-spacing:0.5px;transition:all 0.2s;display:none;">Save Changes</button>
         </div>
 
         <!-- Chart -->
@@ -904,6 +904,6 @@
         if (window.caches) caches.keys().then(function(k) { k.forEach(function(c) { caches.delete(c); }); });
     }
     </script>
-    <script src="app.js?v=92"></script>
+    <script src="app.js?v=93"></script>
 </body>
 </html>

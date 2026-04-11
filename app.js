@@ -3070,7 +3070,8 @@ function saveBotSettings() {
             if (status) { status.textContent = 'Settings applied to your bot'; status.style.color = '#00d68f'; status.style.display = 'inline'; }
             showToast('Bot settings saved');
             setTimeout(function() {
-                if (btn) { btn.textContent = 'Save Changes'; btn.style.background = 'var(--accent)'; }
+                if (btn) { btn.style.display = 'none'; btn.textContent = 'Save Changes'; btn.style.background = 'var(--accent)'; }
+                if (status) status.style.display = 'none';
             }, 2000);
         } else {
             var msg = d.error || 'Error saving';
@@ -3197,12 +3198,12 @@ function loadAutobotOnPortfolio() {
                 document.querySelectorAll('.pro-setting-tag').forEach(function(t) { t.style.display = 'none'; });
             }
 
-            // Wire unsaved changes indicator on any dropdown change
+            // Wire unsaved changes — show Save button only when changed
             document.querySelectorAll('.bot-select').forEach(function(sel) {
                 sel.onchange = function() {
                     var btn = document.getElementById('bot-settings-save');
                     var status = document.getElementById('bot-settings-status');
-                    if (btn) { btn.style.background = 'var(--accent)'; btn.textContent = 'Save Changes'; }
+                    if (btn) { btn.style.display = ''; btn.style.background = 'var(--accent)'; btn.textContent = 'Save Changes'; }
                     if (status) { status.style.display = 'inline'; status.textContent = 'Unsaved changes'; status.style.color = '#f0b000'; }
                 };
             });
