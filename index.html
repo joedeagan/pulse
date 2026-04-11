@@ -472,7 +472,7 @@
     </div>
 
     <!-- Portfolio (Paper Trading) -->
-    <section id="portfolio-panel" class="view-hidden">
+    <section id="portfolio-panel" class="view-hidden" style="position:relative;z-index:10;background:var(--bg);min-height:100vh;">
         <!-- Hero balance -->
         <div style="text-align:center;padding:32px 0 24px;">
             <div style="font-size:11px;letter-spacing:3px;color:var(--text-dim);font-weight:600;margin-bottom:8px;">PORTFOLIO VALUE</div>
@@ -899,6 +899,6 @@
         if (window.caches) caches.keys().then(function(k) { k.forEach(function(c) { caches.delete(c); }); });
     }
     </script>
-    <script src="app.js?v=99"></script>
+    <script src="app.js?v=100"></script>
 </body>
 </html>
