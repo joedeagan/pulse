@@ -180,7 +180,7 @@ function switchTab(tab, btn) {
     if (tab === 'markets') visible = marketsView;
     else if (tab === 'news') { visible = newsView; loadNews(); }
     else if (tab === 'bot') visible = botView;
-    else if (tab === 'portfolio') { visible = portfolioView; loadPortfolio(); loadAutobotOnPortfolio(); }
+    else if (tab === 'portfolio') { visible = portfolioView; loadPortfolio(); }
     else if (tab === 'arbitrage') visible = arbView;
     else if (tab === 'trending') { visible = trendingView; buildTrendingPanel(); }
     else if (tab === 'correlations') { visible = corrView; }
@@ -3020,13 +3020,16 @@ function loadPortfolio() {
     loadAutobotOnPortfolio();
 }
 
+var _autobotLoading = false;
 function loadAutobotOnPortfolio() {
     var posDiv = document.getElementById('paper-positions');
     if (!posDiv) return;
+    if (_autobotLoading) return; // prevent duplicate calls
+    _autobotLoading = true;
     var email = '';
     if (typeof _currentUser !== 'undefined' && _currentUser) email = _currentUser.email || '';
     if (!email) email = localStorage.getItem('sygnal-account-email') || '';
-    if (!email) return;
+    if (!email) { _autobotLoading = false; return; }
 
     // Update the top stats with auto-bot data too
 
@@ -3228,12 +3231,19 @@ function loadAutobotOnPortfolio() {
             }
 
             html += '</div>';
-            posDiv.innerHTML += html;
+            // Replace any existing autobot section, don't append
+            var existingAutobot = document.getElementById('autobot-section');
+            if (existingAutobot) existingAutobot.remove();
+            var wrapper = document.createElement('div');
+            wrapper.id = 'autobot-section';
+            wrapper.innerHTML = html;
+            posDiv.appendChild(wrapper);
 
             // Load timeframe performance chart
             loadTimeframePerformance();
+            _autobotLoading = false;
         })
-        .catch(function() {});
+        .catch(function() { _autobotLoading = false; });
 }
 
 
