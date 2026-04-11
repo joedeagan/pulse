@@ -3017,6 +3017,45 @@ function loadPortfolio() {
 
 }
 
+function saveBotSettings() {
+    var email = '';
+    if (typeof _currentUser !== 'undefined' && _currentUser) email = _currentUser.email || '';
+    if (!email) email = localStorage.getItem('sygnal-account-email') || '';
+    if (!email) { showToast('Sign in to save settings'); return; }
+
+    var btn = document.getElementById('bot-settings-save');
+    var status = document.getElementById('bot-settings-status');
+    var ptfSelect = document.getElementById('portfolio-timeframe-select');
+    if (!ptfSelect) return;
+
+    var val = parseFloat(ptfSelect.value);
+
+    // Show saving state
+    if (btn) { btn.textContent = 'Saving...'; btn.style.background = 'rgba(0,136,255,0.5)'; btn.disabled = true; }
+
+    fetch(API_BASE + '/api/autobot/settings', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({email: email, max_days: val})
+    }).then(function(r) { return r.json(); }).then(function(d) {
+        if (d.ok) {
+            var label = ptfSelect.options[ptfSelect.selectedIndex].text;
+            ptfSelect._savedValue = String(val);
+            if (btn) { btn.textContent = '✓ Saved'; btn.style.background = '#00d68f'; btn.disabled = false; }
+            if (status) { status.textContent = 'Applied — bot will use ' + label; status.style.color = '#00d68f'; status.style.display = 'inline'; }
+            showToast('Bot timeframe set to ' + label);
+            // Reset button after 2s
+            setTimeout(function() {
+                if (btn) { btn.textContent = 'Save Changes'; btn.style.background = 'var(--accent)'; }
+            }, 2000);
+        } else {
+            if (btn) { btn.textContent = 'Error — Try Again'; btn.style.background = '#ff3b5c'; btn.disabled = false; }
+        }
+    }).catch(function() {
+        if (btn) { btn.textContent = 'Error — Try Again'; btn.style.background = '#ff3b5c'; btn.disabled = false; }
+    });
+}
+
 var _autobotLoading = false;
 function loadAutobotOnPortfolio() {
     var posDiv = document.getElementById('paper-positions');
@@ -3040,25 +3079,19 @@ function loadAutobotOnPortfolio() {
             if (ptfSelect) {
                 var savedMax = (data.settings && data.settings.max_days !== undefined) ? data.settings.max_days : 30;
                 ptfSelect.value = String(savedMax);
-                // Wire change handler (only once)
+                ptfSelect._savedValue = String(savedMax);
+                // Show unsaved indicator when changed
                 if (!ptfSelect._wired) {
                     ptfSelect._wired = true;
                     ptfSelect.onchange = function() {
-                        var val = parseFloat(this.value);
-                        var userEmail = '';
-                        if (typeof _currentUser !== 'undefined' && _currentUser) userEmail = _currentUser.email || '';
-                        if (!userEmail) userEmail = localStorage.getItem('sygnal-account-email') || '';
-                        if (!userEmail) return;
-                        fetch(API_BASE + '/api/autobot/settings', {
-                            method: 'POST',
-                            headers: {'Content-Type': 'application/json'},
-                            body: JSON.stringify({email: userEmail, max_days: val})
-                        }).then(function(r) { return r.json(); }).then(function(d) {
-                            if (d.ok) {
-                                var label = ptfSelect.options[ptfSelect.selectedIndex].text;
-                                showToast('Bot timeframe set to ' + label);
-                            }
-                        });
+                        var btn = document.getElementById('bot-settings-save');
+                        var status = document.getElementById('bot-settings-status');
+                        if (this.value !== this._savedValue) {
+                            if (btn) { btn.style.background = 'var(--accent)'; btn.textContent = 'Save Changes'; }
+                            if (status) { status.style.display = 'inline'; status.textContent = 'Unsaved changes'; status.style.color = '#f0b000'; }
+                        } else {
+                            if (status) status.style.display = 'none';
+                        }
                     };
                 }
             }
@@ -3221,8 +3254,9 @@ function loadAutobotOnPortfolio() {
                                 '<span style="background:' + sigBg + ';color:' + sigColor + ';padding:3px 10px;border-radius:6px;font-size:10px;font-weight:800;">' + t.signal + '</span>' +
                             '</div>' +
                             '<div style="text-align:right;">' +
-                                '<span style="font-size:11px;color:var(--text-dim);">' + t.contracts + 'x @ ' + t.price + '¢</span>' +
-                                (t.ev_per_dollar ? '<div style="font-size:9px;color:var(--accent);margin-top:2px;">EV: ' + (t.ev_per_dollar * 100).toFixed(0) + '¢/$1 · Edge: ' + (t.edge || 0) + '% · Kelly: ' + (t.kelly_pct || 0) + '%</div>' : '') +
+                                '<span style="font-size:12px;font-weight:700;color:var(--text);">$' + (t.cost || 0).toFixed(2) + '</span>' +
+                                '<div style="font-size:10px;color:var(--text-dim);margin-top:1px;">' + t.contracts + ' contracts @ ' + t.price + '¢</div>' +
+                                (t.ev_per_dollar ? '<div style="font-size:9px;color:var(--accent);margin-top:3px;">EV: ' + (t.ev_per_dollar * 100).toFixed(0) + '¢/$1 · Edge: ' + (t.edge || 0) + '%</div>' : '') +
                                 (function() {
                                     var cm = allMarketCards.find(function(c) { return c.market.ticker === t.ticker; });
                                     if (cm) {
