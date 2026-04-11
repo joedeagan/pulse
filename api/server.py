@@ -216,18 +216,18 @@ async def get_kalshi():
     """Fetch live markets from Kalshi via events (avoids parlay spam)."""
     try:
         async with httpx.AsyncClient() as client:
-            # Fetch all open events with cursor pagination
+            # Fetch all open events with nested markets in one call
             all_events = []
             cursor = None
-            for _ in range(3):  # Max 3 pages = 300 events
-                params = {"limit": 100, "status": "open"}
+            for _ in range(3):  # Max 3 pages
+                params = {"limit": 100, "status": "open", "with_nested_markets": "true"}
                 if cursor:
                     params["cursor"] = cursor
                 try:
                     resp = await client.get(
                         "https://api.elections.kalshi.com/trade-api/v2/events",
                         params=params,
-                        timeout=15,
+                        timeout=20,
                     )
                     data = resp.json()
                     evts = data.get("events", [])
@@ -246,13 +246,8 @@ async def get_kalshi():
                 series_ticker = ev.get("series_ticker", "")
                 event_title = ev.get("title", "?")
 
-                # Get markets for this event
-                mresp = await client.get(
-                    "https://api.elections.kalshi.com/trade-api/v2/markets",
-                    params={"event_ticker": event_ticker, "limit": 10},
-                    timeout=10,
-                )
-                markets = mresp.json().get("markets", [])
+                # Markets are nested in the event response
+                markets = ev.get("markets", [])
 
                 # Filter out parlays
                 clean = [m for m in markets if not ("," in m.get("title", "") and ("yes " in m.get("title", "").lower() or "no " in m.get("title", "").lower()))]
