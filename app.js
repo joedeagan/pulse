@@ -2964,8 +2964,9 @@ function loadPortfolio() {
     const posDiv = document.getElementById('paper-positions');
 
     if (trades.length === 0) {
-        posDiv.innerHTML = '<p style="color:var(--text-dim);font-size:13px;">No paper trades yet. Click any market card to place one.</p>';
+        posDiv.innerHTML = '<p style="color:var(--text-dim);font-size:13px;">No manual paper trades yet. Click any market card to place one.</p>';
         document.getElementById('paper-pnl').textContent = '$0.00';
+        loadAutobotOnPortfolio();
         return;
     }
 
