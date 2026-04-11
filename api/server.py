@@ -712,8 +712,9 @@ async def generate_newsletter():
 </td></tr>'''
 
     html = f"""<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"></head>
-<body style="margin:0;padding:0;background:#06060b;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;">
-<table width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding:24px 16px;">
+<body style="margin:0;padding:0;background-color:#06060b;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;">
+<div style="background-color:#06060b;width:100%;padding:0;margin:0;">
+<table width="100%" cellpadding="0" cellspacing="0" bgcolor="#06060b" style="background-color:#06060b;"><tr><td align="center" style="padding:24px 16px;background-color:#06060b;">
 <table width="580" cellpadding="0" cellspacing="0" style="max-width:580px;">
 
 <!-- Header -->
@@ -757,6 +758,7 @@ async def generate_newsletter():
 
 </table>
 </td></tr></table>
+</div>
 </body></html>"""
 
     # Pull admin bot data for preview
