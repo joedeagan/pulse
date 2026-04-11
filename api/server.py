@@ -50,6 +50,65 @@ SENDGRID_FROM_EMAIL = os.environ.get("SENDGRID_FROM_EMAIL", "sygnal.joedeagan.co
 _api_dir = os.path.dirname(os.path.abspath(__file__))
 DATA_DIR = "/data" if os.path.isdir("/data") else _api_dir
 
+# ─── Price History (for momentum scoring) ───
+PRICE_HISTORY_FILE = os.path.join(DATA_DIR, "price_history.json")
+
+def load_price_history():
+    try:
+        with open(PRICE_HISTORY_FILE, "r") as f:
+            return json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError):
+        return {}  # {ticker: [{yes, vol, ts}, ...]}
+
+def save_price_history(data):
+    with open(PRICE_HISTORY_FILE, "w") as f:
+        json.dump(data, f)
+
+def record_prices(markets):
+    """Record current prices for all markets. Called each scan cycle."""
+    history = load_price_history()
+    now = datetime.now(timezone.utc).isoformat()
+    for m in markets:
+        ticker = m.get("ticker", "")
+        if not ticker:
+            continue
+        if ticker not in history:
+            history[ticker] = []
+        history[ticker].append({
+            "yes": m.get("yes", 50),
+            "vol": m.get("volume", 0),
+            "ts": now,
+        })
+        # Keep last 288 entries (24 hours at 5-min intervals)
+        if len(history[ticker]) > 288:
+            history[ticker] = history[ticker][-288:]
+    save_price_history(history)
+
+def get_momentum(ticker):
+    """Get price momentum for a ticker. Returns (price_change_1h, price_change_6h, volume_spike)."""
+    history = load_price_history()
+    entries = history.get(ticker, [])
+    if len(entries) < 2:
+        return 0, 0, False
+
+    current = entries[-1]
+    # 1-hour ago (12 entries back at 5-min intervals)
+    h1_idx = max(0, len(entries) - 12)
+    h1 = entries[h1_idx]
+    change_1h = current["yes"] - h1["yes"]
+
+    # 6-hour ago (72 entries back)
+    h6_idx = max(0, len(entries) - 72)
+    h6 = entries[h6_idx]
+    change_6h = current["yes"] - h6["yes"]
+
+    # Volume spike: current vol > 3x average of last 24 entries
+    recent_vols = [e.get("vol", 0) for e in entries[-24:]]
+    avg_vol = sum(recent_vols) / len(recent_vols) if recent_vols else 0
+    vol_spike = current.get("vol", 0) > avg_vol * 3 and avg_vol > 100
+
+    return change_1h, change_6h, vol_spike
+
 # WHAT IS FastAPI?
 # It's a Python framework for building web APIs.
 # You define "endpoints" (URLs) and what data they return.
@@ -1185,7 +1244,44 @@ def _word_similarity(a, b):
         return 0
     return len(wa & wb) / min(len(wa), len(wb))
 
-def compute_sygnal_scores(kalshi_markets, poly_markets):
+_vegas_cache = {"data": [], "ts": 0}
+
+async def get_vegas_odds():
+    """Get Vegas odds with 10-min cache."""
+    now = datetime.now(timezone.utc).timestamp()
+    if _vegas_cache["data"] and now - _vegas_cache["ts"] < 600:
+        return _vegas_cache["data"]
+    try:
+        async with httpx.AsyncClient() as client:
+            odds = await fetch_sports_odds_summary(client)
+            _vegas_cache["data"] = odds
+            _vegas_cache["ts"] = now
+            return odds
+    except Exception:
+        return _vegas_cache["data"]
+
+def _match_vegas(question, vegas_odds):
+    """Try to match a market question to Vegas odds by team names."""
+    q_lower = question.lower()
+    for game in vegas_odds:
+        home = game["home"].lower()
+        away = game["away"].lower()
+        # Check if both team names (or parts) appear in the question
+        home_parts = [w for w in home.split() if len(w) > 3]
+        away_parts = [w for w in away.split() if len(w) > 3]
+        home_match = any(p in q_lower for p in home_parts) if home_parts else False
+        away_match = any(p in q_lower for p in away_parts) if away_parts else False
+        # Need at least one team to match, plus sport-related keywords
+        if home_match or away_match:
+            # Figure out which team the question is about
+            if "win" in q_lower:
+                if home_match and not away_match:
+                    return game, "home"
+                elif away_match and not home_match:
+                    return game, "away"
+    return None, None
+
+def compute_sygnal_scores(kalshi_markets, poly_markets, vegas_odds=None):
     """Port of the frontend Sygnal Score algorithm to Python."""
     all_markets = kalshi_markets + poly_markets
 
@@ -1214,10 +1310,11 @@ def compute_sygnal_scores(kalshi_markets, poly_markets):
         no = 100 - yes
         xp = cross_map.get(ticker)
 
-        # 1. Edge Detection (0-35): Cross-platform mispricing
+        # 1. Edge Detection (0-35): Cross-platform + Vegas mispricing
         edge_score = 0
         edge_size = 0
         edge_direction = "NEUTRAL"
+        vegas_edge = 0
         if xp:
             other_yes = xp["match"].get("yes", 50)
             edge_size = abs(yes - other_yes)
@@ -1225,6 +1322,20 @@ def compute_sygnal_scores(kalshi_markets, poly_markets):
                 edge_score = min(round(35 * (edge_size / 12)), 35)
             if yes < other_yes - 2: edge_direction = "YES"
             elif yes > other_yes + 2: edge_direction = "NO"
+
+        # Vegas odds comparison for sports markets
+        if vegas_odds:
+            vegas_match, vegas_side = _match_vegas(m.get("question", ""), vegas_odds)
+            if vegas_match:
+                vegas_prob = vegas_match["home_prob"] if vegas_side == "home" else vegas_match["away_prob"]
+                vegas_edge = abs(yes - vegas_prob)
+                if vegas_edge >= 5:
+                    # Vegas disagrees with market — potential edge
+                    edge_score = min(35, edge_score + min(round(15 * (vegas_edge / 10)), 15))
+                    if yes < vegas_prob - 3 and edge_direction == "NEUTRAL":
+                        edge_direction = "YES"  # Market underprices YES vs Vegas
+                    elif yes > vegas_prob + 3 and edge_direction == "NEUTRAL":
+                        edge_direction = "NO"
 
         # 2. Value (0-25): Risk/reward BUT penalize extreme longshots
         yes_roi = (100 - yes) / yes if yes > 0 else 0
@@ -1241,8 +1352,19 @@ def compute_sygnal_scores(kalshi_markets, poly_markets):
         if yes <= 15 or yes >= 85: value_score = max(0, value_score - 10)
         if yes <= 5 or yes >= 95: value_score = 0
 
-        # 3. Momentum (0-15): base points server-side (no historical data)
-        momentum_score = 2
+        # 3. Momentum (0-15): Real price movement from history
+        change_1h, change_6h, vol_spike = get_momentum(ticker)
+        momentum_score = 2  # Base
+        abs_1h = abs(change_1h)
+        abs_6h = abs(change_6h)
+        if abs_1h >= 5: momentum_score += 5
+        elif abs_1h >= 3: momentum_score += 3
+        elif abs_1h >= 1: momentum_score += 1
+        if abs_6h >= 8: momentum_score += 5
+        elif abs_6h >= 4: momentum_score += 3
+        elif abs_6h >= 2: momentum_score += 1
+        if vol_spike: momentum_score += 3
+        momentum_score = min(momentum_score, 15)
 
         # 4. Confidence (0-15): Volume-based price reliability
         if vol >= 500_000: conf_score = 15
@@ -1254,10 +1376,11 @@ def compute_sygnal_scores(kalshi_markets, poly_markets):
         elif vol >= 100: conf_score = 3
         else: conf_score = 1
 
-        # 5. Timing (0-9): Cross-platform + volume confirmation
+        # 5. Timing (0-9): Cross-platform + volume spike + momentum confirmation
         timing_score = 0
         if edge_size >= 3 and vol >= 10_000: timing_score += 5
-        if vol >= 50_000: timing_score += 4
+        if vol_spike: timing_score += 3
+        if vol >= 50_000: timing_score += 2
         if 15 <= yes <= 85: timing_score = max(timing_score, 3)
 
         total = max(1, min(edge_score + value_score + momentum_score + conf_score + timing_score, 99))
@@ -1297,6 +1420,10 @@ def compute_sygnal_scores(kalshi_markets, poly_markets):
             "best_roi": round(best_roi, 2),
             "days_left": m.get("days_left", -1),
             "close_time": m.get("close_time", ""),
+            "momentum_1h": change_1h,
+            "momentum_6h": change_6h,
+            "volume_spike": vol_spike,
+            "vegas_edge": vegas_edge,
             "breakdown": {
                 "edge": edge_score,
                 "value": value_score,
@@ -1317,7 +1444,8 @@ async def get_scores(min_score: int = 0):
     poly_data = await get_polymarket()
     kalshi = kalshi_data.get("markets", [])
     poly = poly_data.get("markets", [])
-    scores = compute_sygnal_scores(kalshi, poly)
+    vegas = await get_vegas_odds()
+    scores = compute_sygnal_scores(kalshi, poly, vegas_odds=vegas)
     if min_score > 0:
         scores = [s for s in scores if s["score"] >= min_score]
     return {"scores": scores, "count": len(scores)}
@@ -1766,12 +1894,13 @@ async def autobot_register(request: Request):
 async def autobot_scan():
     """Run auto paper bot scan — places paper trades for all Pro users using Sygnal Scores."""
     try:
-        # Get scored markets
+        # Get scored markets with Vegas odds for sports edge
         kalshi_data = await get_kalshi()
         poly_data = await get_polymarket()
         kalshi = kalshi_data.get("markets", [])
         poly = poly_data.get("markets", [])
-        scores = compute_sygnal_scores(kalshi, poly)
+        vegas = await get_vegas_odds()
+        scores = compute_sygnal_scores(kalshi, poly, vegas_odds=vegas)
 
         # Only take actionable signals — prioritize BUY over LEAN
         buy_picks = []
@@ -1920,8 +2049,8 @@ async def autobot_scan():
 
                 payout_ratio = (1.0 / market_prob) - 1.0
                 ev_per_dollar = our_prob * payout_ratio - (1 - our_prob)
-                if ev_per_dollar < 0.05:
-                    continue
+                if ev_per_dollar < 0.03:
+                    continue  # Skip bets with EV under 3 cents per dollar
 
                 b = payout_ratio
                 p = our_prob
@@ -2306,6 +2435,9 @@ async def autopilot_scan():
     poly = markets_data.get("polymarket", [])
     arb = markets_data.get("arbitrage", [])
     all_markets = kalshi + poly
+
+    # Record prices for momentum tracking
+    record_prices(all_markets)
 
     prev_snapshots = load_snapshots()
     alerts = []
