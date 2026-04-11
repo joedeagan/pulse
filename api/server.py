@@ -680,7 +680,7 @@ async def generate_newsletter():
     except Exception:
         pass
 
-    # Scored markets for newsletter
+    # Scored markets as cards
     scored_rows = ""
     scores = compute_sygnal_scores(kalshi, poly)
     top_scored = sorted(scores, key=lambda x: x["score"], reverse=True)[:3]
@@ -689,7 +689,27 @@ async def generate_newsletter():
         sig = s["signal"]
         sc_color = "#00d68f" if sc >= 60 else ("#f0b000" if sc >= 40 else "#ff3b5c")
         sig_color = "#00d68f" if "YES" in sig else ("#ff3b5c" if "NO" in sig else "#888")
-        scored_rows += f'<tr><td style="padding:14px 0;border-bottom:1px solid #1a1a2e;"><table width="100%"><tr><td style="width:40px;vertical-align:top;"><div style="width:36px;height:36px;border-radius:50%;border:2px solid {sc_color};text-align:center;line-height:36px;color:{sc_color};font-size:14px;font-weight:800;">{sc}</div></td><td style="padding-left:12px;"><a href="{SITE}" style="color:#e0e0e0;text-decoration:none;font-size:14px;font-weight:600;">{s["question"][:55]}</a><br><span style="color:#00d68f;font-size:14px;font-weight:700;">YES {s["yes"]}&#162;</span> &nbsp;<span style="color:#ff3b5c;font-size:14px;font-weight:700;">NO {s["no"]}&#162;</span></td><td align="right" style="vertical-align:top;"><span style="color:{sig_color};font-size:11px;font-weight:700;background:rgba(0,0,0,0.3);padding:4px 8px;border-radius:4px;">{sig}</span></td></tr></table></td></tr>'
+        sig_bg = "rgba(0,214,143,0.1)" if "YES" in sig else ("rgba(255,59,92,0.1)" if "NO" in sig else "rgba(136,136,136,0.1)")
+        plat = "KALSHI" if s.get("source") == "kalshi" else "POLY"
+        plat_color = "#0088ff" if plat == "KALSHI" else "#00d68f"
+        scored_rows += f'''<tr><td style="padding:6px 0;">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#111118;border:1px solid #1a1a2e;border-radius:10px;">
+<tr><td style="padding:16px;">
+<table width="100%"><tr>
+<td style="font-size:10px;font-weight:700;color:{plat_color};letter-spacing:1px;">{plat}</td>
+<td align="right"><span style="color:{sig_color};font-size:10px;font-weight:700;background:{sig_bg};padding:3px 8px;border-radius:4px;">{sig}</span></td>
+</tr></table>
+<div style="color:#e0e0e0;font-size:14px;font-weight:600;line-height:1.4;margin:8px 0;">{s["question"][:60]}</div>
+<div style="margin-bottom:10px;">
+<span style="color:#00d68f;font-size:16px;font-weight:700;">YES {s["yes"]}&#162;</span> &nbsp;
+<span style="color:#ff3b5c;font-size:16px;font-weight:700;">NO {s["no"]}&#162;</span>
+</div>
+<table><tr>
+<td style="width:32px;"><div style="width:30px;height:30px;border-radius:50%;border:2px solid {sc_color};text-align:center;line-height:30px;color:{sc_color};font-size:12px;font-weight:800;">{sc}</div></td>
+<td style="padding-left:6px;color:#555;font-size:10px;">SYGNAL</td>
+</tr></table>
+</td></tr></table>
+</td></tr>'''
 
     html = f"""<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"></head>
 <body style="margin:0;padding:0;background:#06060b;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;">
@@ -711,6 +731,9 @@ async def generate_newsletter():
 
 <!-- Bot Stats -->
 {bot_stats}
+
+<!-- Personalized section (replaced per-user when sending) -->
+{{USER_BOT_SECTION}}
 
 <!-- Top Scored Markets -->
 <table width="100%" cellpadding="0" cellspacing="0">
@@ -752,6 +775,18 @@ async def generate_newsletter():
 </td></tr></table>
 </body></html>"""
 
+    # For preview, show placeholder user section
+    preview_section = '''<table width="100%" cellpadding="0" cellspacing="0" style="background:#0a1628;border:1px solid #1a2a4a;border-radius:10px;margin-bottom:16px;">
+<tr><td style="padding:16px;">
+<div style="font-size:11px;font-weight:700;color:#0088ff;letter-spacing:2px;margin-bottom:10px;">YOUR BOT THIS WEEK</div>
+<table width="100%"><tr>
+<td style="text-align:center;"><div style="font-size:22px;font-weight:800;color:#fff;">$9,420</div><div style="font-size:9px;color:#555;letter-spacing:1px;">BALANCE</div></td>
+<td style="text-align:center;"><div style="font-size:22px;font-weight:800;color:#00d68f;">+$142.50</div><div style="font-size:9px;color:#555;letter-spacing:1px;">P&amp;L</div></td>
+<td style="text-align:center;"><div style="font-size:22px;font-weight:800;color:#fff;">5</div><div style="font-size:9px;color:#555;letter-spacing:1px;">OPEN</div></td>
+<td style="text-align:center;"><div style="font-size:22px;font-weight:800;color:#fff;">4W/1L</div><div style="font-size:9px;color:#555;letter-spacing:1px;">RECORD</div></td>
+</tr></table>
+</td></tr></table>'''
+    html = html.replace("{{USER_BOT_SECTION}}", preview_section)
     return HTMLResponse(content=html)
 
 
@@ -787,18 +822,47 @@ async def send_newsletter():
     sent = 0
     errors = []
 
+    all_bot_trades = load_auto_bot_trades()
+
     for sub in subs:
         try:
+            email = sub["email"] if isinstance(sub, dict) else sub
+            # Personalize with user's bot data
+            user_section = ""
+            user_data = all_bot_trades.get(email.lower(), {})
+            if user_data:
+                balance = user_data.get("balance", 10000)
+                total_pnl = user_data.get("total_pnl", 0)
+                open_trades = [t for t in user_data.get("trades", []) if not t.get("resolved")]
+                resolved = [t for t in user_data.get("trades", []) if t.get("resolved")]
+                wins = sum(1 for t in resolved if t.get("outcome") == "win")
+                losses = sum(1 for t in resolved if t.get("outcome") == "loss")
+                pnl_color = "#00d68f" if total_pnl >= 0 else "#ff3b5c"
+                pnl_str = f"+${total_pnl:.2f}" if total_pnl >= 0 else f"-${abs(total_pnl):.2f}"
+
+                user_section = f'''<table width="100%" cellpadding="0" cellspacing="0" style="background:#0a1628;border:1px solid #1a2a4a;border-radius:10px;margin-bottom:16px;">
+<tr><td style="padding:16px;">
+<div style="font-size:11px;font-weight:700;color:#0088ff;letter-spacing:2px;margin-bottom:10px;">YOUR BOT THIS WEEK</div>
+<table width="100%"><tr>
+<td style="text-align:center;"><div style="font-size:22px;font-weight:800;color:#fff;">${balance:.0f}</div><div style="font-size:9px;color:#555;letter-spacing:1px;">BALANCE</div></td>
+<td style="text-align:center;"><div style="font-size:22px;font-weight:800;color:{pnl_color};">{pnl_str}</div><div style="font-size:9px;color:#555;letter-spacing:1px;">P&amp;L</div></td>
+<td style="text-align:center;"><div style="font-size:22px;font-weight:800;color:#fff;">{len(open_trades)}</div><div style="font-size:9px;color:#555;letter-spacing:1px;">OPEN</div></td>
+<td style="text-align:center;"><div style="font-size:22px;font-weight:800;color:#fff;">{wins}W/{losses}L</div><div style="font-size:9px;color:#555;letter-spacing:1px;">RECORD</div></td>
+</tr></table>
+</td></tr></table>'''
+
+            personalized_html = html_content.replace("{{USER_BOT_SECTION}}", user_section)
+
             message = Mail(
                 from_email=(SENDGRID_FROM_EMAIL, "Sygnal Markets"),
-                to_emails=sub["email"],
-                subject=f"Sygnal Weekly Market Digest — {datetime.now().strftime('%B %d, %Y')}",
-                html_content=html_content,
+                to_emails=email,
+                subject=f"Your Sygnal Weekly — {datetime.now().strftime('%B %d')}",
+                html_content=personalized_html,
             )
             sg.send(message)
             sent += 1
         except Exception as e:
-            errors.append({"email": sub["email"], "error": str(e)})
+            errors.append({"email": str(sub), "error": str(e)})
 
     return {
         "status": "sent",
