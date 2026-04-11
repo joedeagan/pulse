@@ -411,26 +411,22 @@ function renderMarkets(kalshiMarkets, polyMarkets) {
     document.getElementById('arb-count').textContent = arbitrage.length || '0';
     document.getElementById('refresh-time').textContent = `Updated ${new Date().toLocaleTimeString([], {hour: 'numeric', minute: '2-digit'})}`;
 
-    // Fetch bot/collective accuracy for trust indicator
-    fetch(API_BASE + '/api/collective/stats').then(function(r) { return r.json(); }).then(function(stats) {
+    // Fetch bot status for trust indicator
+    fetch(API_BASE + '/api/bot').then(function(r){return r.json();}).then(function(bot) {
         var el = document.getElementById('bot-accuracy-stat');
         if (!el) return;
-        if (stats.total_trades >= 10) {
-            el.textContent = stats.overall_win_rate + '%';
-            el.style.color = stats.overall_win_rate >= 55 ? 'var(--green)' : stats.overall_win_rate >= 45 ? 'var(--gold, #f0b000)' : 'var(--red)';
-        } else if (stats.total_trades > 0) {
-            el.textContent = stats.total_trades + ' trades';
+        var positions = (bot.positions || []).length;
+        if (positions > 0) {
+            el.textContent = positions + ' Active';
+            el.style.color = 'var(--green)';
+        } else if (bot.running) {
+            el.textContent = 'Scanning';
             el.style.color = 'var(--accent)';
         } else {
-            // Show bot status instead
-            fetch(API_BASE + '/api/bot').then(function(r){return r.json();}).then(function(bot) {
-                if (bot.running) {
-                    el.textContent = 'Live';
-                    el.style.color = 'var(--green)';
-                }
-            }).catch(function(){});
+            el.textContent = 'Offline';
+            el.style.color = 'var(--red)';
         }
-    }).catch(function() {});
+    }).catch(function(){});
 
     // Apply volume filter
     filterMarkets();
@@ -3023,26 +3019,42 @@ function loadAutobotOnPortfolio() {
             var investedEl = document.getElementById('paper-invested');
             var pnlEl = document.getElementById('paper-pnl');
             var tradesEl = document.getElementById('paper-trades');
-            if (balEl) balEl.textContent = '$' + (data.balance || 0).toFixed(0);
+            // Big balance number
+            if (balEl) balEl.textContent = '$' + (data.balance || 0).toLocaleString('en-US', {maximumFractionDigits: 0});
 
-            // Win rate badge
-            var badgeEl = document.getElementById('portfolio-win-badge');
-            if (badgeEl && (data.wins + data.losses) > 0) {
-                badgeEl.style.display = '';
-                badgeEl.textContent = data.win_rate + '% Win Rate';
-                badgeEl.style.color = data.win_rate >= 55 ? 'var(--green)' : 'var(--text-dim)';
-                badgeEl.style.borderColor = data.win_rate >= 55 ? 'rgba(0,214,143,0.2)' : 'var(--border)';
-                badgeEl.style.background = data.win_rate >= 55 ? 'rgba(0,214,143,0.1)' : 'var(--bg-card)';
-            }
-            var startingBalance = 10000;
-            var invested = Math.max(0, startingBalance - (data.balance || startingBalance));
-            if (investedEl) investedEl.textContent = '$' + invested.toFixed(0);
+            // P&L with color
             if (pnlEl) {
                 var pnl = data.total_pnl || 0;
                 pnlEl.textContent = (pnl >= 0 ? '+$' : '-$') + Math.abs(pnl).toFixed(2);
-                pnlEl.className = 'bot-stat-value ' + (pnl >= 0 ? 'running' : 'stopped');
+                pnlEl.style.color = pnl >= 0 ? 'var(--green)' : 'var(--red)';
             }
+
+            // Win/Loss badge
+            var badgeEl = document.getElementById('portfolio-win-badge');
+            if (badgeEl && (data.wins + data.losses) > 0) {
+                badgeEl.style.display = 'inline-block';
+                badgeEl.textContent = data.wins + 'W / ' + data.losses + 'L';
+                badgeEl.style.color = data.win_rate >= 55 ? 'var(--green)' : 'var(--text-dim)';
+                badgeEl.style.background = 'rgba(255,255,255,0.04)';
+                badgeEl.style.padding = '3px 10px';
+                badgeEl.style.borderRadius = '12px';
+                badgeEl.style.fontSize = '11px';
+            }
+
+            // Stats
+            var startingBalance = 10000;
+            var invested = Math.max(0, startingBalance - (data.balance || startingBalance));
+            if (investedEl) investedEl.textContent = '$' + invested.toLocaleString('en-US', {maximumFractionDigits: 0});
             if (tradesEl) tradesEl.textContent = openTrades.length + (data.resolved_count || 0);
+
+            // Win rate stat
+            var winRateEl = document.getElementById('paper-win-rate');
+            if (winRateEl) {
+                if ((data.wins + data.losses) > 0) {
+                    winRateEl.textContent = data.win_rate + '%';
+                    winRateEl.style.color = data.win_rate >= 55 ? 'var(--green)' : 'var(--text)';
+                }
+            }
 
             // Show/hide start bot button
             var startBtn = document.getElementById('portfolio-start-bot');

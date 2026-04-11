@@ -67,7 +67,7 @@
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
 
-    <link rel="stylesheet" href="style.css?v=53">
+    <link rel="stylesheet" href="style.css?v=54">
     <link rel="manifest" href="/manifest.json">
     <link rel="icon" type="image/png" href="/icon-192.png">
     <link rel="apple-touch-icon" href="/icon-192.png">
@@ -375,7 +375,7 @@
         </div>
         <div class="stat-item">
             <div class="stat-value" id="bot-accuracy-stat" style="color:var(--green);">—</div>
-            <div class="stat-label">Bot Accuracy</div>
+            <div class="stat-label">Bot Status</div>
         </div>
     </div>
 
@@ -473,39 +473,40 @@
 
     <!-- Portfolio (Paper Trading) -->
     <section id="portfolio-panel" class="view-hidden">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;">
-            <div>
-                <h2 style="margin:0 0 4px;">Portfolio</h2>
-                <p style="color:var(--text-dim);font-size:13px;margin:0;">Your auto-bot paper trades powered by Sygnal Score</p>
+        <!-- Hero balance -->
+        <div style="text-align:center;padding:32px 0 24px;">
+            <div style="font-size:11px;letter-spacing:3px;color:var(--text-dim);font-weight:600;margin-bottom:8px;">PORTFOLIO VALUE</div>
+            <div style="font-size:42px;font-weight:800;color:var(--text);line-height:1;" id="paper-balance">$10,000</div>
+            <div style="display:flex;justify-content:center;gap:6px;margin-top:8px;">
+                <span style="font-size:15px;font-weight:700;" id="paper-pnl">$0.00</span>
+                <div id="portfolio-win-badge" style="display:none;padding:3px 10px;border-radius:12px;font-size:11px;font-weight:700;"></div>
             </div>
-            <div id="portfolio-win-badge" style="display:none;background:rgba(0,214,143,0.1);border:1px solid rgba(0,214,143,0.2);color:var(--green);padding:6px 14px;border-radius:20px;font-size:12px;font-weight:700;"></div>
+            <div style="font-size:12px;color:var(--text-dim);margin-top:4px;">Powered by Sygnal Score Auto-Bot</div>
         </div>
 
-        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:24px;" id="portfolio-stats">
-            <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:12px;padding:16px;text-align:center;">
-                <div style="font-size:24px;font-weight:800;color:var(--text);" id="paper-balance">—</div>
-                <div style="font-size:10px;color:var(--text-dim);letter-spacing:1px;text-transform:uppercase;margin-top:4px;">Balance</div>
+        <!-- Stats row -->
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:20px;" id="portfolio-stats">
+            <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:14px;text-align:center;">
+                <div style="font-size:20px;font-weight:800;color:var(--text);" id="paper-invested">$0</div>
+                <div style="font-size:9px;color:var(--text-dim);letter-spacing:1.5px;text-transform:uppercase;margin-top:3px;">In Trades</div>
             </div>
-            <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:12px;padding:16px;text-align:center;">
-                <div style="font-size:24px;font-weight:800;" id="paper-invested">—</div>
-                <div style="font-size:10px;color:var(--text-dim);letter-spacing:1px;text-transform:uppercase;margin-top:4px;">In Trades</div>
+            <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:14px;text-align:center;">
+                <div style="font-size:20px;font-weight:800;color:var(--text);" id="paper-trades">0</div>
+                <div style="font-size:9px;color:var(--text-dim);letter-spacing:1.5px;text-transform:uppercase;margin-top:3px;">Total Trades</div>
             </div>
-            <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:12px;padding:16px;text-align:center;">
-                <div style="font-size:24px;font-weight:800;" id="paper-pnl">—</div>
-                <div style="font-size:10px;color:var(--text-dim);letter-spacing:1px;text-transform:uppercase;margin-top:4px;">Total P&L</div>
-            </div>
-            <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:12px;padding:16px;text-align:center;">
-                <div style="font-size:24px;font-weight:800;color:var(--text);" id="paper-trades">0</div>
-                <div style="font-size:10px;color:var(--text-dim);letter-spacing:1px;text-transform:uppercase;margin-top:4px;">Trades</div>
+            <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:14px;text-align:center;">
+                <div style="font-size:20px;font-weight:800;color:var(--text);" id="paper-win-rate">—</div>
+                <div style="font-size:9px;color:var(--text-dim);letter-spacing:1.5px;text-transform:uppercase;margin-top:3px;">Win Rate</div>
             </div>
         </div>
 
-        <div class="portfolio-chart-section" style="background:var(--bg-card);border:1px solid var(--border);border-radius:12px;padding:20px;margin-bottom:24px;">
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
-                <span style="font-size:12px;color:var(--text-dim);letter-spacing:1.5px;font-weight:600;">PORTFOLIO VALUE</span>
-                <span style="font-size:11px;color:var(--text-dim);" id="portfolio-chart-label"></span>
+        <!-- Chart -->
+        <div class="portfolio-chart-section" style="background:var(--bg-card);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:20px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+                <span style="font-size:10px;color:var(--text-dim);letter-spacing:1.5px;font-weight:600;">EQUITY CURVE</span>
+                <span style="font-size:10px;color:var(--text-dim);" id="portfolio-chart-label"></span>
             </div>
-            <canvas id="portfolio-chart" width="800" height="180"></canvas>
+            <canvas id="portfolio-chart" width="800" height="160"></canvas>
         </div>
 
         <div id="portfolio-start-bot" style="display:none;text-align:center;padding:32px;background:linear-gradient(135deg,rgba(0,136,255,0.06),rgba(0,214,143,0.04));border:1px solid rgba(0,136,255,0.15);border-radius:14px;margin-bottom:24px;">
@@ -857,6 +858,6 @@
         if (window.caches) caches.keys().then(function(k) { k.forEach(function(c) { caches.delete(c); }); });
     }
     </script>
-    <script src="app.js?v=53"></script>
+    <script src="app.js?v=54"></script>
 </body>
 </html>
