@@ -3222,6 +3222,7 @@ function loadAutobotOnPortfolio() {
                             '</div>' +
                             '<div style="text-align:right;">' +
                                 '<span style="font-size:11px;color:var(--text-dim);">' + t.contracts + 'x @ ' + t.price + '¢</span>' +
+                                (t.ev_per_dollar ? '<div style="font-size:9px;color:var(--accent);margin-top:2px;">EV: ' + (t.ev_per_dollar * 100).toFixed(0) + '¢/$1 · Edge: ' + (t.edge || 0) + '% · Kelly: ' + (t.kelly_pct || 0) + '%</div>' : '') +
                                 (function() {
                                     var cm = allMarketCards.find(function(c) { return c.market.ticker === t.ticker; });
                                     if (cm) {

@@ -1885,14 +1885,57 @@ async def autobot_scan():
                 if any(t["ticker"] == pick["ticker"] and not t.get("resolved") for t in user["trades"]):
                     continue
 
-                # Paper buy — 10% of balance per trade
-                max_bet = 200 if is_pro else 50
-                bet_amount = min(user["balance"] * 0.10, max_bet)
-                if bet_amount < 1:
+                price = pick["yes"] if "YES" in pick["signal"] else pick["no"]
+                if price <= 0 or price >= 100:
                     continue
 
-                price = pick["yes"] if "YES" in pick["signal"] else pick["no"]
-                contracts = int(bet_amount / (price / 100)) if price > 0 else 0
+                # --- Kelly Criterion Position Sizing ---
+                # Market implied probability
+                market_prob = price / 100.0
+                # Our estimated probability based on Sygnal Score
+                # Score 50 = market is fair, 60 = 10% edge, 70 = 20% edge, etc.
+                # Convert score to an edge: higher score = we think our side wins more often
+                score = pick["score"]
+                cross_edge = pick.get("cross_edge", 0)
+
+                # Estimate our probability: market_prob + edge from score
+                # BUY signal = strong conviction, LEAN = moderate
+                is_buy_signal = "BUY" in pick["signal"]
+                if is_buy_signal:
+                    edge_pct = 0.05 + (score - 30) * 0.003 + min(cross_edge, 15) * 0.005
+                else:
+                    edge_pct = 0.03 + (score - 50) * 0.002 + min(cross_edge, 15) * 0.003
+                edge_pct = max(0.02, min(edge_pct, 0.25))  # Cap edge 2-25%
+
+                our_prob = min(0.90, market_prob + edge_pct)
+
+                # Expected Value check: EV = (our_prob * profit) - ((1-our_prob) * cost)
+                # Per $1 risked: EV = our_prob * (1/market_prob - 1) - (1 - our_prob)
+                payout_ratio = (1.0 / market_prob) - 1.0  # e.g. 40c → 1.5x payout
+                ev_per_dollar = our_prob * payout_ratio - (1 - our_prob)
+                if ev_per_dollar < 0.05:
+                    continue  # Skip bets with EV under 5 cents per dollar
+
+                # Kelly fraction: f = (b*p - q) / b
+                b = payout_ratio
+                p = our_prob
+                q = 1 - our_prob
+                kelly_full = (b * p - q) / b if b > 0 else 0
+                kelly_full = max(0, min(kelly_full, 0.25))  # Cap full Kelly at 25%
+
+                # Use quarter Kelly for safety
+                kelly_fraction = kelly_full * 0.25
+
+                # Size the bet
+                max_bet = 500 if is_pro else 100
+                bet_amount = min(user["balance"] * kelly_fraction, max_bet)
+                bet_amount = max(bet_amount, 5)  # Minimum $5 bet
+                if bet_amount > user["balance"] * 0.15:
+                    bet_amount = user["balance"] * 0.15  # Never more than 15% of bankroll
+                if bet_amount < 1 or user["balance"] < 10:
+                    continue
+
+                contracts = int(bet_amount / (price / 100))
                 if contracts <= 0:
                     continue
 
@@ -1910,6 +1953,10 @@ async def autobot_scan():
                     "signal": pick["signal"],
                     "category": pick.get("source", "other"),
                     "days_left": pick.get("days_left", -1),
+                    "ev_per_dollar": round(ev_per_dollar, 3),
+                    "kelly_pct": round(kelly_fraction * 100, 1),
+                    "our_prob": round(our_prob * 100, 1),
+                    "edge": round(edge_pct * 100, 1),
                     "timestamp": datetime.now(timezone.utc).isoformat(),
                     "resolved": False,
                 }
