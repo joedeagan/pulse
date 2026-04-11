@@ -680,7 +680,7 @@ async def generate_newsletter():
     except Exception:
         pass
 
-    # Scored markets as cards
+    # Scored markets as cards — matching website style
     scored_rows = ""
     scores = compute_sygnal_scores(kalshi, poly)
     top_scored = sorted(scores, key=lambda x: x["score"], reverse=True)[:3]
@@ -689,24 +689,36 @@ async def generate_newsletter():
         sig = s["signal"]
         sc_color = "#00d68f" if sc >= 60 else ("#f0b000" if sc >= 40 else "#ff3b5c")
         sig_color = "#00d68f" if "YES" in sig else ("#ff3b5c" if "NO" in sig else "#888")
-        sig_bg = "rgba(0,214,143,0.1)" if "YES" in sig else ("rgba(255,59,92,0.1)" if "NO" in sig else "rgba(136,136,136,0.1)")
+        sig_bg = "rgba(0,214,143,0.08)" if "YES" in sig else ("rgba(255,59,92,0.08)" if "NO" in sig else "rgba(136,136,136,0.08)")
         plat = "KALSHI" if s.get("source") == "kalshi" else "POLY"
         plat_color = "#0088ff" if plat == "KALSHI" else "#00d68f"
-        scored_rows += f'''<tr><td style="padding:6px 0;">
-<table width="100%" cellpadding="0" cellspacing="0" style="background:#f8f9fa;border:1px solid #e8e8e8;border-radius:10px;" class="email-card">
-<tr><td style="padding:16px;">
-<table width="100%"><tr>
-<td style="font-size:10px;font-weight:700;color:{plat_color};letter-spacing:1px;">{plat}</td>
-<td align="right"><span style="color:{sig_color};font-size:10px;font-weight:700;background:{sig_bg};padding:3px 8px;border-radius:4px;">{sig}</span></td>
+        plat_bg = "rgba(0,136,255,0.08)" if plat == "KALSHI" else "rgba(0,214,143,0.08)"
+        q_text = s["question"][:65]
+        if len(s["question"]) > 65:
+            q_text += "..."
+        scored_rows += f'''<tr><td style="padding:5px 0;">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#f8f9fa;border:1px solid #e0e0e0;border-radius:12px;" class="email-card">
+<tr><td style="padding:18px 20px;">
+<!-- Platform + Signal row -->
+<table width="100%" cellpadding="0" cellspacing="0"><tr>
+<td><span style="font-size:9px;font-weight:700;color:{plat_color};letter-spacing:1px;background:{plat_bg};padding:3px 8px;border-radius:4px;">{plat}</span></td>
+<td align="right"><span style="color:{sig_color};font-size:9px;font-weight:700;background:{sig_bg};padding:3px 8px;border-radius:4px;">{sig}</span></td>
 </tr></table>
-<div style="color:#1a1a1a;font-size:15px;font-weight:600;line-height:1.4;margin:10px 0;" class="email-text">{s["question"][:60]}</div>
-<div style="margin-bottom:12px;">
-<span style="color:#00875a;font-size:17px;font-weight:700;">YES {s["yes"]}&#162;</span> &nbsp;&nbsp;
-<span style="color:#cc2244;font-size:17px;font-weight:700;">NO {s["no"]}&#162;</span>
-</div>
-<table><tr>
-<td style="width:34px;"><div style="width:32px;height:32px;border-radius:50%;border:2px solid {sc_color};text-align:center;line-height:32px;color:{sc_color};font-size:13px;font-weight:800;">{sc}</div></td>
-<td style="padding-left:8px;color:#999;font-size:10px;font-weight:600;">SYGNAL</td>
+<!-- Question -->
+<div style="color:#1a1a1a;font-size:14px;font-weight:600;line-height:1.45;margin:12px 0 14px;" class="email-text">{q_text}</div>
+<!-- Score + Prices row -->
+<table width="100%" cellpadding="0" cellspacing="0"><tr>
+<td style="vertical-align:middle;">
+<table cellpadding="0" cellspacing="0"><tr>
+<td style="vertical-align:middle;"><div style="width:30px;height:30px;border-radius:50%;border:2px solid {sc_color};text-align:center;line-height:30px;color:{sc_color};font-size:12px;font-weight:800;">{sc}</div></td>
+<td style="padding-left:6px;vertical-align:middle;"><span style="font-size:9px;color:#999;font-weight:600;letter-spacing:1px;">SYGNAL</span></td>
+</tr></table>
+</td>
+<td align="right" style="vertical-align:middle;">
+<span style="color:#00875a;font-size:15px;font-weight:700;">YES {s["yes"]}&#162;</span>
+<span style="color:#ccc;font-size:12px;padding:0 4px;" class="email-dim">&middot;</span>
+<span style="color:#cc2244;font-size:15px;font-weight:700;">NO {s["no"]}&#162;</span>
+</td>
 </tr></table>
 </td></tr></table>
 </td></tr>'''
@@ -718,44 +730,54 @@ async def generate_newsletter():
 :root {{ color-scheme: light dark; }}
 @media (prefers-color-scheme: dark) {{
   .email-bg {{ background-color: #0a0a12 !important; }}
-  .email-card {{ background-color: #111118 !important; border-color: #1a1a2e !important; }}
+  .email-wrapper {{ background-color: #0e0e1a !important; border-color: #1a1a2e !important; }}
+  .email-card {{ background-color: #12121f !important; border-color: rgba(255,255,255,0.06) !important; }}
   .email-text {{ color: #e0e0e0 !important; }}
-  .email-dim {{ color: #888 !important; }}
+  .email-dim {{ color: #666 !important; }}
   .email-header {{ color: #ffffff !important; }}
-  .email-bot-bg {{ background-color: #0a1628 !important; }}
+  .email-bot-bg {{ background-color: #0a1628 !important; border-color: #1a2a4a !important; }}
+  .email-divider {{ background-color: #1a1a2e !important; }}
+  .email-sub {{ color: #888 !important; }}
 }}
 </style>
 </head>
-<body style="margin:0;padding:0;background-color:#f5f5f5;font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif;" class="email-bg">
-<table width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding:24px 16px;">
+<body style="margin:0;padding:0;background-color:#f0f2f5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;" class="email-bg">
+<table width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding:20px 12px;">
 <table width="580" cellpadding="0" cellspacing="0" style="max-width:580px;">
 
 <!-- Header -->
-<tr><td style="padding:24px 0;text-align:center;">
-<span style="font-size:32px;font-weight:800;color:#0a0a12;letter-spacing:3px;" class="email-header">SYGNAL</span>
-<br><span style="font-size:11px;color:#0088ff;font-weight:700;letter-spacing:4px;">WEEKLY MARKET DIGEST</span>
-<br><span style="font-size:12px;color:#888;" class="email-dim">{date_str} &middot; {len(all_markets)} markets tracked</span>
+<tr><td style="padding:28px 0 20px;text-align:center;">
+<div style="font-size:28px;font-weight:800;color:#0a0a12;letter-spacing:4px;" class="email-header">SYGNAL</div>
+<div style="font-size:10px;color:#0088ff;font-weight:700;letter-spacing:4px;margin-top:4px;">WEEKLY MARKET DIGEST</div>
+<div style="font-size:11px;color:#999;margin-top:6px;" class="email-sub">{date_str} &middot; {len(all_markets)} markets tracked</div>
 </td></tr>
 
-<!-- Blue accent -->
-<tr><td><table width="100%"><tr><td style="height:3px;background:#0088ff;font-size:0;">&nbsp;</td></tr></table></td></tr>
+<!-- Blue accent line -->
+<tr><td style="padding:0;"><div style="height:3px;background:linear-gradient(90deg,#0088ff,#00d68f);border-radius:2px;">&nbsp;</div></td></tr>
 
-<!-- Main card -->
-<tr><td style="padding:24px;background:#ffffff;border:1px solid #eee;" class="email-card">
+<!-- Main content wrapper -->
+<tr><td style="padding:24px 22px;background:#ffffff;border:1px solid #e8e8e8;border-top:none;border-radius:0 0 14px 14px;" class="email-wrapper">
 
-<!-- Bot stats placeholder -->
+<!-- Bot stats -->
 <!--USER_BOT_PLACEHOLDER-->
 
-<!-- Top Markets -->
+<!-- Divider -->
+<table width="100%" cellpadding="0" cellspacing="0"><tr><td style="padding:4px 0 16px;"><div style="height:1px;background:#e8e8e8;" class="email-divider"></div></td></tr></table>
+
+<!-- Section header -->
 <table width="100%" cellpadding="0" cellspacing="0">
-<tr><td style="padding:0 0 16px;"><span style="font-size:11px;font-weight:700;color:#0088ff;letter-spacing:2px;">TOP SYGNAL SCORES</span></td></tr>
+<tr><td style="padding:0 0 12px;">
+<span style="font-size:10px;font-weight:700;color:#0088ff;letter-spacing:2px;">TOP SYGNAL SCORES</span>
+<span style="font-size:10px;color:#bbb;float:right;" class="email-sub">This week's best</span>
+</td></tr>
 {scored_rows}
 </table>
 
 <!-- CTA -->
-<table width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding:24px 0 8px;">
-<table cellpadding="0" cellspacing="0"><tr><td bgcolor="#0088ff" style="padding:14px 40px;border-radius:8px;">
-<a href="{SITE}" style="color:#fff;text-decoration:none;font-size:14px;font-weight:700;">Open Dashboard &#8594;</a>
+<table width="100%" cellpadding="0" cellspacing="0"><tr><td style="padding:4px 0 0;"><div style="height:1px;background:#e8e8e8;" class="email-divider"></div></td></tr></table>
+<table width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding:22px 0 6px;">
+<table cellpadding="0" cellspacing="0"><tr><td bgcolor="#0088ff" style="padding:14px 48px;border-radius:10px;">
+<a href="{SITE}" style="color:#fff;text-decoration:none;font-size:13px;font-weight:700;letter-spacing:0.5px;">Open Dashboard &#8594;</a>
 </td></tr></table>
 </td></tr></table>
 
@@ -763,8 +785,8 @@ async def generate_newsletter():
 
 <!-- Footer -->
 <tr><td style="padding:20px 0;text-align:center;">
-<span style="font-size:11px;color:#999;">Sygnal Markets &middot; sygnalmarkets.com</span><br>
-<a href="{SITE}/api/unsubscribe" style="font-size:10px;color:#0088ff;">Unsubscribe</a>
+<div style="font-size:11px;color:#aaa;" class="email-sub">Sygnal Markets &middot; sygnalmarkets.com</div>
+<a href="{SITE}/api/unsubscribe" style="font-size:10px;color:#0088ff;text-decoration:none;">Unsubscribe</a>
 </td></tr>
 
 </table>
@@ -783,14 +805,14 @@ async def generate_newsletter():
     a_pnl_color = "#00d68f" if a_pnl >= 0 else "#ff3b5c"
     a_pnl_str = f"+${a_pnl:.2f}" if a_pnl >= 0 else f"-${abs(a_pnl):.2f}"
 
-    user_bot_html = f'''<table width="100%" cellpadding="0" cellspacing="0" style="background:#eef3ff;border:1px solid #d0d8e8;border-radius:10px;margin-bottom:16px;" class="email-bot-bg">
-<tr><td style="padding:16px;">
-<div style="font-size:11px;font-weight:700;color:#0088ff;letter-spacing:2px;margin-bottom:10px;">YOUR BOT</div>
-<table width="100%"><tr>
-<td style="text-align:center;width:25%;"><div style="font-size:20px;font-weight:800;color:#1a1a1a;" class="email-text">${a_balance:,.0f}</div><div style="font-size:9px;color:#888;letter-spacing:1px;margin-top:2px;">BALANCE</div></td>
-<td style="text-align:center;width:25%;"><div style="font-size:20px;font-weight:800;color:{a_pnl_color};">{a_pnl_str}</div><div style="font-size:9px;color:#888;letter-spacing:1px;margin-top:2px;">P&amp;L</div></td>
-<td style="text-align:center;width:25%;"><div style="font-size:20px;font-weight:800;color:#1a1a1a;" class="email-text">{a_open}</div><div style="font-size:9px;color:#888;letter-spacing:1px;margin-top:2px;">OPEN</div></td>
-<td style="text-align:center;width:25%;"><div style="font-size:20px;font-weight:800;color:#1a1a1a;" class="email-text">{a_wins}W / {a_losses}L</div><div style="font-size:9px;color:#888;letter-spacing:1px;margin-top:2px;">RECORD</div></td>
+    user_bot_html = f'''<table width="100%" cellpadding="0" cellspacing="0" style="background:#eef3ff;border:1px solid #d0d8e8;border-radius:12px;margin-bottom:8px;" class="email-bot-bg">
+<tr><td style="padding:18px 20px;">
+<div style="font-size:10px;font-weight:700;color:#0088ff;letter-spacing:2px;margin-bottom:12px;">YOUR BOT</div>
+<table width="100%" cellpadding="0" cellspacing="0"><tr>
+<td width="25%" style="text-align:center;vertical-align:top;padding:0 4px;"><div style="font-size:18px;font-weight:800;color:#1a1a1a;line-height:1.2;" class="email-text">${a_balance:,.0f}</div><div style="font-size:8px;color:#999;letter-spacing:1.5px;margin-top:4px;font-weight:600;">BALANCE</div></td>
+<td width="25%" style="text-align:center;vertical-align:top;padding:0 4px;"><div style="font-size:18px;font-weight:800;color:{a_pnl_color};line-height:1.2;">{a_pnl_str}</div><div style="font-size:8px;color:#999;letter-spacing:1.5px;margin-top:4px;font-weight:600;">P&amp;L</div></td>
+<td width="25%" style="text-align:center;vertical-align:top;padding:0 4px;"><div style="font-size:18px;font-weight:800;color:#1a1a1a;line-height:1.2;" class="email-text">{a_open}</div><div style="font-size:8px;color:#999;letter-spacing:1.5px;margin-top:4px;font-weight:600;">OPEN</div></td>
+<td width="25%" style="text-align:center;vertical-align:top;padding:0 4px;"><div style="font-size:18px;font-weight:800;color:#1a1a1a;line-height:1.2;" class="email-text">{a_wins}W/{a_losses}L</div><div style="font-size:8px;color:#999;letter-spacing:1.5px;margin-top:4px;font-weight:600;">RECORD</div></td>
 </tr></table>
 </td></tr></table>'''
 
@@ -851,14 +873,14 @@ async def send_newsletter():
                 pnl_color = "#00d68f" if total_pnl >= 0 else "#ff3b5c"
                 pnl_str = f"+${total_pnl:.2f}" if total_pnl >= 0 else f"-${abs(total_pnl):.2f}"
 
-                user_section = f'''<table width="100%" cellpadding="0" cellspacing="0" style="background:#eef3ff;border:1px solid #d0d8e8;border-radius:10px;margin-bottom:16px;" class="email-bot-bg">
-<tr><td style="padding:16px;">
-<div style="font-size:11px;font-weight:700;color:#0088ff;letter-spacing:2px;margin-bottom:10px;">YOUR BOT THIS WEEK</div>
-<table width="100%"><tr>
-<td style="text-align:center;width:25%;"><div style="font-size:20px;font-weight:800;color:#1a1a1a;" class="email-text">${balance:,.0f}</div><div style="font-size:9px;color:#888;letter-spacing:1px;margin-top:2px;">BALANCE</div></td>
-<td style="text-align:center;width:25%;"><div style="font-size:20px;font-weight:800;color:{pnl_color};">{pnl_str}</div><div style="font-size:9px;color:#888;letter-spacing:1px;margin-top:2px;">P&amp;L</div></td>
-<td style="text-align:center;width:25%;"><div style="font-size:20px;font-weight:800;color:#1a1a1a;" class="email-text">{len(open_trades)}</div><div style="font-size:9px;color:#888;letter-spacing:1px;margin-top:2px;">OPEN</div></td>
-<td style="text-align:center;width:25%;"><div style="font-size:20px;font-weight:800;color:#1a1a1a;" class="email-text">{wins}W/{losses}L</div><div style="font-size:9px;color:#888;letter-spacing:1px;margin-top:2px;">RECORD</div></td>
+                user_section = f'''<table width="100%" cellpadding="0" cellspacing="0" style="background:#eef3ff;border:1px solid #d0d8e8;border-radius:12px;margin-bottom:8px;" class="email-bot-bg">
+<tr><td style="padding:18px 20px;">
+<div style="font-size:10px;font-weight:700;color:#0088ff;letter-spacing:2px;margin-bottom:12px;">YOUR BOT</div>
+<table width="100%" cellpadding="0" cellspacing="0"><tr>
+<td width="25%" style="text-align:center;vertical-align:top;padding:0 4px;"><div style="font-size:18px;font-weight:800;color:#1a1a1a;line-height:1.2;" class="email-text">${balance:,.0f}</div><div style="font-size:8px;color:#999;letter-spacing:1.5px;margin-top:4px;font-weight:600;">BALANCE</div></td>
+<td width="25%" style="text-align:center;vertical-align:top;padding:0 4px;"><div style="font-size:18px;font-weight:800;color:{pnl_color};line-height:1.2;">{pnl_str}</div><div style="font-size:8px;color:#999;letter-spacing:1.5px;margin-top:4px;font-weight:600;">P&amp;L</div></td>
+<td width="25%" style="text-align:center;vertical-align:top;padding:0 4px;"><div style="font-size:18px;font-weight:800;color:#1a1a1a;line-height:1.2;" class="email-text">{len(open_trades)}</div><div style="font-size:8px;color:#999;letter-spacing:1.5px;margin-top:4px;font-weight:600;">OPEN</div></td>
+<td width="25%" style="text-align:center;vertical-align:top;padding:0 4px;"><div style="font-size:18px;font-weight:800;color:#1a1a1a;line-height:1.2;" class="email-text">{wins}W/{losses}L</div><div style="font-size:8px;color:#999;letter-spacing:1.5px;margin-top:4px;font-weight:600;">RECORD</div></td>
 </tr></table>
 </td></tr></table>'''
 
@@ -1696,12 +1718,18 @@ async def autobot_scan():
         poly = poly_data.get("markets", [])
         scores = compute_sygnal_scores(kalshi, poly)
 
-        # Only take actionable signals — prefer short-term markets
-        actionable = []
+        # Only take actionable signals — prioritize BUY over LEAN
+        buy_picks = []
+        lean_picks = []
         for s in scores:
             if s["signal"] not in ("BUY YES", "BUY NO", "LEAN YES", "LEAN NO"):
                 continue
-            if s["score"] < 30:
+            # BUY signals: score >= 30 minimum
+            # LEAN signals: need score >= 55 (higher bar for lower confidence)
+            is_buy = "BUY" in s["signal"]
+            if is_buy and s["score"] < 30:
+                continue
+            if not is_buy and s["score"] < 55:
                 continue
             # Tag days_left but don't filter globally — per-user max_days handles it
             days_left = s.get("days_left", -1)
@@ -1715,14 +1743,19 @@ async def autobot_scan():
             q = s.get("question", "")
             # Skip confusing sub-option markets
             if ": " in q and not q.startswith("Will") and not q.startswith("How"):
-                # Check if it's a "Topic: Sub-option" format
                 parts = q.split(": ")
                 if len(parts) == 2 and len(parts[1]) < 30:
-                    # Rewrite as "Will [sub-option] [topic]?"
                     s["question"] = parts[0] + ": " + parts[1]
-            actionable.append(s)
-        actionable.sort(key=lambda s: s["score"], reverse=True)
-        top_picks = actionable[:5]  # Top 5 picks per scan
+            if is_buy:
+                buy_picks.append(s)
+            else:
+                lean_picks.append(s)
+        # Prioritize BUY signals, then fill remaining slots with LEAN
+        buy_picks.sort(key=lambda s: s["score"], reverse=True)
+        lean_picks.sort(key=lambda s: s["score"], reverse=True)
+        top_picks = buy_picks[:5]
+        if len(top_picks) < 5:
+            top_picks += lean_picks[:5 - len(top_picks)]
 
         if not top_picks:
             return {"ok": True, "picks": 0, "msg": "No actionable signals"}
