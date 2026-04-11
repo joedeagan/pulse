@@ -1556,13 +1556,26 @@ async def autobot_scan():
 
         for email in all_emails:
             if email not in all_trades:
-                all_trades[email] = {"balance": 1000, "trades": [], "total_pnl": 0, "created": datetime.now(timezone.utc).isoformat()}
+                starting_balance = 10000 if email.lower() in [p.lower() for p in pros] else 1000
+                all_trades[email] = {"balance": starting_balance, "trades": [], "total_pnl": 0, "created": datetime.now(timezone.utc).isoformat()}
 
             user = all_trades[email]
             is_pro = email.lower() in [p.lower() for p in pros]
 
-            # Free users: 30-day trial, max 5 positions
-            # Pro users: unlimited, max 10 positions
+            # Pro users: $10K balance, weekly refill, 10 positions
+            # Free users: $1K balance, no refill, 5 positions, 30-day trial
+            if is_pro:
+                # Weekly refill for Pro
+                if user["balance"] < 5000:
+                    created = user.get("created", "")
+                    if created:
+                        try:
+                            days = (datetime.now(timezone.utc) - datetime.fromisoformat(created.replace("Z", "+00:00"))).days
+                            if days > 0 and days % 7 == 0:
+                                user["balance"] = 10000
+                        except Exception:
+                            pass
+
             if not is_pro:
                 created = user.get("created", "")
                 if created:
@@ -1586,7 +1599,8 @@ async def autobot_scan():
                     continue
 
                 # Paper buy — 10% of balance per trade
-                bet_amount = min(user["balance"] * 0.10, 50)  # Max $50 per trade
+                max_bet = 200 if is_pro else 50
+                bet_amount = min(user["balance"] * 0.10, max_bet)
                 if bet_amount < 1:
                     continue
 
@@ -1708,6 +1722,22 @@ async def autobot_resolve():
 
     except Exception as e:
         return {"ok": False, "error": str(e)}
+
+
+@app.post("/api/autobot/reset")
+async def reset_autobot(request: Request):
+    """Reset a user's auto-bot balance (Pro gets $10K, free gets $1K)."""
+    body = await request.json()
+    email = body.get("email", "").lower()
+    if not email:
+        return {"error": "email required"}
+    all_trades = load_auto_bot_trades()
+    pros = load_pro_users() + ADMIN_PRO_EMAILS
+    is_pro = email in [p.lower() for p in pros]
+    balance = 10000 if is_pro else 1000
+    all_trades[email] = {"balance": balance, "trades": [], "total_pnl": 0, "created": datetime.now(timezone.utc).isoformat()}
+    save_auto_bot_trades(all_trades)
+    return {"ok": True, "balance": balance, "is_pro": is_pro}
 
 
 @app.get("/api/autobot/portfolio")
