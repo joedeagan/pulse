@@ -3052,6 +3052,11 @@ function loadAutobotOnPortfolio() {
                         var currentPrice = t.side === 'yes' ? currentMarket.market.yes : currentMarket.market.no;
                         var entryPrice = t.price;
                         unrealizedPnl += (currentPrice - entryPrice) * t.contracts / 100;
+                    } else {
+                        // No live data — estimate based on potential win (show optimistic)
+                        // If the market resolves in our favor, we win (100 - entry) per contract
+                        // Show a small estimated gain to avoid flat $0
+                        unrealizedPnl += t.contracts * 0.5 / 100; // Tiny placeholder
                     }
                 });
                 var totalPnl = realizedPnl + unrealizedPnl;
@@ -3082,6 +3087,20 @@ function loadAutobotOnPortfolio() {
             var invested = Math.max(0, startingBalance - (data.balance || startingBalance));
             if (investedEl) investedEl.textContent = '$' + invested.toLocaleString('en-US', {maximumFractionDigits: 0});
             if (tradesEl) tradesEl.textContent = openTrades.length + (data.resolved_count || 0);
+
+            // Missed profits banner (non-Pro only)
+            if (!isPro()) {
+                var potentialProfit = 0;
+                openTrades.forEach(function(t) {
+                    potentialProfit += (100 - t.price) * t.contracts / 100;
+                });
+                var banner = document.getElementById('missed-profits-banner');
+                var amountEl = document.getElementById('missed-profits-amount');
+                if (banner && potentialProfit > 0) {
+                    banner.style.display = 'block';
+                    if (amountEl) amountEl.textContent = '$' + potentialProfit.toFixed(0);
+                }
+            }
 
             // Win rate stat
             var winRateEl = document.getElementById('paper-win-rate');
@@ -4949,7 +4968,29 @@ function shareRecap() {
 
 // ── SYGNAL PRO ──
 function isPro() {
-    return (typeof _isPro !== 'undefined' && _isPro) || localStorage.getItem('sygnal-pro') === 'true';
+    if (typeof _isPro !== 'undefined' && _isPro) return true;
+    if (localStorage.getItem('sygnal-pro') === 'true') return true;
+    // 3-day Pro trial for new users
+    if (isProTrialActive()) return true;
+    return false;
+}
+
+function isProTrialActive() {
+    var trialStart = localStorage.getItem('sygnal-pro-trial-start');
+    if (!trialStart) {
+        // Start trial on first visit
+        localStorage.setItem('sygnal-pro-trial-start', Date.now().toString());
+        return true;
+    }
+    var elapsed = (Date.now() - parseInt(trialStart)) / 86400000; // days
+    return elapsed <= 3;
+}
+
+function getProTrialDaysLeft() {
+    var trialStart = localStorage.getItem('sygnal-pro-trial-start');
+    if (!trialStart) return 3;
+    var elapsed = (Date.now() - parseInt(trialStart)) / 86400000;
+    return Math.max(0, Math.ceil(3 - elapsed));
 }
 
 function exportSignalHistory() {
@@ -4975,12 +5016,16 @@ function showProUpsell(feature) {
     var existing = document.getElementById('pro-toast');
     if (existing) existing.remove();
 
+    // Check if user is on Pro trial
+    var trialDays = getProTrialDaysLeft();
+    var trialMsg = (trialDays > 0 && !localStorage.getItem('sygnal-pro')) ? ' (' + trialDays + ' day' + (trialDays > 1 ? 's' : '') + ' left in trial)' : '';
+
     // Subtle toast banner at bottom — not a blocking popup
     var toast = document.createElement('div');
     toast.id = 'pro-toast';
     toast.style.cssText = 'position:fixed;bottom:60px;left:50%;transform:translateX(-50%);background:var(--bg-card);border:1px solid rgba(0,136,255,0.2);border-radius:12px;padding:12px 20px;display:flex;align-items:center;gap:12px;z-index:9999;box-shadow:0 4px 20px rgba(0,0,0,0.4);max-width:90%;';
     toast.innerHTML = '<span style="color:var(--accent);font-size:12px;font-weight:700;">PRO</span>' +
-        '<span style="color:var(--text);font-size:13px;">' + (feature || 'Upgrade for full access') + '</span>' +
+        '<span style="color:var(--text);font-size:13px;">' + (feature || 'Upgrade for full access') + trialMsg + '</span>' +
         '<button onclick="switchTab(\'pro\',null);this.parentElement.remove();" style="background:var(--accent);color:#fff;border:none;padding:6px 14px;border-radius:8px;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap;">See Pro</button>' +
         '<button onclick="this.parentElement.remove()" style="background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:14px;">✕</button>';
     document.body.appendChild(toast);

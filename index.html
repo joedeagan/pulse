@@ -484,6 +484,17 @@
             <div style="font-size:12px;color:var(--text-dim);margin-top:4px;">Powered by Sygnal Score Auto-Bot</div>
         </div>
 
+        <!-- Missed profits banner (non-Pro only) -->
+        <div id="missed-profits-banner" style="display:none;background:linear-gradient(135deg,rgba(0,214,143,0.06),rgba(0,136,255,0.04));border:1px solid rgba(0,214,143,0.15);border-radius:10px;padding:14px 20px;margin-bottom:20px;display:none;">
+            <div style="display:flex;justify-content:space-between;align-items:center;">
+                <div>
+                    <div style="font-size:13px;color:var(--text);font-weight:600;">Your bot found <span id="missed-profits-amount" style="color:var(--green);font-weight:800;">$0</span> in potential profits</div>
+                    <div style="font-size:11px;color:var(--text-dim);margin-top:2px;">Upgrade to Pro to see full breakdown & signal reasoning</div>
+                </div>
+                <button onclick="switchTab('pro',null)" style="background:var(--accent);color:#fff;border:none;padding:8px 16px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;">See Pro</button>
+            </div>
+        </div>
+
         <!-- Stats row -->
         <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:20px;" id="portfolio-stats">
             <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:14px;text-align:center;">
@@ -843,6 +854,6 @@
         if (window.caches) caches.keys().then(function(k) { k.forEach(function(c) { caches.delete(c); }); });
     }
     </script>
-    <script src="app.js?v=70"></script>
+    <script src="app.js?v=71"></script>
 </body>
 </html>
