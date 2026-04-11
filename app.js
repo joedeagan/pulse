@@ -411,12 +411,18 @@ function renderMarkets(kalshiMarkets, polyMarkets) {
     document.getElementById('arb-count').textContent = arbitrage.length || '0';
     document.getElementById('refresh-time').textContent = `Updated ${new Date().toLocaleTimeString([], {hour: 'numeric', minute: '2-digit'})}`;
 
-    // Fetch bot equity for trust indicator
-    fetch(API_BASE + '/api/bot').then(r => r.json()).then(bot => {
-        var eq = (bot.portfolio_value || 0) + (bot.balance || 0);
-        var el = document.getElementById('bot-equity-stat');
-        if (el && eq > 0) el.textContent = '$' + eq.toFixed(2);
-    }).catch(() => {});
+    // Fetch bot/collective accuracy for trust indicator
+    fetch(API_BASE + '/api/collective/stats').then(function(r) { return r.json(); }).then(function(stats) {
+        var el = document.getElementById('bot-accuracy-stat');
+        if (!el) return;
+        if (stats.enough_data && stats.total_trades >= 10) {
+            el.textContent = stats.overall_win_rate + '%';
+            el.style.color = stats.overall_win_rate >= 55 ? 'var(--green)' : stats.overall_win_rate >= 45 ? 'var(--gold, #f0b000)' : 'var(--red)';
+        } else {
+            el.textContent = 'Tracking...';
+            el.style.color = 'var(--text-dim)';
+        }
+    }).catch(function() {});
 
     // Apply volume filter
     filterMarkets();
