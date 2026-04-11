@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { width: 1080px; height: 1080px; background: #0a0a12; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; overflow: hidden; position: relative; }
+
+  .gradient-top { position: absolute; top: 0; left: 0; right: 0; height: 5px; background: linear-gradient(90deg, #0088ff, #00d68f); }
+  .gradient-bot { position: absolute; bottom: 0; left: 0; right: 0; height: 5px; background: linear-gradient(90deg, #0088ff, #00d68f); }
+
+  .content { padding: 70px 80px 50px; display: flex; flex-direction: column; height: 100%; }
+
+  .header { text-align: center; margin-bottom: 30px; }
+  .header h1 { font-size: 72px; font-weight: 800; color: #fff; letter-spacing: 12px; }
+  .header .sub { font-size: 22px; font-weight: 700; color: #0088ff; letter-spacing: 6px; margin-top: 4px; }
+  .tagline { text-align: center; font-size: 26px; color: #aaa; font-weight: 500; margin-bottom: 35px; }
+
+  .divider { height: 2px; background: linear-gradient(90deg, transparent, #0088ff, #00d68f, transparent); margin-bottom: 35px; }
+
+  .features { flex: 1; display: flex; flex-direction: column; gap: 14px; }
+  .feature { background: #12121f; border: 1px solid rgba(255,255,255,0.06); border-radius: 14px; padding: 22px 28px; display: flex; align-items: center; gap: 20px; }
+  .feature .num { font-size: 18px; font-weight: 800; color: #0088ff; min-width: 32px; }
+  .feature .title { font-size: 18px; font-weight: 700; color: #0088ff; letter-spacing: 2px; min-width: 110px; }
+  .feature .desc { font-size: 19px; font-weight: 600; color: #d0d0d0; }
+
+  .bottom { text-align: center; margin-top: 30px; }
+  .pulse-line { margin: 0 auto 20px; }
+  .cta { font-size: 20px; color: #666; font-weight: 500; margin-bottom: 18px; }
+  .btn { display: inline-block; background: #0088ff; color: #fff; font-size: 22px; font-weight: 700; padding: 14px 50px; border-radius: 12px; letter-spacing: 1px; }
+</style>
+</head>
+<body>
+  <div class="gradient-top"></div>
+
+  <div class="content">
+    <div class="header">
+      <h1>SYGNAL</h1>
+      <div class="sub">MARKETS</div>
+    </div>
+
+    <div class="tagline">Your AI-powered prediction market trading bot.</div>
+
+    <div class="divider"></div>
+
+    <div class="features">
+      <div class="feature">
+        <span class="num">01</span>
+        <span class="title">SCAN</span>
+        <span class="desc">Scans Kalshi + Polymarket every 5 minutes</span>
+      </div>
+      <div class="feature">
+        <span class="num">02</span>
+        <span class="title">SCORE</span>
+        <span class="desc">Rates every market 1–99 on 5 factors</span>
+      </div>
+      <div class="feature">
+        <span class="num">03</span>
+        <span class="title">COMPARE</span>
+        <span class="desc">Compares against 40+ Vegas bookmakers</span>
+      </div>
+      <div class="feature">
+        <span class="num">04</span>
+        <span class="title">TRADE</span>
+        <span class="desc">Auto bot trades using Kelly criterion sizing</span>
+      </div>
+      <div class="feature">
+        <span class="num">05</span>
+        <span class="title">LEARN</span>
+        <span class="desc">Gets smarter from every user's results</span>
+      </div>
+    </div>
+
+    <div class="bottom">
+      <svg class="pulse-line" width="400" height="50" viewBox="0 0 400 50">
+        <polyline points="0,25 60,25 100,25 140,10 170,38 200,5 230,40 260,8 290,35 320,18 350,25 400,25" fill="none" stroke="url(#pg)" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+        <circle cx="400" cy="25" r="5" fill="#00d68f"/>
+        <defs><linearGradient id="pg" x1="0" y1="0" x2="400" y2="0" gradientUnits="userSpaceOnUse"><stop offset="0%" stop-color="#0088ff"/><stop offset="100%" stop-color="#00d68f"/></linearGradient></defs>
+      </svg>
+      <div class="cta">Free to use. Start with $10K paper balance.</div>
+      <div class="btn">sygnalmarkets.com</div>
+    </div>
+  </div>
+
+  <div class="gradient-bot"></div>
+</body>
+</html>
