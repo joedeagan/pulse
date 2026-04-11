@@ -704,8 +704,8 @@ async def generate_newsletter():
 <td><span style="font-size:9px;font-weight:700;color:{plat_color};letter-spacing:1px;background:{plat_bg};padding:3px 10px;border-radius:4px;">{plat}</span></td>
 <td align="right"><span style="color:{sig_color};font-size:9px;font-weight:700;background:{sig_bg};padding:3px 10px;border-radius:4px;">{sig}</span></td>
 </tr></table>
-<!-- Question -->
-<div style="color:#1a1a1a;font-size:14px;font-weight:600;line-height:1.5;margin:14px 0;" class="email-text">{q_text}</div>
+<!-- Question (fixed height for consistent cards) -->
+<div style="color:#1a1a1a;font-size:14px;font-weight:600;line-height:1.5;margin:14px 0;min-height:42px;" class="email-text">{q_text}</div>
 <!-- Prices -->
 <div style="margin-bottom:14px;">
 <span style="color:#00875a;font-size:16px;font-weight:700;">YES {s["yes"]}&#162;</span>
@@ -743,10 +743,12 @@ async def generate_newsletter():
 <table width="580" cellpadding="0" cellspacing="0" style="max-width:580px;">
 
 <!-- Header -->
-<tr><td style="padding:28px 0 20px;text-align:center;">
-<div style="font-size:28px;font-weight:800;color:#0a0a12;letter-spacing:4px;" class="email-header">SYGNAL</div>
-<div style="font-size:10px;color:#0088ff;font-weight:700;letter-spacing:4px;margin-top:4px;">WEEKLY MARKET DIGEST</div>
-<div style="font-size:11px;color:#999;margin-top:6px;" class="email-sub">{date_str} &middot; {len(all_markets)} markets tracked</div>
+<tr><td align="center" style="padding:28px 0 20px;text-align:center;">
+<table width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="text-align:center;">
+<div style="font-size:28px;font-weight:800;color:#0a0a12;letter-spacing:4px;text-align:center;" class="email-header">SYGNAL</div>
+<div style="font-size:10px;color:#0088ff;font-weight:700;letter-spacing:4px;margin-top:4px;text-align:center;">WEEKLY MARKET DIGEST</div>
+<div style="font-size:11px;color:#999;margin-top:6px;text-align:center;" class="email-sub">{date_str} &middot; {len(all_markets)} markets tracked</div>
+</td></tr></table>
 </td></tr>
 
 <!-- Blue accent line -->
