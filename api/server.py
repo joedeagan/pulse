@@ -216,13 +216,40 @@ async def get_kalshi():
     """Fetch live markets from Kalshi via events (avoids parlay spam)."""
     try:
         async with httpx.AsyncClient() as client:
-            # Fetch events — the clean parent questions
-            resp = await client.get(
-                "https://api.elections.kalshi.com/trade-api/v2/events",
-                params={"limit": 100, "status": "open"},
-                timeout=15,
-            )
-            events = resp.json().get("events", [])
+            # Fetch events — general + sports categories
+            all_events = []
+            for category in [None, "Sports"]:
+                params = {"limit": 100, "status": "open"}
+                if category:
+                    params["series_ticker"] = ""  # Can't filter by category directly
+                resp = await client.get(
+                    "https://api.elections.kalshi.com/trade-api/v2/events",
+                    params=params,
+                    timeout=15,
+                )
+                evts = resp.json().get("events", [])
+                seen = {e["event_ticker"] for e in all_events}
+                for e in evts:
+                    if e["event_ticker"] not in seen:
+                        all_events.append(e)
+
+            # Also fetch by specific sports series tickers
+            for series in ["KXMLB", "KXNBA", "KXNHL", "KXNFL", "KXSOCCER", "KXMMA", "KXTENNIS", "KXGOLF"]:
+                try:
+                    sresp = await client.get(
+                        "https://api.elections.kalshi.com/trade-api/v2/events",
+                        params={"series_ticker": series, "limit": 20, "status": "open"},
+                        timeout=8,
+                    )
+                    sevts = sresp.json().get("events", [])
+                    seen = {e["event_ticker"] for e in all_events}
+                    for e in sevts:
+                        if e["event_ticker"] not in seen:
+                            all_events.append(e)
+                except Exception:
+                    pass
+
+            events = all_events
 
             result = []
             for ev in events:
