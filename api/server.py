@@ -1226,17 +1226,19 @@ def compute_sygnal_scores(kalshi_markets, poly_markets):
             if yes < other_yes - 2: edge_direction = "YES"
             elif yes > other_yes + 2: edge_direction = "NO"
 
-        # 2. Value (0-25): Risk/reward ratio
+        # 2. Value (0-25): Risk/reward BUT penalize extreme longshots
         yes_roi = (100 - yes) / yes if yes > 0 else 0
         no_roi = (100 - no) / no if no > 0 else 0
         best_roi = max(yes_roi, no_roi)
-        if best_roi >= 4: value_score = 25
+        if best_roi >= 4: value_score = 18  # High ROI but likely longshot
         elif best_roi >= 2.5: value_score = 22
-        elif best_roi >= 1.5: value_score = 18
-        elif best_roi >= 1: value_score = 14
-        elif best_roi >= 0.5: value_score = 8
-        elif best_roi >= 0.2: value_score = 4
+        elif best_roi >= 1.5: value_score = 25  # Sweet spot: good odds + decent probability
+        elif best_roi >= 1: value_score = 20
+        elif best_roi >= 0.5: value_score = 12
+        elif best_roi >= 0.2: value_score = 6
         else: value_score = 1
+        # Penalize extreme odds — these are lottery tickets
+        if yes <= 15 or yes >= 85: value_score = max(0, value_score - 10)
         if yes <= 5 or yes >= 95: value_score = 0
 
         # 3. Momentum (0-15): base points server-side (no historical data)
@@ -1271,14 +1273,15 @@ def compute_sygnal_scores(kalshi_markets, poly_markets):
         # Cross-platform + value agreement = BUY
         if cross_vote == "YES" and value_vote == "YES": signal = "BUY YES"
         elif cross_vote == "NO" and value_vote == "NO": signal = "BUY NO"
-        # Strong value alone (very cheap YES or NO) = LEAN
-        if signal == "HOLD" and yes <= 30: signal = "LEAN YES"
-        elif signal == "HOLD" and yes >= 70: signal = "LEAN NO"
-        # High score without cross-platform = still LEAN based on value
-        if signal == "HOLD" and total >= 35:
-            if yes <= 45: signal = "LEAN YES"
-            elif yes >= 55: signal = "LEAN NO"
-        if yes <= 5 or yes >= 95: signal = "HOLD"
+        # Value alone — only signal if odds are reasonable (not extreme longshots)
+        if signal == "HOLD" and 20 <= yes <= 40: signal = "LEAN YES"
+        elif signal == "HOLD" and 60 <= yes <= 80: signal = "LEAN NO"
+        # High score without cross-platform = LEAN if in reasonable range
+        if signal == "HOLD" and total >= 40:
+            if 25 <= yes <= 45: signal = "LEAN YES"
+            elif 55 <= yes <= 75: signal = "LEAN NO"
+        # Never bet on extreme odds
+        if yes <= 10 or yes >= 90: signal = "HOLD"
 
         results.append({
             "ticker": ticker,
@@ -1782,6 +1785,10 @@ async def autobot_scan():
             if is_buy and s["score"] < 30:
                 continue
             if not is_buy and s["score"] < 55:
+                continue
+            # Skip longshots — only bet on reasonable probability markets
+            s_yes = s.get("yes", 50)
+            if s_yes <= 15 or s_yes >= 85:
                 continue
             # Tag days_left but don't filter globally — per-user max_days handles it
             days_left = s.get("days_left", -1)
