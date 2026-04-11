@@ -696,29 +696,26 @@ async def generate_newsletter():
         q_text = s["question"][:65]
         if len(s["question"]) > 65:
             q_text += "..."
-        scored_rows += f'''<tr><td style="padding:5px 0;">
+        scored_rows += f'''<tr><td style="padding:6px 0;">
 <table width="100%" cellpadding="0" cellspacing="0" style="background:#f8f9fa;border:1px solid #e0e0e0;border-radius:12px;" class="email-card">
-<tr><td style="padding:18px 20px;">
+<tr><td style="padding:20px;">
 <!-- Platform + Signal row -->
 <table width="100%" cellpadding="0" cellspacing="0"><tr>
-<td><span style="font-size:9px;font-weight:700;color:{plat_color};letter-spacing:1px;background:{plat_bg};padding:3px 8px;border-radius:4px;">{plat}</span></td>
-<td align="right"><span style="color:{sig_color};font-size:9px;font-weight:700;background:{sig_bg};padding:3px 8px;border-radius:4px;">{sig}</span></td>
+<td><span style="font-size:9px;font-weight:700;color:{plat_color};letter-spacing:1px;background:{plat_bg};padding:3px 10px;border-radius:4px;">{plat}</span></td>
+<td align="right"><span style="color:{sig_color};font-size:9px;font-weight:700;background:{sig_bg};padding:3px 10px;border-radius:4px;">{sig}</span></td>
 </tr></table>
 <!-- Question -->
-<div style="color:#1a1a1a;font-size:14px;font-weight:600;line-height:1.45;margin:12px 0 14px;" class="email-text">{q_text}</div>
-<!-- Score + Prices row -->
-<table width="100%" cellpadding="0" cellspacing="0"><tr>
-<td style="vertical-align:middle;">
+<div style="color:#1a1a1a;font-size:14px;font-weight:600;line-height:1.5;margin:14px 0;" class="email-text">{q_text}</div>
+<!-- Prices -->
+<div style="margin-bottom:14px;">
+<span style="color:#00875a;font-size:16px;font-weight:700;">YES {s["yes"]}&#162;</span>
+<span style="color:#ccc;font-size:11px;padding:0 6px;" class="email-dim">/</span>
+<span style="color:#cc2244;font-size:16px;font-weight:700;">NO {s["no"]}&#162;</span>
+</div>
+<!-- Score badge -->
 <table cellpadding="0" cellspacing="0"><tr>
-<td style="vertical-align:middle;"><div style="width:30px;height:30px;border-radius:50%;border:2px solid {sc_color};text-align:center;line-height:30px;color:{sc_color};font-size:12px;font-weight:800;">{sc}</div></td>
-<td style="padding-left:6px;vertical-align:middle;"><span style="font-size:9px;color:#999;font-weight:600;letter-spacing:1px;">SYGNAL</span></td>
-</tr></table>
-</td>
-<td align="right" style="vertical-align:middle;">
-<span style="color:#00875a;font-size:15px;font-weight:700;">YES {s["yes"]}&#162;</span>
-<span style="color:#ccc;font-size:12px;padding:0 4px;" class="email-dim">&middot;</span>
-<span style="color:#cc2244;font-size:15px;font-weight:700;">NO {s["no"]}&#162;</span>
-</td>
+<td style="vertical-align:middle;"><div style="width:32px;height:32px;border-radius:50%;border:2px solid {sc_color};text-align:center;line-height:32px;color:{sc_color};font-size:13px;font-weight:800;">{sc}</div></td>
+<td style="padding-left:8px;vertical-align:middle;"><span style="font-size:10px;color:#999;font-weight:600;letter-spacing:1px;">SYGNAL SCORE</span></td>
 </tr></table>
 </td></tr></table>
 </td></tr>'''
@@ -806,14 +803,28 @@ async def generate_newsletter():
     a_pnl_str = f"+${a_pnl:.2f}" if a_pnl >= 0 else f"-${abs(a_pnl):.2f}"
 
     user_bot_html = f'''<table width="100%" cellpadding="0" cellspacing="0" style="background:#eef3ff;border:1px solid #d0d8e8;border-radius:12px;margin-bottom:8px;" class="email-bot-bg">
-<tr><td style="padding:18px 20px;">
-<div style="font-size:10px;font-weight:700;color:#0088ff;letter-spacing:2px;margin-bottom:12px;">YOUR BOT</div>
-<table width="100%" cellpadding="0" cellspacing="0"><tr>
-<td width="25%" style="text-align:center;vertical-align:top;padding:0 4px;"><div style="font-size:18px;font-weight:800;color:#1a1a1a;line-height:1.2;" class="email-text">${a_balance:,.0f}</div><div style="font-size:8px;color:#999;letter-spacing:1.5px;margin-top:4px;font-weight:600;">BALANCE</div></td>
-<td width="25%" style="text-align:center;vertical-align:top;padding:0 4px;"><div style="font-size:18px;font-weight:800;color:{a_pnl_color};line-height:1.2;">{a_pnl_str}</div><div style="font-size:8px;color:#999;letter-spacing:1.5px;margin-top:4px;font-weight:600;">P&amp;L</div></td>
-<td width="25%" style="text-align:center;vertical-align:top;padding:0 4px;"><div style="font-size:18px;font-weight:800;color:#1a1a1a;line-height:1.2;" class="email-text">{a_open}</div><div style="font-size:8px;color:#999;letter-spacing:1.5px;margin-top:4px;font-weight:600;">OPEN</div></td>
-<td width="25%" style="text-align:center;vertical-align:top;padding:0 4px;"><div style="font-size:18px;font-weight:800;color:#1a1a1a;line-height:1.2;" class="email-text">{a_wins}W/{a_losses}L</div><div style="font-size:8px;color:#999;letter-spacing:1.5px;margin-top:4px;font-weight:600;">RECORD</div></td>
-</tr></table>
+<tr><td style="padding:20px;">
+<div style="font-size:10px;font-weight:700;color:#0088ff;letter-spacing:2px;margin-bottom:14px;">YOUR BOT</div>
+<table width="100%" cellpadding="0" cellspacing="0">
+<tr>
+<td width="25%" style="text-align:center;vertical-align:top;padding:0 6px;">
+<div style="font-size:20px;font-weight:800;color:#1a1a1a;line-height:1;" class="email-text">${a_balance:,.0f}</div>
+<div style="font-size:9px;color:#999;letter-spacing:1px;margin-top:6px;font-weight:600;">BALANCE</div>
+</td>
+<td width="25%" style="text-align:center;vertical-align:top;padding:0 6px;">
+<div style="font-size:20px;font-weight:800;color:{a_pnl_color};line-height:1;">{a_pnl_str}</div>
+<div style="font-size:9px;color:#999;letter-spacing:1px;margin-top:6px;font-weight:600;">P&amp;L</div>
+</td>
+<td width="25%" style="text-align:center;vertical-align:top;padding:0 6px;">
+<div style="font-size:20px;font-weight:800;color:#1a1a1a;line-height:1;" class="email-text">{a_open}</div>
+<div style="font-size:9px;color:#999;letter-spacing:1px;margin-top:6px;font-weight:600;">OPEN</div>
+</td>
+<td width="25%" style="text-align:center;vertical-align:top;padding:0 6px;">
+<div style="font-size:20px;font-weight:800;color:#1a1a1a;line-height:1;" class="email-text">{a_wins}W/{a_losses}L</div>
+<div style="font-size:9px;color:#999;letter-spacing:1px;margin-top:6px;font-weight:600;">RECORD</div>
+</td>
+</tr>
+</table>
 </td></tr></table>'''
 
     # For preview: inject admin bot data; for send: keep placeholder for per-user personalization
@@ -874,14 +885,28 @@ async def send_newsletter():
                 pnl_str = f"+${total_pnl:.2f}" if total_pnl >= 0 else f"-${abs(total_pnl):.2f}"
 
                 user_section = f'''<table width="100%" cellpadding="0" cellspacing="0" style="background:#eef3ff;border:1px solid #d0d8e8;border-radius:12px;margin-bottom:8px;" class="email-bot-bg">
-<tr><td style="padding:18px 20px;">
-<div style="font-size:10px;font-weight:700;color:#0088ff;letter-spacing:2px;margin-bottom:12px;">YOUR BOT</div>
-<table width="100%" cellpadding="0" cellspacing="0"><tr>
-<td width="25%" style="text-align:center;vertical-align:top;padding:0 4px;"><div style="font-size:18px;font-weight:800;color:#1a1a1a;line-height:1.2;" class="email-text">${balance:,.0f}</div><div style="font-size:8px;color:#999;letter-spacing:1.5px;margin-top:4px;font-weight:600;">BALANCE</div></td>
-<td width="25%" style="text-align:center;vertical-align:top;padding:0 4px;"><div style="font-size:18px;font-weight:800;color:{pnl_color};line-height:1.2;">{pnl_str}</div><div style="font-size:8px;color:#999;letter-spacing:1.5px;margin-top:4px;font-weight:600;">P&amp;L</div></td>
-<td width="25%" style="text-align:center;vertical-align:top;padding:0 4px;"><div style="font-size:18px;font-weight:800;color:#1a1a1a;line-height:1.2;" class="email-text">{len(open_trades)}</div><div style="font-size:8px;color:#999;letter-spacing:1.5px;margin-top:4px;font-weight:600;">OPEN</div></td>
-<td width="25%" style="text-align:center;vertical-align:top;padding:0 4px;"><div style="font-size:18px;font-weight:800;color:#1a1a1a;line-height:1.2;" class="email-text">{wins}W/{losses}L</div><div style="font-size:8px;color:#999;letter-spacing:1.5px;margin-top:4px;font-weight:600;">RECORD</div></td>
-</tr></table>
+<tr><td style="padding:20px;">
+<div style="font-size:10px;font-weight:700;color:#0088ff;letter-spacing:2px;margin-bottom:14px;">YOUR BOT</div>
+<table width="100%" cellpadding="0" cellspacing="0">
+<tr>
+<td width="25%" style="text-align:center;vertical-align:top;padding:0 6px;">
+<div style="font-size:20px;font-weight:800;color:#1a1a1a;line-height:1;" class="email-text">${balance:,.0f}</div>
+<div style="font-size:9px;color:#999;letter-spacing:1px;margin-top:6px;font-weight:600;">BALANCE</div>
+</td>
+<td width="25%" style="text-align:center;vertical-align:top;padding:0 6px;">
+<div style="font-size:20px;font-weight:800;color:{pnl_color};line-height:1;">{pnl_str}</div>
+<div style="font-size:9px;color:#999;letter-spacing:1px;margin-top:6px;font-weight:600;">P&amp;L</div>
+</td>
+<td width="25%" style="text-align:center;vertical-align:top;padding:0 6px;">
+<div style="font-size:20px;font-weight:800;color:#1a1a1a;line-height:1;" class="email-text">{len(open_trades)}</div>
+<div style="font-size:9px;color:#999;letter-spacing:1px;margin-top:6px;font-weight:600;">OPEN</div>
+</td>
+<td width="25%" style="text-align:center;vertical-align:top;padding:0 6px;">
+<div style="font-size:20px;font-weight:800;color:#1a1a1a;line-height:1;" class="email-text">{wins}W/{losses}L</div>
+<div style="font-size:9px;color:#999;letter-spacing:1px;margin-top:6px;font-weight:600;">RECORD</div>
+</td>
+</tr>
+</table>
 </td></tr></table>'''
 
             personalized_html = html_template.replace("<!--USER_BOT_PLACEHOLDER-->", user_section)
