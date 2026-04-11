@@ -2160,10 +2160,54 @@ async function loadBot() {
             posDiv.innerHTML = '<p style="color:var(--text-dim);font-size:13px;">No open positions</p>';
         }
     } catch(e) {
-        // Bot offline — show error message instead of hiding
         document.getElementById('bot-balance').textContent = '—';
         document.getElementById('bot-status').textContent = 'Offline';
         document.getElementById('bot-status').className = 'bot-stat-value stopped';
+    }
+
+    // Load bot paper picks
+    loadBotPicks();
+}
+
+async function loadBotPicks() {
+    var el = document.getElementById('bot-picks-list');
+    if (!el) return;
+    try {
+        var resp = await fetch(API_BASE + '/api/bot/picks?limit=10');
+        var data = await resp.json();
+        var picks = data.picks || [];
+        if (picks.length === 0) {
+            el.innerHTML = '<p style="color:var(--text-dim);font-size:13px;">No paper picks yet — bot is scanning for opportunities.</p>';
+            return;
+        }
+        var wins = picks.filter(function(p) { return p.outcome === 'win'; }).length;
+        var losses = picks.filter(function(p) { return p.outcome === 'loss'; }).length;
+        var resolved = wins + losses;
+        var winRate = resolved > 0 ? Math.round(wins / resolved * 100) : 0;
+
+        el.innerHTML = (resolved > 0 ? '<div style="margin-bottom:12px;padding:10px;background:var(--bg-card);border:1px solid var(--border);border-radius:8px;display:flex;gap:16px;font-size:13px;"><span style="color:var(--green);font-weight:700;">' + winRate + '% win rate</span><span style="color:var(--text-dim);">' + wins + 'W / ' + losses + 'L</span></div>' : '') +
+            picks.map(function(p) {
+                var statusColor = p.resolved ? (p.outcome === 'win' ? 'var(--green)' : 'var(--red)') : 'var(--accent)';
+                var statusText = p.resolved ? (p.outcome === 'win' ? 'WON' : 'LOST') : 'OPEN';
+                var pnlText = p.pnl != null ? (p.pnl >= 0 ? '+' + p.pnl + '¢' : p.pnl + '¢') : '';
+                var timeAgo = '';
+                try {
+                    var mins = Math.floor((Date.now() - new Date(p.timestamp).getTime()) / 60000);
+                    if (mins < 60) timeAgo = mins + 'm ago';
+                    else if (mins < 1440) timeAgo = Math.floor(mins/60) + 'h ago';
+                    else timeAgo = Math.floor(mins/1440) + 'd ago';
+                } catch(e) {}
+                return '<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.04);">' +
+                    '<span style="color:' + statusColor + ';font-weight:700;font-size:11px;min-width:40px;">' + statusText + '</span>' +
+                    '<span style="color:' + (p.side === 'yes' ? 'var(--green)' : 'var(--red)') + ';font-weight:600;font-size:11px;min-width:30px;">' + p.side.toUpperCase() + '</span>' +
+                    '<span style="flex:1;color:var(--text);font-size:13px;">' + (p.question || p.ticker).substring(0, 40) + '</span>' +
+                    '<span style="color:var(--text-dim);font-size:11px;">' + p.price + '¢</span>' +
+                    (pnlText ? '<span style="color:' + statusColor + ';font-size:11px;font-weight:600;">' + pnlText + '</span>' : '') +
+                    '<span style="color:var(--text-dim);font-size:10px;">' + timeAgo + '</span>' +
+                '</div>';
+            }).join('');
+    } catch(e) {
+        el.innerHTML = '<p style="color:var(--text-dim);font-size:13px;">Bot picks unavailable.</p>';
     }
 }
 

@@ -1336,6 +1336,96 @@ async def get_intelligence():
     return result
 
 
+# ─── BOT PAPER TRADES ───
+
+BOT_PICKS_FILE = os.path.join(DATA_DIR, "bot_picks.json")
+
+
+def load_bot_picks():
+    try:
+        with open(BOT_PICKS_FILE, "r") as f:
+            return json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError):
+        return []
+
+
+def save_bot_picks(picks):
+    with open(BOT_PICKS_FILE, "w") as f:
+        json.dump(picks[-100:], f)  # Keep last 100
+
+
+@app.post("/api/bot/picks")
+async def add_bot_pick(request: Request):
+    """Bot posts its paper trade picks here."""
+    body = await request.json()
+    ticker = body.get("ticker", "")
+    side = body.get("side", "")
+    price = body.get("price", 0)
+    score = body.get("score", 0)
+    signal = body.get("signal", "")
+    reason = body.get("reason", "")
+    question = body.get("question", "")
+
+    if not ticker or not side:
+        return {"error": "ticker and side required"}
+
+    pick = {
+        "ticker": ticker,
+        "question": question,
+        "side": side,
+        "price": price,
+        "score": score,
+        "signal": signal,
+        "reason": reason,
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "resolved": False,
+        "outcome": None,
+        "pnl": None,
+    }
+
+    picks = load_bot_picks()
+    # Don't duplicate same ticker
+    if any(p["ticker"] == ticker and not p["resolved"] for p in picks):
+        return {"ok": True, "msg": "already tracked"}
+
+    picks.append(pick)
+    save_bot_picks(picks)
+    return {"ok": True, "pick": pick}
+
+
+@app.get("/api/bot/picks")
+async def get_bot_picks(limit: int = 20):
+    """Get bot's paper trade picks for display."""
+    picks = load_bot_picks()
+    # Most recent first
+    picks.reverse()
+    return {"picks": picks[:limit], "total": len(picks)}
+
+
+@app.post("/api/bot/picks/resolve")
+async def resolve_bot_pick(request: Request):
+    """Resolve a bot pick with outcome."""
+    body = await request.json()
+    ticker = body.get("ticker", "")
+    outcome = body.get("outcome", "")  # "win" or "loss"
+    final_price = body.get("final_price", 0)
+
+    picks = load_bot_picks()
+    for p in picks:
+        if p["ticker"] == ticker and not p["resolved"]:
+            p["resolved"] = True
+            p["outcome"] = outcome
+            entry = p["price"]
+            if p["side"] == "yes":
+                p["pnl"] = (final_price - entry) if outcome == "win" else -entry
+            else:
+                p["pnl"] = ((100 - entry) - (100 - final_price)) if outcome == "win" else -(100 - entry)
+            break
+
+    save_bot_picks(picks)
+    return {"ok": True}
+
+
 # ─── Sygnal AUTOPILOT (Smart Alerts Scanner) ───
 
 ONESIGNAL_APP_ID = os.environ.get("ONESIGNAL_APP_ID", "")

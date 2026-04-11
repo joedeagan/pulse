@@ -681,6 +681,13 @@
         <!-- Bot Signals -->
         <div id="bot-signals-section"></div>
 
+        <!-- Bot Paper Picks -->
+        <div class="bot-picks-section" style="margin-top:20px;">
+            <h3 style="font-size:13px;letter-spacing:2px;color:var(--text-dim);margin-bottom:12px;">BOT PAPER PICKS</h3>
+            <p style="font-size:12px;color:var(--text-dim);margin-bottom:12px;">Markets the bot's Sygnal Score algorithm would trade right now.</p>
+            <div id="bot-picks-list" style="font-size:13px;color:var(--text-dim);">Loading picks...</div>
+        </div>
+
         <!-- Performance Dashboard -->
         <div class="bot-perf-dashboard">
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
@@ -830,6 +837,6 @@
         if (window.caches) caches.keys().then(function(k) { k.forEach(function(c) { caches.delete(c); }); });
     }
     </script>
-    <script src="app.js?v=37"></script>
+    <script src="app.js?v=38"></script>
 </body>
 </html>
