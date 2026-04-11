@@ -1707,6 +1707,29 @@ def save_auto_bot_trades(data):
         json.dump(data, f)
 
 
+@app.post("/api/autobot/register")
+async def autobot_register(request: Request):
+    """Register a user for auto-bot trading. Called on sign-in/sign-up."""
+    body = await request.json()
+    email = body.get("email", "").strip().lower()
+    if not email or "@" not in email:
+        return {"error": "valid email required"}
+
+    all_trades = load_auto_bot_trades()
+    if email in all_trades:
+        return {"ok": True, "status": "already_registered", "balance": all_trades[email]["balance"]}
+
+    all_trades[email] = {
+        "balance": 10000,
+        "trades": [],
+        "total_pnl": 0,
+        "created": datetime.now(timezone.utc).isoformat(),
+        "settings": {"max_days": 30},
+    }
+    save_auto_bot_trades(all_trades)
+    return {"ok": True, "status": "registered", "balance": 10000}
+
+
 @app.post("/api/autobot/scan")
 async def autobot_scan():
     """Run auto paper bot scan — places paper trades for all Pro users using Sygnal Scores."""
@@ -1760,12 +1783,14 @@ async def autobot_scan():
         if not top_picks:
             return {"ok": True, "picks": 0, "msg": "No actionable signals"}
 
-        # Get all registered users (Pro + free with trial)
+        # Get all registered users: Pro + subscribers + anyone registered for bot
         pros = load_pro_users() + ADMIN_PRO_EMAILS
         pros = list(set(p.lower() for p in pros))
-        # Also include subscribers (free users who signed up)
         subs = load_subscribers()
-        all_emails = list(set(pros + [s.lower() if isinstance(s, str) else s.get("email", "").lower() for s in subs]))
+        sub_emails = [s.lower() if isinstance(s, str) else s.get("email", "").lower() for s in subs]
+        # Include everyone already in auto_bot_trades (registered via /api/autobot/register)
+        existing_bot_users = list(load_auto_bot_trades().keys())
+        all_emails = list(set(pros + sub_emails + existing_bot_users))
         all_emails = [e for e in all_emails if e and "@" in e]
 
         all_trades = load_auto_bot_trades()

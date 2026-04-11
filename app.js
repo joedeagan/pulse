@@ -5952,6 +5952,14 @@ function initFirebase() {
                 updateAuthUI(user);
                 loadUserData(user.uid);
                 checkProStatus();
+                // Register user for auto-bot trading
+                if (user.email) {
+                    fetch(API_BASE + '/api/autobot/register', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({email: user.email})
+                    }).catch(function(){});
+                }
             } else {
                 // Don't reset Pro on initial null — wait for auth to settle
                 setTimeout(function() {
