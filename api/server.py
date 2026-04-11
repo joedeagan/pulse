@@ -1947,11 +1947,9 @@ async def autobot_scan():
             if s["signal"] not in ("BUY YES", "BUY NO", "LEAN YES", "LEAN NO"):
                 continue
             # BUY signals: score >= 30 minimum
-            # LEAN signals: need score >= 40
+            # LEAN signals: need score >= 30 (same as BUY)
             is_buy = "BUY" in s["signal"]
-            if is_buy and s["score"] < 30:
-                continue
-            if not is_buy and s["score"] < 40:
+            if s["score"] < 30:
                 continue
             # Skip extreme longshots — Kelly sizing handles moderate ones
             s_yes = s.get("yes", 50)
