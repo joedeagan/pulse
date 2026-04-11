@@ -729,17 +729,8 @@ async def generate_newsletter():
 <!-- Main content -->
 <tr><td bgcolor="#0e0e1a" style="padding:24px;border-radius:0 0 12px 12px;">
 
-<!-- Your Bot Stats (personalized per user when sent) -->
-<table width="100%" cellpadding="0" cellspacing="0" style="background:#0a1628;border:1px solid #1a2a4a;border-radius:10px;margin-bottom:16px;">
-<tr><td style="padding:16px;">
-<div style="font-size:11px;font-weight:700;color:#0088ff;letter-spacing:2px;margin-bottom:10px;">YOUR BOT THIS WEEK</div>
-<table width="100%"><tr>
-<td style="text-align:center;"><div style="font-size:22px;font-weight:800;color:#fff;">$9,000</div><div style="font-size:9px;color:#555;letter-spacing:1px;">BALANCE</div></td>
-<td style="text-align:center;"><div style="font-size:22px;font-weight:800;color:#00d68f;">+$0.00</div><div style="font-size:9px;color:#555;letter-spacing:1px;">P&amp;L</div></td>
-<td style="text-align:center;"><div style="font-size:22px;font-weight:800;color:#fff;">5</div><div style="font-size:9px;color:#555;letter-spacing:1px;">OPEN</div></td>
-<td style="text-align:center;"><div style="font-size:22px;font-weight:800;color:#fff;">0W/0L</div><div style="font-size:9px;color:#555;letter-spacing:1px;">RECORD</div></td>
-</tr></table>
-</td></tr></table>
+<!-- Your Bot Stats -->
+<!--USER_BOT_PLACEHOLDER-->
 
 <!-- Top Scored Markets -->
 <table width="100%" cellpadding="0" cellspacing="0">
@@ -768,6 +759,30 @@ async def generate_newsletter():
 </td></tr></table>
 </body></html>"""
 
+    # Pull admin bot data for preview
+    all_bot = load_auto_bot_trades()
+    admin_data = all_bot.get("joeydeagan2010@gmail.com", {})
+    a_balance = admin_data.get("balance", 10000)
+    a_pnl = admin_data.get("total_pnl", 0)
+    a_open = len([t for t in admin_data.get("trades", []) if not t.get("resolved")])
+    a_resolved = [t for t in admin_data.get("trades", []) if t.get("resolved")]
+    a_wins = sum(1 for t in a_resolved if t.get("outcome") == "win")
+    a_losses = sum(1 for t in a_resolved if t.get("outcome") == "loss")
+    a_pnl_color = "#00d68f" if a_pnl >= 0 else "#ff3b5c"
+    a_pnl_str = f"+${a_pnl:.2f}" if a_pnl >= 0 else f"-${abs(a_pnl):.2f}"
+
+    user_bot_html = f'''<table width="100%" cellpadding="0" cellspacing="0" style="background:#0a1628;border:1px solid #1a2a4a;border-radius:10px;margin-bottom:16px;">
+<tr><td style="padding:16px;">
+<div style="font-size:11px;font-weight:700;color:#0088ff;letter-spacing:2px;margin-bottom:10px;">YOUR BOT</div>
+<table width="100%"><tr>
+<td style="text-align:center;width:25%;"><div style="font-size:20px;font-weight:800;color:#fff;">${a_balance:,.0f}</div><div style="font-size:9px;color:#555;letter-spacing:1px;margin-top:2px;">BALANCE</div></td>
+<td style="text-align:center;width:25%;"><div style="font-size:20px;font-weight:800;color:{a_pnl_color};">{a_pnl_str}</div><div style="font-size:9px;color:#555;letter-spacing:1px;margin-top:2px;">P&amp;L</div></td>
+<td style="text-align:center;width:25%;"><div style="font-size:20px;font-weight:800;color:#fff;">{a_open}</div><div style="font-size:9px;color:#555;letter-spacing:1px;margin-top:2px;">OPEN</div></td>
+<td style="text-align:center;width:25%;"><div style="font-size:20px;font-weight:800;color:#fff;">{a_wins}W / {a_losses}L</div><div style="font-size:9px;color:#555;letter-spacing:1px;margin-top:2px;">RECORD</div></td>
+</tr></table>
+</td></tr></table>'''
+
+    html = html.replace("<!--USER_BOT_PLACEHOLDER-->", user_bot_html)
     return HTMLResponse(content=html)
 
 
