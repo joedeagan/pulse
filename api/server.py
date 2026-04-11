@@ -1780,11 +1780,11 @@ async def autobot_scan():
             if s["signal"] not in ("BUY YES", "BUY NO", "LEAN YES", "LEAN NO"):
                 continue
             # BUY signals: score >= 30 minimum
-            # LEAN signals: need score >= 55 (higher bar for lower confidence)
+            # LEAN signals: need score >= 40
             is_buy = "BUY" in s["signal"]
             if is_buy and s["score"] < 30:
                 continue
-            if not is_buy and s["score"] < 55:
+            if not is_buy and s["score"] < 40:
                 continue
             # Skip longshots — only bet on reasonable probability markets
             s_yes = s.get("yes", 50)
