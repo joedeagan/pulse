@@ -2406,7 +2406,7 @@ function openDetail(market, platform) {
                 </div>
                 ${_isPro ? '<span style="color:var(--text-dim);font-size:12px;display:block;">' + (sig.breakdown ? 'Edge ' + (sig.breakdown.edge||0) + ' + Value ' + (sig.breakdown.value||0) + ' + Mom ' + (sig.breakdown.momentum||0) + ' + Conf ' + (sig.breakdown.confidence||0) + ' + Timing ' + (sig.breakdown.timing||0) : 'Score ' + sygnalScore + '/99') + '</span>' : '<span style="color:var(--text-dim);font-size:12px;display:block;">Score breakdown <a href="#" onclick="upgradeToPro();return false;" style="color:var(--accent);">Unlock with Pro</a></span>'}
                 ${_isPro && sig.crossEdge > 0 ? '<span style="color:var(--purple);font-size:11px;display:block;margin-top:4px;">Cross-platform edge: ' + sig.crossEdge + '¢ price gap detected</span>' : ''}
-                ${sig.signal.includes('BUY') ? (_isPro ? '<span style="color:var(--green);font-size:11px;display:block;margin-top:2px;">Why: ' + _getSignalReason(market, sig) + '</span>' : '<span style="color:var(--text-dim);font-size:11px;display:block;margin-top:2px;">Signal explanation <a href="#" onclick="upgradeToPro();return false;" style="color:var(--accent);">Unlock with Pro</a></span>') : ''}
+                ${(sig.signal.includes('BUY') || sig.signal.includes('LEAN')) ? (_isPro ? '<span style="color:var(--green);font-size:11px;display:block;margin-top:2px;">Why: ' + _getSignalReason(market, sig) + '</span>' : '<span style="color:var(--text-dim);font-size:11px;display:block;margin-top:2px;">Signal explanation <a href="#" onclick="upgradeToPro();return false;" style="color:var(--accent);">Unlock with Pro</a></span>') : ''}
             </div>
         </div>
         ${crossHtml}
