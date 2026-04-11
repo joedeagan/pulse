@@ -693,72 +693,82 @@ async def generate_newsletter():
         plat = "KALSHI" if s.get("source") == "kalshi" else "POLY"
         plat_color = "#0088ff" if plat == "KALSHI" else "#00d68f"
         scored_rows += f'''<tr><td style="padding:6px 0;">
-<table width="100%" cellpadding="0" cellspacing="0" style="background:#111118;border:1px solid #1a1a2e;border-radius:10px;">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#f8f9fa;border:1px solid #e8e8e8;border-radius:10px;" class="email-card">
 <tr><td style="padding:16px;">
 <table width="100%"><tr>
 <td style="font-size:10px;font-weight:700;color:{plat_color};letter-spacing:1px;">{plat}</td>
 <td align="right"><span style="color:{sig_color};font-size:10px;font-weight:700;background:{sig_bg};padding:3px 8px;border-radius:4px;">{sig}</span></td>
 </tr></table>
-<div style="color:#e0e0e0;font-size:14px;font-weight:600;line-height:1.4;margin:8px 0;">{s["question"][:60]}</div>
-<div style="margin-bottom:10px;">
-<span style="color:#00d68f;font-size:16px;font-weight:700;">YES {s["yes"]}&#162;</span> &nbsp;
-<span style="color:#ff3b5c;font-size:16px;font-weight:700;">NO {s["no"]}&#162;</span>
+<div style="color:#1a1a1a;font-size:15px;font-weight:600;line-height:1.4;margin:10px 0;" class="email-text">{s["question"][:60]}</div>
+<div style="margin-bottom:12px;">
+<span style="color:#00875a;font-size:17px;font-weight:700;">YES {s["yes"]}&#162;</span> &nbsp;&nbsp;
+<span style="color:#cc2244;font-size:17px;font-weight:700;">NO {s["no"]}&#162;</span>
 </div>
 <table><tr>
-<td style="width:32px;"><div style="width:30px;height:30px;border-radius:50%;border:2px solid {sc_color};text-align:center;line-height:30px;color:{sc_color};font-size:12px;font-weight:800;">{sc}</div></td>
-<td style="padding-left:6px;color:#555;font-size:10px;">SYGNAL</td>
+<td style="width:34px;"><div style="width:32px;height:32px;border-radius:50%;border:2px solid {sc_color};text-align:center;line-height:32px;color:{sc_color};font-size:13px;font-weight:800;">{sc}</div></td>
+<td style="padding-left:8px;color:#999;font-size:10px;font-weight:600;">SYGNAL</td>
 </tr></table>
 </td></tr></table>
 </td></tr>'''
 
-    html = f"""<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"></head>
-<body style="margin:0;padding:0;background-color:#06060b;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;">
-<div style="background-color:#06060b;width:100%;padding:0;margin:0;">
-<table width="100%" cellpadding="0" cellspacing="0" bgcolor="#06060b" style="background-color:#06060b;"><tr><td align="center" style="padding:24px 16px;background-color:#06060b;">
+    html = f"""<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width">
+<meta name="color-scheme" content="light dark">
+<meta name="supported-color-schemes" content="light dark">
+<style>
+:root {{ color-scheme: light dark; }}
+@media (prefers-color-scheme: dark) {{
+  .email-bg {{ background-color: #0a0a12 !important; }}
+  .email-card {{ background-color: #111118 !important; border-color: #1a1a2e !important; }}
+  .email-text {{ color: #e0e0e0 !important; }}
+  .email-dim {{ color: #888 !important; }}
+  .email-header {{ color: #ffffff !important; }}
+  .email-bot-bg {{ background-color: #0a1628 !important; }}
+}}
+</style>
+</head>
+<body style="margin:0;padding:0;background-color:#f5f5f5;font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif;" class="email-bg">
+<table width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding:24px 16px;">
 <table width="580" cellpadding="0" cellspacing="0" style="max-width:580px;">
 
 <!-- Header -->
 <tr><td style="padding:24px 0;text-align:center;">
-<span style="font-size:32px;font-weight:800;color:#ffffff;letter-spacing:3px;">SYGNAL</span>
+<span style="font-size:32px;font-weight:800;color:#0a0a12;letter-spacing:3px;" class="email-header">SYGNAL</span>
 <br><span style="font-size:11px;color:#0088ff;font-weight:700;letter-spacing:4px;">WEEKLY MARKET DIGEST</span>
-<br><span style="font-size:12px;color:#555;">{date_str} &middot; {len(all_markets)} markets</span>
+<br><span style="font-size:12px;color:#888;" class="email-dim">{date_str} &middot; {len(all_markets)} markets tracked</span>
 </td></tr>
 
-<!-- Accent line -->
-<tr><td><table width="100%"><tr><td style="height:2px;background:linear-gradient(90deg,#0088ff,#00d68f);font-size:0;">&nbsp;</td></tr></table></td></tr>
+<!-- Blue accent -->
+<tr><td><table width="100%"><tr><td style="height:3px;background:#0088ff;font-size:0;">&nbsp;</td></tr></table></td></tr>
 
-<!-- Main content -->
-<tr><td bgcolor="#0e0e1a" style="padding:24px;border-radius:0 0 12px 12px;">
+<!-- Main card -->
+<tr><td style="padding:24px;background:#ffffff;border:1px solid #eee;" class="email-card">
 
-<!-- Your Bot Stats -->
+<!-- Bot stats placeholder -->
 <!--USER_BOT_PLACEHOLDER-->
 
-<!-- Top Scored Markets -->
+<!-- Top Markets -->
 <table width="100%" cellpadding="0" cellspacing="0">
-<tr><td style="padding:0 0 12px;"><span style="font-size:11px;font-weight:700;color:#0088ff;letter-spacing:2px;">TOP SYGNAL SCORES</span></td></tr>
+<tr><td style="padding:0 0 16px;"><span style="font-size:11px;font-weight:700;color:#0088ff;letter-spacing:2px;">TOP SYGNAL SCORES</span></td></tr>
 {scored_rows}
 </table>
 
-
 <!-- CTA -->
-<table width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding:28px 0 8px;">
+<table width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding:24px 0 8px;">
 <table cellpadding="0" cellspacing="0"><tr><td bgcolor="#0088ff" style="padding:14px 40px;border-radius:8px;">
-<a href="{SITE}" style="color:#fff;text-decoration:none;font-size:14px;font-weight:700;letter-spacing:1px;">Open Dashboard &#8594;</a>
+<a href="{SITE}" style="color:#fff;text-decoration:none;font-size:14px;font-weight:700;">Open Dashboard &#8594;</a>
 </td></tr></table>
 </td></tr></table>
 
 </td></tr>
 
 <!-- Footer -->
-<tr><td style="padding:24px 0;text-align:center;">
-<span style="font-size:11px;color:#444;">Sygnal Markets &middot; sygnalmarkets.com</span><br>
-<span style="font-size:10px;color:#333;">You received this because you signed up for Sygnal.</span><br>
+<tr><td style="padding:20px 0;text-align:center;">
+<span style="font-size:11px;color:#999;">Sygnal Markets &middot; sygnalmarkets.com</span><br>
 <a href="{SITE}/api/unsubscribe" style="font-size:10px;color:#0088ff;">Unsubscribe</a>
 </td></tr>
 
 </table>
 </td></tr></table>
-</div>
 </body></html>"""
 
     # Pull admin bot data for preview
@@ -773,14 +783,14 @@ async def generate_newsletter():
     a_pnl_color = "#00d68f" if a_pnl >= 0 else "#ff3b5c"
     a_pnl_str = f"+${a_pnl:.2f}" if a_pnl >= 0 else f"-${abs(a_pnl):.2f}"
 
-    user_bot_html = f'''<table width="100%" cellpadding="0" cellspacing="0" style="background:#0a1628;border:1px solid #1a2a4a;border-radius:10px;margin-bottom:16px;">
+    user_bot_html = f'''<table width="100%" cellpadding="0" cellspacing="0" style="background:#eef3ff;border:1px solid #d0d8e8;border-radius:10px;margin-bottom:16px;" class="email-bot-bg">
 <tr><td style="padding:16px;">
 <div style="font-size:11px;font-weight:700;color:#0088ff;letter-spacing:2px;margin-bottom:10px;">YOUR BOT</div>
 <table width="100%"><tr>
-<td style="text-align:center;width:25%;"><div style="font-size:20px;font-weight:800;color:#fff;">${a_balance:,.0f}</div><div style="font-size:9px;color:#555;letter-spacing:1px;margin-top:2px;">BALANCE</div></td>
-<td style="text-align:center;width:25%;"><div style="font-size:20px;font-weight:800;color:{a_pnl_color};">{a_pnl_str}</div><div style="font-size:9px;color:#555;letter-spacing:1px;margin-top:2px;">P&amp;L</div></td>
-<td style="text-align:center;width:25%;"><div style="font-size:20px;font-weight:800;color:#fff;">{a_open}</div><div style="font-size:9px;color:#555;letter-spacing:1px;margin-top:2px;">OPEN</div></td>
-<td style="text-align:center;width:25%;"><div style="font-size:20px;font-weight:800;color:#fff;">{a_wins}W / {a_losses}L</div><div style="font-size:9px;color:#555;letter-spacing:1px;margin-top:2px;">RECORD</div></td>
+<td style="text-align:center;width:25%;"><div style="font-size:20px;font-weight:800;color:#1a1a1a;" class="email-text">${a_balance:,.0f}</div><div style="font-size:9px;color:#888;letter-spacing:1px;margin-top:2px;">BALANCE</div></td>
+<td style="text-align:center;width:25%;"><div style="font-size:20px;font-weight:800;color:{a_pnl_color};">{a_pnl_str}</div><div style="font-size:9px;color:#888;letter-spacing:1px;margin-top:2px;">P&amp;L</div></td>
+<td style="text-align:center;width:25%;"><div style="font-size:20px;font-weight:800;color:#1a1a1a;" class="email-text">{a_open}</div><div style="font-size:9px;color:#888;letter-spacing:1px;margin-top:2px;">OPEN</div></td>
+<td style="text-align:center;width:25%;"><div style="font-size:20px;font-weight:800;color:#1a1a1a;" class="email-text">{a_wins}W / {a_losses}L</div><div style="font-size:9px;color:#888;letter-spacing:1px;margin-top:2px;">RECORD</div></td>
 </tr></table>
 </td></tr></table>'''
 
