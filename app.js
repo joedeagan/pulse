@@ -2477,9 +2477,9 @@ function openDetail(market, platform) {
                     <span style="color:${sygnalColor};font-weight:700;">${sygnalLabel}</span>
                     <span style="color:${sigColor};background:${sigBg};padding:2px 8px;border-radius:4px;font-size:11px;font-weight:700;">${sig.signal}</span>
                 </div>
-                ${_isPro ? '<span style="color:var(--text-dim);font-size:12px;display:block;">' + (sig.breakdown ? 'Edge ' + (sig.breakdown.edge||0) + ' + Value ' + (sig.breakdown.value||0) + ' + Mom ' + (sig.breakdown.momentum||0) + ' + Conf ' + (sig.breakdown.confidence||0) + ' + Timing ' + (sig.breakdown.timing||0) : 'Score ' + sygnalScore + '/99') + '</span>' : '<span style="color:var(--text-dim);font-size:12px;display:block;">Score breakdown <a href="#" onclick="upgradeToPro();return false;" style="color:var(--accent);">Unlock with Pro</a></span>'}
+                ${_isPro ? '<span style="color:var(--text-dim);font-size:12px;display:block;">' + (sig.breakdown ? 'Edge ' + (sig.breakdown.edge||0) + ' + Value ' + (sig.breakdown.value||0) + ' + Mom ' + (sig.breakdown.momentum||0) + ' + Conf ' + (sig.breakdown.confidence||0) + ' + Timing ' + (sig.breakdown.timing||0) : 'Score ' + sygnalScore + '/99') + '</span>' : '<span style="color:var(--text-dim);font-size:12px;display:block;">Score breakdown <a href="#" onclick="closeDetail();switchTab(\'pro\',null);return false;" style="color:var(--accent);">Unlock with Pro</a></span>'}
                 ${_isPro && sig.crossEdge > 0 ? '<span style="color:var(--purple);font-size:11px;display:block;margin-top:4px;">Cross-platform edge: ' + sig.crossEdge + '¢ price gap detected</span>' : ''}
-                ${(sig.signal.includes('BUY') || sig.signal.includes('LEAN')) ? (_isPro ? '<span style="color:var(--green);font-size:11px;display:block;margin-top:2px;">Why: ' + _getSignalReason(market, sig) + '</span>' : '<span style="color:var(--text-dim);font-size:11px;display:block;margin-top:2px;">Signal explanation <a href="#" onclick="upgradeToPro();return false;" style="color:var(--accent);">Unlock with Pro</a></span>') : ''}
+                ${(sig.signal.includes('BUY') || sig.signal.includes('LEAN')) ? (_isPro ? '<span style="color:var(--green);font-size:11px;display:block;margin-top:2px;">Why: ' + _getSignalReason(market, sig) + '</span>' : '<span style="color:var(--text-dim);font-size:11px;display:block;margin-top:2px;">Signal explanation <a href="#" onclick="closeDetail();switchTab(\'pro\',null);return false;" style="color:var(--accent);">Unlock with Pro</a></span>') : ''}
             </div>
         </div>
         ${crossHtml}
@@ -6109,26 +6109,69 @@ function buildProPage() {
             </div>
 
             <div style="background:linear-gradient(135deg,rgba(0,136,255,0.08),rgba(0,214,143,0.05));border:1px solid rgba(0,136,255,0.15);border-radius:16px;padding:28px;text-align:center;margin-bottom:24px;">
-                <div style="font-size:11px;letter-spacing:3px;color:var(--accent);font-weight:700;margin-bottom:8px;">COMPARE PLANS</div>
-                <div style="display:flex;justify-content:center;gap:40px;margin:20px 0;">
-                    <div>
-                        <div style="font-size:13px;color:var(--text-dim);font-weight:600;margin-bottom:8px;">FREE</div>
-                        <div style="font-size:28px;font-weight:800;color:var(--text);">$0</div>
-                        <div style="font-size:11px;color:var(--text-dim);margin-top:4px;">5 paper trades<br>Basic signals<br>30-day trial</div>
-                    </div>
-                    <div style="width:1px;background:var(--border);"></div>
-                    <div>
-                        <div style="font-size:13px;color:var(--accent);font-weight:600;margin-bottom:8px;">PRO</div>
-                        <div style="font-size:28px;font-weight:800;color:var(--green);">$9.99</div>
-                        <div style="font-size:11px;color:var(--text-dim);margin-top:4px;">/month<br>Everything unlocked<br>Cancel anytime</div>
-                    </div>
+                <div style="font-size:11px;letter-spacing:3px;color:var(--accent);font-weight:700;margin-bottom:16px;">COMPARE PLANS</div>
+
+                <div style="display:grid;grid-template-columns:1fr auto 1fr;gap:0;font-size:13px;">
+                    <!-- Headers -->
+                    <div style="padding:12px 16px;font-weight:700;color:var(--text-dim);border-bottom:1px solid var(--border);">Feature</div>
+                    <div style="padding:12px 16px;font-weight:700;color:var(--text-dim);text-align:center;border-bottom:1px solid var(--border);">Free</div>
+                    <div style="padding:12px 16px;font-weight:700;color:var(--accent);text-align:center;border-bottom:1px solid var(--border);background:rgba(0,136,255,0.04);">Pro</div>
+
+                    <!-- Rows -->
+                    <div style="padding:10px 16px;color:var(--text);border-bottom:1px solid rgba(255,255,255,0.03);">Auto Paper Bot</div>
+                    <div style="padding:10px 16px;text-align:center;color:var(--text-dim);border-bottom:1px solid rgba(255,255,255,0.03);">30-day trial</div>
+                    <div style="padding:10px 16px;text-align:center;color:var(--green);border-bottom:1px solid rgba(255,255,255,0.03);background:rgba(0,136,255,0.04);">Unlimited</div>
+
+                    <div style="padding:10px 16px;color:var(--text);border-bottom:1px solid rgba(255,255,255,0.03);">Paper Balance</div>
+                    <div style="padding:10px 16px;text-align:center;color:var(--text-dim);border-bottom:1px solid rgba(255,255,255,0.03);">$10,000</div>
+                    <div style="padding:10px 16px;text-align:center;color:var(--green);border-bottom:1px solid rgba(255,255,255,0.03);background:rgba(0,136,255,0.04);">$10,000 + weekly refill</div>
+
+                    <div style="padding:10px 16px;color:var(--text);border-bottom:1px solid rgba(255,255,255,0.03);">Sygnal Score</div>
+                    <div style="padding:10px 16px;text-align:center;color:var(--green);border-bottom:1px solid rgba(255,255,255,0.03);">&#10003;</div>
+                    <div style="padding:10px 16px;text-align:center;color:var(--green);border-bottom:1px solid rgba(255,255,255,0.03);background:rgba(0,136,255,0.04);">&#10003;</div>
+
+                    <div style="padding:10px 16px;color:var(--text);border-bottom:1px solid rgba(255,255,255,0.03);">BUY/SELL Signals</div>
+                    <div style="padding:10px 16px;text-align:center;color:var(--green);border-bottom:1px solid rgba(255,255,255,0.03);">&#10003;</div>
+                    <div style="padding:10px 16px;text-align:center;color:var(--green);border-bottom:1px solid rgba(255,255,255,0.03);background:rgba(0,136,255,0.04);">&#10003;</div>
+
+                    <div style="padding:10px 16px;color:var(--text);border-bottom:1px solid rgba(255,255,255,0.03);">Score Breakdown (5 factors)</div>
+                    <div style="padding:10px 16px;text-align:center;color:var(--text-dim);border-bottom:1px solid rgba(255,255,255,0.03);">&#128274;</div>
+                    <div style="padding:10px 16px;text-align:center;color:var(--green);border-bottom:1px solid rgba(255,255,255,0.03);background:rgba(0,136,255,0.04);">&#10003;</div>
+
+                    <div style="padding:10px 16px;color:var(--text);border-bottom:1px solid rgba(255,255,255,0.03);">Signal "Why" Explanations</div>
+                    <div style="padding:10px 16px;text-align:center;color:var(--text-dim);border-bottom:1px solid rgba(255,255,255,0.03);">&#128274;</div>
+                    <div style="padding:10px 16px;text-align:center;color:var(--green);border-bottom:1px solid rgba(255,255,255,0.03);background:rgba(0,136,255,0.04);">&#10003;</div>
+
+                    <div style="padding:10px 16px;color:var(--text);border-bottom:1px solid rgba(255,255,255,0.03);">Vegas Odds Comparison</div>
+                    <div style="padding:10px 16px;text-align:center;color:var(--text-dim);border-bottom:1px solid rgba(255,255,255,0.03);">&#128274;</div>
+                    <div style="padding:10px 16px;text-align:center;color:var(--green);border-bottom:1px solid rgba(255,255,255,0.03);background:rgba(0,136,255,0.04);">&#10003;</div>
+
+                    <div style="padding:10px 16px;color:var(--text);border-bottom:1px solid rgba(255,255,255,0.03);">AI Market Analysis</div>
+                    <div style="padding:10px 16px;text-align:center;color:var(--text-dim);border-bottom:1px solid rgba(255,255,255,0.03);">&#128274;</div>
+                    <div style="padding:10px 16px;text-align:center;color:var(--green);border-bottom:1px solid rgba(255,255,255,0.03);background:rgba(0,136,255,0.04);">&#10003;</div>
+
+                    <div style="padding:10px 16px;color:var(--text);border-bottom:1px solid rgba(255,255,255,0.03);">Push Alerts (Score 60+)</div>
+                    <div style="padding:10px 16px;text-align:center;color:var(--text-dim);border-bottom:1px solid rgba(255,255,255,0.03);">&#128274;</div>
+                    <div style="padding:10px 16px;text-align:center;color:var(--green);border-bottom:1px solid rgba(255,255,255,0.03);background:rgba(0,136,255,0.04);">&#10003;</div>
+
+                    <div style="padding:10px 16px;color:var(--text);border-bottom:1px solid rgba(255,255,255,0.03);">Custom Price Alerts</div>
+                    <div style="padding:10px 16px;text-align:center;color:var(--text-dim);border-bottom:1px solid rgba(255,255,255,0.03);">&#128274;</div>
+                    <div style="padding:10px 16px;text-align:center;color:var(--green);border-bottom:1px solid rgba(255,255,255,0.03);background:rgba(0,136,255,0.04);">&#10003;</div>
+
+                    <div style="padding:10px 16px;color:var(--text);">Signal History Export</div>
+                    <div style="padding:10px 16px;text-align:center;color:var(--text-dim);">&#128274;</div>
+                    <div style="padding:10px 16px;text-align:center;color:var(--green);background:rgba(0,136,255,0.04);">&#10003;</div>
                 </div>
-                ${alreadyPro ? '' : '<button class="pro-cta-btn" onclick="startProCheckout()" style="margin-top:12px;padding:14px 40px;font-size:16px;">Get Pro Now</button>'}
+
+                <div style="text-align:center;margin-top:24px;">
+                    <div style="font-size:32px;font-weight:800;color:var(--text);margin-bottom:4px;">$9.99<span style="font-size:14px;color:var(--text-dim);font-weight:400;">/month</span></div>
+                    <div style="font-size:12px;color:var(--text-dim);margin-bottom:16px;">Less than a single losing trade. Cancel anytime.</div>
+                    ${alreadyPro ? '' : '<button class="pro-cta-btn" onclick="startProCheckout()" style="padding:14px 40px;font-size:16px;">Get Pro Now</button>'}
+                </div>
             </div>
 
-            <div style="text-align:center;color:var(--text-dim);font-size:12px;">
+            <div style="text-align:center;color:var(--text-dim);font-size:12px;margin-top:16px;">
                 <p>Our bot trades real money using these same signals.</p>
-                <p style="margin-top:4px;">Cancel anytime. No questions asked.</p>
             </div>
 
             <div style="max-width:700px;margin:32px auto 0;">
