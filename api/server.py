@@ -216,43 +216,27 @@ async def get_kalshi():
     """Fetch live markets from Kalshi via events (avoids parlay spam)."""
     try:
         async with httpx.AsyncClient() as client:
-            # Fetch events — general + sports categories
+            # Fetch all open events with cursor pagination
             all_events = []
-            for category in [None, "Sports"]:
+            cursor = None
+            for _ in range(3):  # Max 3 pages = 300 events
                 params = {"limit": 100, "status": "open"}
-                if category:
-                    params["series_ticker"] = ""  # Can't filter by category directly
-                resp = await client.get(
-                    "https://api.elections.kalshi.com/trade-api/v2/events",
-                    params=params,
-                    timeout=15,
-                )
-                evts = resp.json().get("events", [])
-                seen = {e["event_ticker"] for e in all_events}
-                for e in evts:
-                    if e["event_ticker"] not in seen:
-                        all_events.append(e)
-
-            # Also fetch sports series tickers in parallel
-            import asyncio
-            sports_series = ["KXMLB", "KXNBA", "KXNHL", "KXNFL", "KXSOCCER", "KXMMA"]
-            async def _fetch_series(s):
+                if cursor:
+                    params["cursor"] = cursor
                 try:
-                    r = await client.get(
+                    resp = await client.get(
                         "https://api.elections.kalshi.com/trade-api/v2/events",
-                        params={"series_ticker": s, "limit": 20, "status": "open"},
-                        timeout=5,
+                        params=params,
+                        timeout=15,
                     )
-                    return r.json().get("events", [])
+                    data = resp.json()
+                    evts = data.get("events", [])
+                    all_events.extend(evts)
+                    cursor = data.get("cursor")
+                    if not cursor or len(evts) < 100:
+                        break
                 except Exception:
-                    return []
-            sports_results = await asyncio.gather(*[_fetch_series(s) for s in sports_series])
-            seen = {e["event_ticker"] for e in all_events}
-            for evts in sports_results:
-                for e in evts:
-                    if e["event_ticker"] not in seen:
-                        all_events.append(e)
-                        seen.add(e["event_ticker"])
+                    break
 
             events = all_events
 
@@ -1946,10 +1930,11 @@ async def autobot_scan():
         for s in scores:
             if s["signal"] not in ("BUY YES", "BUY NO", "LEAN YES", "LEAN NO"):
                 continue
-            # BUY signals: score >= 30 minimum
-            # LEAN signals: need score >= 30 (same as BUY)
+            # BUY: score >= 30, LEAN: score >= 45 (need higher confidence)
             is_buy = "BUY" in s["signal"]
-            if s["score"] < 30:
+            if is_buy and s["score"] < 30:
+                continue
+            if not is_buy and s["score"] < 45:
                 continue
             # Skip extreme longshots — Kelly sizing handles moderate ones
             s_yes = s.get("yes", 50)
@@ -2267,6 +2252,63 @@ async def autobot_resolve():
 
     except Exception as e:
         return {"ok": False, "error": str(e)}
+
+
+@app.post("/api/autobot/sell")
+async def sell_autobot_trade(request: Request):
+    """Manually sell/close an auto-bot trade at current market price."""
+    body = await request.json()
+    email = body.get("email", "").lower()
+    ticker = body.get("ticker", "")
+    if not email or not ticker:
+        return {"error": "email and ticker required"}
+
+    all_trades = load_auto_bot_trades()
+    user = all_trades.get(email)
+    if not user:
+        return {"error": "user not found"}
+
+    # Find the open trade
+    trade = None
+    for t in user["trades"]:
+        if t["ticker"] == ticker and not t.get("resolved"):
+            trade = t
+            break
+    if not trade:
+        return {"error": "trade not found or already resolved"}
+
+    # Get current price from scores
+    try:
+        kalshi_data = await get_kalshi()
+        poly_data = await get_polymarket()
+        all_markets = kalshi_data.get("markets", []) + poly_data.get("markets", [])
+        price_map = {m.get("ticker", ""): m for m in all_markets}
+        market = price_map.get(ticker)
+        if market:
+            current_price = market.get("yes", 50) if trade["side"] == "yes" else market.get("no", 50)
+        else:
+            # Use entry price as fallback (sell at cost)
+            current_price = trade["price"]
+    except Exception:
+        current_price = trade["price"]
+
+    # Close the trade
+    pnl = (current_price - trade["price"]) * trade["contracts"] / 100
+    trade["resolved"] = True
+    trade["pnl"] = round(pnl, 2)
+    trade["outcome"] = "win" if pnl >= 0 else "loss"
+    trade["close_price"] = current_price
+    trade["sold_manually"] = True
+    user["balance"] += trade["contracts"] * current_price / 100
+    user["total_pnl"] = user.get("total_pnl", 0) + pnl
+
+    save_auto_bot_trades(all_trades)
+    return {
+        "ok": True,
+        "pnl": round(pnl, 2),
+        "close_price": current_price,
+        "new_balance": round(user["balance"], 2),
+    }
 
 
 @app.post("/api/autobot/reset")

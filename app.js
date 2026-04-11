@@ -3086,6 +3086,30 @@ function saveBotSettings() {
     });
 }
 
+function sellBotTrade(ticker) {
+    var email = '';
+    if (typeof _currentUser !== 'undefined' && _currentUser) email = _currentUser.email || '';
+    if (!email) email = localStorage.getItem('sygnal-account-email') || '';
+    if (!email) return;
+
+    if (!confirm('Sell this position at current market price?')) return;
+
+    fetch(API_BASE + '/api/autobot/sell', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({email: email, ticker: ticker})
+    }).then(function(r) { return r.json(); }).then(function(d) {
+        if (d.ok) {
+            var pnlStr = d.pnl >= 0 ? '+$' + d.pnl.toFixed(2) : '-$' + Math.abs(d.pnl).toFixed(2);
+            showToast('Sold for ' + pnlStr);
+            _autobotLoading = false;
+            loadAutobotOnPortfolio();
+        } else {
+            showToast(d.error || 'Error selling');
+        }
+    }).catch(function() { showToast('Error selling trade'); });
+}
+
 var _autobotLoading = false;
 function loadAutobotOnPortfolio() {
     var posDiv = document.getElementById('paper-positions');
@@ -3384,18 +3408,22 @@ function loadAutobotOnPortfolio() {
                                 '<div style="font-size:10px;color:var(--text-dim);margin-top:1px;">' + t.contracts + ' contracts @ ' + t.price + '¢</div>' +
                                 (t.ev_per_dollar ? '<div style="font-size:9px;color:var(--accent);margin-top:3px;">EV: ' + (t.ev_per_dollar * 100).toFixed(0) + '¢/$1 · Edge: ' + (t.edge || 0) + '%</div>' : '') +
                                 (function() {
-                                    var cm = allMarketCards.find(function(c) { return c.market.ticker === t.ticker; });
+                                    var sc = _serverScoreCache[t.ticker];
+                                    var cm = sc || allMarketCards.find(function(c) { return c.market.ticker === t.ticker; });
                                     if (cm) {
-                                        var curPrice = t.side === 'yes' ? cm.market.yes : cm.market.no;
+                                        var curPrice = sc ? (t.side === 'yes' ? sc.yes : sc.no) : (t.side === 'yes' ? cm.market.yes : cm.market.no);
                                         var pnlCents = curPrice - t.price;
                                         var pnlDollars = (pnlCents * t.contracts / 100);
                                         var pnlColor = pnlCents >= 0 ? 'var(--green)' : 'var(--red)';
                                         var arrow = pnlCents >= 0 ? '▲' : '▼';
                                         return '<div style="font-size:12px;color:' + pnlColor + ';font-weight:700;margin-top:2px;">' + arrow + ' ' + (pnlCents >= 0 ? '+' : '') + pnlCents + '¢ (' + (pnlDollars >= 0 ? '+' : '') + '$' + pnlDollars.toFixed(2) + ')</div>';
                                     }
-                                    return '<div style="font-size:10px;color:var(--green);margin-top:2px;">If ' + t.side.toUpperCase() + ': win $' + ((100 - t.price) * t.contracts / 100).toFixed(2) + '</div>';
+                                    return '<div style="font-size:10px;color:var(--text-dim);margin-top:2px;">Waiting for price data...</div>';
                                 })() +
                             '</div>' +
+                        '</div>' +
+                        '<div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border);text-align:right;">' +
+                            '<button onclick="sellBotTrade(\'' + t.ticker + '\');event.stopPropagation();" style="background:rgba(255,59,92,0.1);color:#ff3b5c;border:1px solid rgba(255,59,92,0.2);padding:6px 16px;border-radius:8px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;">Sell</button>' +
                         '</div>' +
                     '</div>';
                 }).join('');
