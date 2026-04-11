@@ -67,7 +67,7 @@
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
 
-    <link rel="stylesheet" href="style.css?v=84">
+    <link rel="stylesheet" href="style.css?v=85">
     <link rel="manifest" href="/manifest.json">
     <link rel="icon" type="image/png" href="/icon-192.png">
     <link rel="apple-touch-icon" href="/icon-192.png">
@@ -522,7 +522,7 @@
                     <div style="font-size:13px;color:var(--text);font-weight:600;margin-bottom:2px;">Max Timeframe</div>
                     <div style="font-size:11px;color:var(--text-dim);">How long until trades can close</div>
                 </div>
-                <select id="portfolio-timeframe-select" style="-webkit-appearance:none;-moz-appearance:none;appearance:none;background:rgba(255,255,255,0.04);color:var(--text);border:1px solid var(--border);border-radius:10px;padding:10px 36px 10px 14px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;min-width:120px;background-image:url('data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2212%22 height=%2212%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23888%22 stroke-width=%222.5%22><polyline points=%226 9 12 15 18 9%22/></svg>');background-repeat:no-repeat;background-position:right 12px center;background-size:12px;">
+                <select id="portfolio-timeframe-select" style="-webkit-appearance:none;-moz-appearance:none;appearance:none;background:var(--bg-card);color:var(--text);border:1px solid var(--border);border-radius:8px;padding:8px 32px 8px 14px;font-size:13px;font-weight:500;cursor:pointer;font-family:inherit;min-width:120px;background-image:url('data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2210%22 height=%2210%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23666%22 stroke-width=%222.5%22><polyline points=%226 9 12 15 18 9%22/></svg>');background-repeat:no-repeat;background-position:right 10px center;background-size:10px;">
                     <option value="0.5">12 Hours</option>
                     <option value="1">24 Hours</option>
                     <option value="3">3 Days</option>
@@ -879,6 +879,6 @@
         if (window.caches) caches.keys().then(function(k) { k.forEach(function(c) { caches.delete(c); }); });
     }
     </script>
-    <script src="app.js?v=84"></script>
+    <script src="app.js?v=85"></script>
 </body>
 </html>

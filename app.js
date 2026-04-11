@@ -994,6 +994,19 @@ function getSygnalSignal(ticker) {
     return _sygnalSignalCache[ticker] || { signal: 'HOLD', confidence: 0, crossEdge: 0 };
 }
 
+// Server score cache — single source of truth
+var _serverScoreCache = {};
+function loadServerScores() {
+    fetch(API_BASE + '/api/scores?min_score=0').then(function(r){return r.json();}).then(function(data) {
+        var scores = data.scores || [];
+        scores.forEach(function(s) {
+            _serverScoreCache[s.ticker] = s;
+        });
+    }).catch(function(){});
+}
+// Load on startup
+loadServerScores();
+
 // ── SHARE MARKET ──
 function shareMarket(market) {
     showSharePopup(market);
@@ -2434,12 +2447,13 @@ function openDetail(market, platform) {
         </div>
     `;
 
-    // Actions
+    // Actions — use server score if available, else client-side
     const url = getAffiliateUrl(market);
-    const sygnalScore = calcSygnalScore(market, getMarketChange(market.ticker));
+    var serverSig = _serverScoreCache[market.ticker];
+    const sygnalScore = serverSig ? serverSig.score : calcSygnalScore(market, getMarketChange(market.ticker));
     const sygnalColor = sygnalScore >= 67 ? 'var(--green)' : sygnalScore >= 34 ? 'var(--gold)' : 'var(--red)';
     const sygnalLabel = sygnalScore >= 67 ? 'TRADE' : sygnalScore >= 34 ? 'WATCH' : 'SKIP';
-    const sig = getSygnalSignal(market.ticker);
+    const sig = serverSig ? {signal: serverSig.signal, crossEdge: serverSig.cross_edge || 0, breakdown: serverSig.breakdown} : getSygnalSignal(market.ticker);
     const sigColor = sig.signal.includes('YES') ? 'var(--green)' : sig.signal.includes('NO') ? 'var(--red)' : 'var(--gold)';
     const sigBg = sig.signal.includes('YES') ? 'rgba(0,214,143,0.12)' : sig.signal.includes('NO') ? 'rgba(255,59,92,0.12)' : 'rgba(240,176,0,0.10)';
 
