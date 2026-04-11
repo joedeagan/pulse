@@ -3081,42 +3081,44 @@ function loadAutobotOnPortfolio() {
             }
 
             if (openTrades.length > 0) {
-                html += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px;">' +
-                openTrades.map(function(t) {
-                    var sideColor = t.side === 'yes' ? '#00d68f' : '#ff3b5c';
-                    var sideBg = t.side === 'yes' ? 'rgba(0,214,143,0.08)' : 'rgba(255,59,92,0.08)';
-                    var sigColor = t.signal.includes('BUY') ? '#00d68f' : '#f0b000';
-                    var sigBg = t.signal.includes('BUY') ? 'rgba(0,214,143,0.1)' : 'rgba(240,176,0,0.1)';
-                    var scoreColor = t.score >= 60 ? '#00d68f' : t.score >= 40 ? '#f0b000' : '#ff3b5c';
-                    var timeAgo = '';
-                    try {
-                        var mins = Math.floor((Date.now() - new Date(t.timestamp).getTime()) / 60000);
-                        if (mins < 60) timeAgo = mins + 'm ago';
-                        else if (mins < 1440) timeAgo = Math.floor(mins/60) + 'h ago';
-                        else timeAgo = Math.floor(mins/1440) + 'd ago';
-                    } catch(e) {}
+                // Render as real market cards using the same grid
+                el.innerHTML += html;
+                var gridDiv = document.createElement('div');
+                gridDiv.className = 'market-grid';
+                gridDiv.style.marginTop = '12px';
 
-                    return '<div style="background:var(--bg-card);border:1px solid var(--border);border-radius:12px;padding:16px;">' +
-                        '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">' +
-                            '<span style="background:' + sigBg + ';color:' + sigColor + ';padding:3px 10px;border-radius:6px;font-size:10px;font-weight:800;letter-spacing:0.5px;">' + t.signal + '</span>' +
-                            '<span style="font-size:10px;color:var(--text-dim);">' + timeAgo + '</span>' +
-                        '</div>' +
-                        '<div style="font-size:14px;font-weight:600;color:var(--text);line-height:1.4;margin-bottom:10px;">' + (t.question || t.ticker) + '</div>' +
-                        '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">' +
-                            '<div style="display:flex;gap:12px;">' +
-                                '<span style="color:' + sideColor + ';font-weight:700;font-size:14px;">' + t.side.toUpperCase() + ' ' + t.price + '¢</span>' +
-                                '<span style="color:var(--text-dim);font-size:13px;">' + t.contracts + ' contracts</span>' +
-                            '</div>' +
-                        '</div>' +
-                        '<div style="display:flex;justify-content:space-between;align-items:center;">' +
-                            '<div style="display:flex;align-items:center;gap:6px;">' +
-                                '<div style="width:28px;height:28px;border-radius:50%;border:2px solid ' + scoreColor + ';display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;color:' + scoreColor + ';">' + t.score + '</div>' +
-                                '<span style="font-size:10px;color:var(--text-dim);">SYGNAL</span>' +
-                            '</div>' +
-                            '<span style="font-size:11px;color:var(--text-dim);">$' + (t.cost || (t.contracts * t.price / 100)).toFixed(2) + ' invested</span>' +
-                        '</div>' +
-                    '</div>';
-                }).join('') + '</div>';
+                openTrades.forEach(function(t) {
+                    // Build a market object matching the card format
+                    var fakeMarket = {
+                        question: t.question || t.ticker,
+                        ticker: t.ticker,
+                        yes: t.side === 'yes' ? t.price : (100 - t.price),
+                        no: t.side === 'yes' ? (100 - t.price) : t.price,
+                        volume: 0,
+                        source: t.category || 'kalshi',
+                        url: '#',
+                    };
+                    // Try to find real market data for current prices
+                    var realMarket = allMarketCards.find(function(c) { return c.market.ticker === t.ticker; });
+                    if (realMarket) {
+                        fakeMarket = Object.assign({}, realMarket.market);
+                    }
+                    var change = typeof getMarketChange === 'function' ? getMarketChange(t.ticker) : 0;
+                    var card = createMarketCard(fakeMarket, fakeMarket.source || 'kalshi', change);
+
+                    // Add trade info overlay
+                    var overlay = document.createElement('div');
+                    overlay.style.cssText = 'padding:8px 14px;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;font-size:11px;';
+                    var sigColor = t.signal.includes('BUY') ? '#00d68f' : '#f0b000';
+                    overlay.innerHTML = '<span style="color:' + sigColor + ';font-weight:700;">' + t.signal + ' @ ' + t.price + '¢</span>' +
+                        '<span style="color:var(--text-dim);">' + t.contracts + ' contracts · $' + (t.cost || (t.contracts * t.price / 100)).toFixed(2) + '</span>';
+                    card.appendChild(overlay);
+
+                    gridDiv.appendChild(card);
+                });
+
+                el.appendChild(gridDiv);
+                return; // Don't append html again
             } else {
                 html += '<p style="color:var(--text-dim);font-size:13px;">No open auto-bot positions — bot is scanning for opportunities.</p>';
             }
