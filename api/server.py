@@ -1587,7 +1587,7 @@ async def autobot_scan():
 
         for email in all_emails:
             if email not in all_trades:
-                starting_balance = 10000 if email.lower() in [p.lower() for p in pros] else 1000
+                starting_balance = 10000  # Everyone gets $10K paper balance
                 all_trades[email] = {"balance": starting_balance, "trades": [], "total_pnl": 0, "created": datetime.now(timezone.utc).isoformat()}
 
             user = all_trades[email]
@@ -1619,7 +1619,7 @@ async def autobot_scan():
                         pass
 
             open_trades = [t for t in user["trades"] if not t.get("resolved")]
-            max_positions = 10 if is_pro else 5
+            max_positions = 10  # Same for all users
 
             if len(open_trades) >= max_positions:
                 continue

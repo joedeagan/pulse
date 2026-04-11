@@ -2891,17 +2891,11 @@ function closePaperTrade(index) {
 function placePaperTrade() {
     if (!currentDetailMarket) return;
 
-    // Free user paper trading limits
+    // Free user trial check (no position limit, just trial expiration)
     if (!isPro()) {
-        const portfolio = getPaperPortfolio();
-        const openPositions = (portfolio.trades || []).filter(t => !t.closed).length;
         const trialDays = getTrialDaysLeft();
         if (trialDays <= 0) {
-            showProUpsell('Paper Trading — Trial Expired');
-            return;
-        }
-        if (openPositions >= 5) {
-            showProUpsell('Paper Trading — Free Limit Reached (5 positions). Upgrade for unlimited.');
+            showProUpsell('Paper Trading — Trial Expired. Upgrade to Pro for unlimited trading.');
             return;
         }
     }
@@ -3029,7 +3023,17 @@ function loadAutobotOnPortfolio() {
             var investedEl = document.getElementById('paper-invested');
             var pnlEl = document.getElementById('paper-pnl');
             var tradesEl = document.getElementById('paper-trades');
-            if (balEl) balEl.textContent = '$' + (data.balance || 0).toFixed(2);
+            if (balEl) balEl.textContent = '$' + (data.balance || 0).toFixed(0);
+
+            // Win rate badge
+            var badgeEl = document.getElementById('portfolio-win-badge');
+            if (badgeEl && (data.wins + data.losses) > 0) {
+                badgeEl.style.display = '';
+                badgeEl.textContent = data.win_rate + '% Win Rate';
+                badgeEl.style.color = data.win_rate >= 55 ? 'var(--green)' : 'var(--text-dim)';
+                badgeEl.style.borderColor = data.win_rate >= 55 ? 'rgba(0,214,143,0.2)' : 'var(--border)';
+                badgeEl.style.background = data.win_rate >= 55 ? 'rgba(0,214,143,0.1)' : 'var(--bg-card)';
+            }
             if (investedEl) investedEl.textContent = '$' + ((1000 - (data.balance || 1000))).toFixed(2);
             if (pnlEl) {
                 var pnl = data.total_pnl || 0;
@@ -3037,6 +3041,12 @@ function loadAutobotOnPortfolio() {
                 pnlEl.className = 'bot-stat-value ' + (pnl >= 0 ? 'running' : 'stopped');
             }
             if (tradesEl) tradesEl.textContent = openTrades.length + (data.resolved_count || 0);
+
+            // Show/hide start bot button
+            var startBtn = document.getElementById('portfolio-start-bot');
+            if (startBtn) {
+                startBtn.style.display = (openTrades.length === 0 && data.resolved_count === 0) ? '' : 'none';
+            }
 
             if (openTrades.length === 0 && data.resolved_count === 0) return;
 
@@ -3059,12 +3069,15 @@ function loadAutobotOnPortfolio() {
             if (openTrades.length > 0) {
                 html += openTrades.map(function(t) {
                     var sideColor = t.side === 'yes' ? 'var(--green)' : 'var(--red)';
-                    return '<div class="bot-position">' +
-                        '<div>' +
-                            '<div class="bot-position-title">' + (t.question || t.ticker).substring(0, 40) + '</div>' +
-                            '<div class="bot-position-side">' + t.side.toUpperCase() + ' · ' + t.contracts + 'x @ ' + t.price + '¢ · Score ' + t.score + '</div>' +
+                    return '<div style="display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid rgba(255,255,255,0.04);">' +
+                        '<div style="flex:1;min-width:0;">' +
+                            '<div style="font-size:14px;font-weight:600;color:var(--text);white-space:normal;line-height:1.4;">' + (t.question || t.ticker) + '</div>' +
+                            '<div style="font-size:12px;color:var(--text-dim);margin-top:4px;">' + t.side.toUpperCase() + ' · ' + t.contracts + ' contracts @ ' + t.price + '¢</div>' +
                         '</div>' +
-                        '<span style="background:rgba(0,136,255,0.1);color:var(--accent);padding:3px 8px;border-radius:6px;font-size:10px;font-weight:700;">' + t.signal + '</span>' +
+                        '<div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex-shrink:0;">' +
+                            '<span style="background:rgba(0,136,255,0.1);color:var(--accent);padding:4px 10px;border-radius:6px;font-size:11px;font-weight:700;">' + t.signal + '</span>' +
+                            '<span style="font-size:11px;color:var(--text-dim);">Score ' + t.score + '</span>' +
+                        '</div>' +
                     '</div>';
                 }).join('');
             } else {
@@ -6093,6 +6106,37 @@ function shareResults() {
         navigator.clipboard.writeText(text).then(function() { showToast('Copied to clipboard!'); }).catch(function() {
             prompt('Copy this:', text);
         });
+    }
+}
+
+// Activate auto-bot for user
+async function activateAutoBot() {
+    var email = '';
+    if (typeof _currentUser !== 'undefined' && _currentUser) email = _currentUser.email;
+    if (!email) {
+        showToast('Sign in first to start your bot');
+        openAuthModal();
+        return;
+    }
+    try {
+        // Reset/create bot portfolio
+        var resp = await fetch(API_BASE + '/api/autobot/reset', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email: email })
+        });
+        var data = await resp.json();
+        if (data.ok) {
+            // Trigger first scan
+            await fetch(API_BASE + '/api/autobot/scan', { method: 'POST' });
+            showToast('Bot activated! First trades placed.');
+            loadPortfolio();
+            // Hide the start button
+            var btn = document.getElementById('portfolio-start-bot');
+            if (btn) btn.style.display = 'none';
+        }
+    } catch(e) {
+        showToast('Error activating bot');
     }
 }
 
