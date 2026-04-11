@@ -6010,7 +6010,7 @@ function updateProUI() {
     });
     // Hide Pro upsell section for Pro users
     var proSection = document.getElementById('pro-section');
-    if (proSection) proSection.style.display = _isPro ? 'none' : '';
+    if (proSection) proSection.style.display = (_isPro || isPro()) ? 'none' : '';
 }
 
 async function upgradeToPro() {
