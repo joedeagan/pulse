@@ -1691,10 +1691,10 @@ async def autobot_scan():
                 continue
             if s["score"] < 30:
                 continue
-            # Prefer markets that resolve soon (within 7 days)
+            # Tag days_left but don't filter globally — per-user max_days handles it
             days_left = s.get("days_left", -1)
-            # Skip markets with known close dates > 90 days
-            if days_left > 90 and days_left != -1:
+            # Hard cap: skip markets > 365 days out (absolute max)
+            if days_left > 365 and days_left != -1:
                 continue
             # Skip obviously long-term markets by keywords
             q_lower = s.get("question", "").lower()
@@ -1765,7 +1765,16 @@ async def autobot_scan():
             if len(open_trades) >= max_positions:
                 continue
 
+            # Per-user timeframe filter
+            user_max_days = user.get("settings", {}).get("max_days", 30)  # Default 30 days
+            if user_max_days == 0:
+                user_max_days = 99999  # "Any" = no filter
+
             for pick in top_picks:
+                # Skip markets beyond user's preferred timeframe
+                pick_days = pick.get("days_left", -1)
+                if pick_days != -1 and pick_days > user_max_days:
+                    continue
                 # Skip if already holding this ticker
                 if any(t["ticker"] == pick["ticker"] and not t.get("resolved") for t in user["trades"]):
                     continue
@@ -1937,7 +1946,34 @@ async def get_autobot_portfolio(email: str = ""):
         "wins": wins,
         "losses": losses,
         "win_rate": round(wins / (wins + losses) * 100) if (wins + losses) > 0 else 0,
+        "settings": user.get("settings", {}),
     }
+
+
+@app.post("/api/autobot/settings")
+async def set_autobot_settings(request: Request):
+    """Update a user's auto-bot settings (e.g., max trade timeframe)."""
+    body = await request.json()
+    email = body.get("email", "").lower()
+    if not email:
+        return {"error": "email required"}
+
+    all_trades = load_auto_bot_trades()
+    if email not in all_trades:
+        all_trades[email] = {"balance": 10000, "trades": [], "total_pnl": 0, "created": datetime.now(timezone.utc).isoformat()}
+
+    settings = all_trades[email].get("settings", {})
+
+    # Max days for trade timeframe: 7, 14, 30, 60, 90, 365, 0 (any)
+    if "max_days" in body:
+        max_days = int(body["max_days"])
+        if max_days not in (7, 14, 30, 60, 90, 365, 0):
+            return {"error": "max_days must be 7, 14, 30, 60, 90, 365, or 0 (any)"}
+        settings["max_days"] = max_days
+
+    all_trades[email]["settings"] = settings
+    save_auto_bot_trades(all_trades)
+    return {"ok": True, "settings": settings}
 
 
 # ─── Sygnal AUTOPILOT (Smart Alerts Scanner) ───

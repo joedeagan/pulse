@@ -3125,8 +3125,28 @@ function loadAutobotOnPortfolio() {
             var losses = data.losses || 0;
             var winRate = data.win_rate || 0;
 
+            // Timeframe setting
+            var userMaxDays = (data.settings && data.settings.max_days !== undefined) ? data.settings.max_days : 30;
+            var tfOptions = [
+                {val: 7, label: '1 Week'},
+                {val: 14, label: '2 Weeks'},
+                {val: 30, label: '1 Month'},
+                {val: 60, label: '2 Months'},
+                {val: 90, label: '3 Months'},
+                {val: 0, label: 'Any'}
+            ];
+            var tfSelect = '<select id="bot-timeframe-select" style="background:var(--card-bg);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:4px 8px;font-size:11px;cursor:pointer;">';
+            tfOptions.forEach(function(o) {
+                tfSelect += '<option value="' + o.val + '"' + (o.val === userMaxDays ? ' selected' : '') + '>' + o.label + '</option>';
+            });
+            tfSelect += '</select>';
+
             var html = '<div style="margin-top:24px;padding-top:20px;border-top:1px solid var(--border);">' +
-                '<h3 style="font-size:13px;color:var(--text-dim);letter-spacing:2px;margin-bottom:4px;">AUTO-BOT TRADES</h3>' +
+                '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">' +
+                '<h3 style="font-size:13px;color:var(--text-dim);letter-spacing:2px;margin:0;">AUTO-BOT TRADES</h3>' +
+                '<div style="display:flex;align-items:center;gap:6px;">' +
+                '<span style="font-size:10px;color:var(--text-dim);">Max:</span>' + tfSelect +
+                '</div></div>' +
                 '<p style="font-size:11px;color:var(--text-dim);margin-bottom:12px;">Placed automatically by your Sygnal Score bot</p>';
 
             if (wins + losses > 0) {
@@ -3198,6 +3218,28 @@ function loadAutobotOnPortfolio() {
 
             html += '</div>';
             posDiv.innerHTML += html;
+
+            // Wire up timeframe dropdown
+            var tfEl = document.getElementById('bot-timeframe-select');
+            if (tfEl) {
+                tfEl.onchange = function() {
+                    var val = parseInt(this.value);
+                    var userEmail = '';
+                    if (typeof _currentUser !== 'undefined' && _currentUser) userEmail = _currentUser.email || '';
+                    if (!userEmail) userEmail = localStorage.getItem('sygnal-account-email') || '';
+                    if (!userEmail) return;
+                    fetch(API_BASE + '/api/autobot/settings', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({email: userEmail, max_days: val})
+                    }).then(function(r) { return r.json(); }).then(function(d) {
+                        if (d.ok) {
+                            var label = tfEl.options[tfEl.selectedIndex].text;
+                            showToast('Bot timeframe set to ' + label);
+                        }
+                    });
+                };
+            }
         })
         .catch(function() {});
 }
