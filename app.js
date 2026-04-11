@@ -3034,7 +3034,9 @@ function loadAutobotOnPortfolio() {
                 badgeEl.style.borderColor = data.win_rate >= 55 ? 'rgba(0,214,143,0.2)' : 'var(--border)';
                 badgeEl.style.background = data.win_rate >= 55 ? 'rgba(0,214,143,0.1)' : 'var(--bg-card)';
             }
-            if (investedEl) investedEl.textContent = '$' + ((1000 - (data.balance || 1000))).toFixed(2);
+            var startingBalance = 10000;
+            var invested = Math.max(0, startingBalance - (data.balance || startingBalance));
+            if (investedEl) investedEl.textContent = '$' + invested.toFixed(0);
             if (pnlEl) {
                 var pnl = data.total_pnl || 0;
                 pnlEl.textContent = (pnl >= 0 ? '+$' : '-$') + Math.abs(pnl).toFixed(2);
