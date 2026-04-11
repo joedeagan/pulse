@@ -4971,22 +4971,22 @@ function exportSignalHistory() {
 }
 
 function showProUpsell(feature) {
-    const existing = document.querySelector('.pro-modal');
+    // Remove any existing toast
+    var existing = document.getElementById('pro-toast');
     if (existing) existing.remove();
 
-    const modal = document.createElement('div');
-    modal.className = 'pro-modal';
-    modal.innerHTML = `
-        <div class="pro-modal-content">
-            <div style="font-size:10px;letter-spacing:3px;color:var(--accent);font-weight:700;margin-bottom:8px;">SYGNAL PRO</div>
-            <h3 style="margin:0 0 8px;font-size:18px;color:var(--text);">${feature || 'Unlock Premium Features'}</h3>
-            <p style="color:var(--text-dim);font-size:13px;margin:0 0 16px;line-height:1.5;">Get access to AI Analysis, Signal History Export, Custom Push Alerts, and Priority Data Refresh.</p>
-            <div style="font-size:24px;font-weight:800;color:var(--text);margin-bottom:16px;">$9.99<span style="font-size:13px;color:var(--text-dim);font-weight:400;">/month</span></div>
-            <button class="pro-btn" onclick="startProCheckout()">Upgrade to Pro</button>
-            <button onclick="this.closest('.pro-modal').remove()" style="background:none;border:none;color:var(--text-dim);font-size:12px;cursor:pointer;margin-top:10px;">Maybe later</button>
-        </div>
-    `;
-    document.body.appendChild(modal);
+    // Subtle toast banner at bottom — not a blocking popup
+    var toast = document.createElement('div');
+    toast.id = 'pro-toast';
+    toast.style.cssText = 'position:fixed;bottom:60px;left:50%;transform:translateX(-50%);background:var(--bg-card);border:1px solid rgba(0,136,255,0.2);border-radius:12px;padding:12px 20px;display:flex;align-items:center;gap:12px;z-index:9999;box-shadow:0 4px 20px rgba(0,0,0,0.4);max-width:90%;';
+    toast.innerHTML = '<span style="color:var(--accent);font-size:12px;font-weight:700;">PRO</span>' +
+        '<span style="color:var(--text);font-size:13px;">' + (feature || 'Upgrade for full access') + '</span>' +
+        '<button onclick="switchTab(\'pro\',null);this.parentElement.remove();" style="background:var(--accent);color:#fff;border:none;padding:6px 14px;border-radius:8px;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap;">See Pro</button>' +
+        '<button onclick="this.parentElement.remove()" style="background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:14px;">✕</button>';
+    document.body.appendChild(toast);
+
+    // Auto-dismiss after 5 seconds
+    setTimeout(function() { if (toast.parentElement) toast.remove(); }, 5000);
 }
 
 async function startProCheckout() {
