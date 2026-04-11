@@ -3045,11 +3045,28 @@ function loadAutobotOnPortfolio() {
             // Big balance number
             if (balEl) balEl.textContent = '$' + (data.balance || 0).toLocaleString('en-US', {maximumFractionDigits: 0});
 
-            // P&L with color
+            // P&L — calculate unrealized from current prices
             if (pnlEl) {
-                var pnl = data.total_pnl || 0;
-                pnlEl.textContent = (pnl >= 0 ? '+$' : '-$') + Math.abs(pnl).toFixed(2);
-                pnlEl.style.color = pnl >= 0 ? 'var(--green)' : 'var(--red)';
+                var realizedPnl = data.total_pnl || 0;
+                var unrealizedPnl = 0;
+                // Compare entry price vs current market price for open trades
+                openTrades.forEach(function(t) {
+                    var currentMarket = allMarketCards.find(function(c) { return c.market.ticker === t.ticker; });
+                    if (currentMarket) {
+                        var currentPrice = t.side === 'yes' ? currentMarket.market.yes : currentMarket.market.no;
+                        var entryPrice = t.price;
+                        unrealizedPnl += (currentPrice - entryPrice) * t.contracts / 100;
+                    }
+                });
+                var totalPnl = realizedPnl + unrealizedPnl;
+                pnlEl.textContent = (totalPnl >= 0 ? '+$' : '-$') + Math.abs(totalPnl).toFixed(2);
+                pnlEl.style.color = totalPnl >= 0 ? 'var(--green)' : 'var(--red)';
+
+                // Also update the balance to reflect unrealized
+                if (balEl && unrealizedPnl !== 0) {
+                    var adjustedBal = (data.balance || 0) + unrealizedPnl;
+                    balEl.textContent = '$' + Math.round(adjustedBal).toLocaleString('en-US');
+                }
             }
 
             // Win/Loss badge
