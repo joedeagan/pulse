@@ -3228,49 +3228,51 @@ function loadAutobotOnPortfolio() {
             // Big balance number
             if (balEl) balEl.textContent = '$' + (data.balance || 0).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
 
-            // P&L — fetch current prices from API for accurate unrealized P&L
-            if (pnlEl) {
+            // P&L — always fetch live prices from scores API
+            if (pnlEl && openTrades.length > 0) {
                 var realizedPnl = data.total_pnl || 0;
-                // Quick P&L from allMarketCards if available
-                var unrealizedPnl = 0;
+                pnlEl.textContent = '+$0.00';
+                // Use server score cache if available, otherwise fetch
+                var priceMap = _serverScoreCache || {};
+                var uPnl = 0;
                 var matched = 0;
                 openTrades.forEach(function(t) {
-                    var currentMarket = allMarketCards.find(function(c) { return c.market.ticker === t.ticker; });
-                    if (currentMarket) {
-                        var currentPrice = t.side === 'yes' ? currentMarket.market.yes : currentMarket.market.no;
-                        unrealizedPnl += (currentPrice - t.price) * t.contracts / 100;
+                    var s = priceMap[t.ticker];
+                    if (s) {
+                        var cp = t.side === 'yes' ? s.yes : s.no;
+                        uPnl += (cp - t.price) * t.contracts / 100;
                         matched++;
                     }
                 });
-                var totalPnl = realizedPnl + unrealizedPnl;
-                pnlEl.textContent = (totalPnl >= 0 ? '+$' : '-$') + Math.abs(totalPnl).toFixed(2);
-                pnlEl.style.color = totalPnl >= 0 ? 'var(--green)' : 'var(--red)';
-                if (balEl && unrealizedPnl !== 0) {
-                    var adjustedBal = (data.balance || 0) + unrealizedPnl;
-                    balEl.textContent = '$' + adjustedBal.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
-                }
-                // If markets not loaded yet, fetch scores API for live prices
-                if (matched === 0 && openTrades.length > 0) {
+                if (matched > 0) {
+                    var tp = realizedPnl + uPnl;
+                    pnlEl.textContent = (tp >= 0 ? '+$' : '-$') + Math.abs(tp).toFixed(2);
+                    pnlEl.style.color = tp >= 0 ? 'var(--green)' : 'var(--red)';
+                    if (balEl && uPnl !== 0) {
+                        balEl.textContent = '$' + ((data.balance || 0) + uPnl).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                    }
+                } else {
+                    // Fetch fresh if cache empty
                     fetch(API_BASE + '/api/scores?min_score=0').then(function(r){return r.json();}).then(function(sc) {
                         var scores = sc.scores || [];
-                        var priceMap = {};
-                        scores.forEach(function(s) { priceMap[s.ticker] = s; });
-                        var uPnl = 0;
+                        var pm = {};
+                        scores.forEach(function(s) { pm[s.ticker] = s; _serverScoreCache[s.ticker] = s; });
+                        var up = 0;
                         openTrades.forEach(function(t) {
-                            var s = priceMap[t.ticker];
-                            if (s) {
-                                var cp = t.side === 'yes' ? s.yes : s.no;
-                                uPnl += (cp - t.price) * t.contracts / 100;
-                            }
+                            var s = pm[t.ticker];
+                            if (s) { up += ((t.side === 'yes' ? s.yes : s.no) - t.price) * t.contracts / 100; }
                         });
-                        var tp = realizedPnl + uPnl;
-                        pnlEl.textContent = (tp >= 0 ? '+$' : '-$') + Math.abs(tp).toFixed(2);
-                        pnlEl.style.color = tp >= 0 ? 'var(--green)' : 'var(--red)';
-                        if (balEl && uPnl !== 0) {
-                            balEl.textContent = '$' + ((data.balance || 0) + uPnl).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                        var total = realizedPnl + up;
+                        pnlEl.textContent = (total >= 0 ? '+$' : '-$') + Math.abs(total).toFixed(2);
+                        pnlEl.style.color = total >= 0 ? 'var(--green)' : 'var(--red)';
+                        if (balEl && up !== 0) {
+                            balEl.textContent = '$' + ((data.balance || 0) + up).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
                         }
                     }).catch(function(){});
                 }
+            } else if (pnlEl) {
+                pnlEl.textContent = '+$0.00';
+                pnlEl.style.color = 'var(--green)';
             }
 
             // Win/Loss badge

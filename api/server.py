@@ -2046,7 +2046,7 @@ async def autobot_scan():
             for pick in top_picks:
                 # Skip markets beyond user's preferred timeframe
                 pick_days = pick.get("days_left", -1)
-                if pick_days != -1 and pick_days > user_max_days:
+                if pick_days > user_max_days or (pick_days < 0 and pick_days != -1):
                     continue
                 # Skip below user's min score
                 if pick["score"] < user_min_score:
