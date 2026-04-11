@@ -3003,6 +3003,60 @@ function loadPortfolio() {
     const pnlEl = document.getElementById('paper-pnl');
     pnlEl.textContent = totalPnl >= 0 ? '+$' + totalPnl.toFixed(2) : '-$' + Math.abs(totalPnl).toFixed(2);
     pnlEl.className = 'bot-stat-value ' + (totalPnl >= 0 ? 'running' : 'stopped');
+
+    // Load auto-bot trades on portfolio page too
+    loadAutobotOnPortfolio();
+}
+
+function loadAutobotOnPortfolio() {
+    var posDiv = document.getElementById('paper-positions');
+    if (!posDiv) return;
+    var email = '';
+    if (typeof _currentUser !== 'undefined' && _currentUser) email = _currentUser.email || '';
+    if (!email) email = localStorage.getItem('sygnal-account-email') || '';
+    if (!email) return;
+
+    fetch(API_BASE + '/api/autobot/portfolio?email=' + encodeURIComponent(email))
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            var openTrades = data.open_trades || [];
+            if (openTrades.length === 0 && data.resolved_count === 0) return;
+
+            var wins = data.wins || 0;
+            var losses = data.losses || 0;
+            var winRate = data.win_rate || 0;
+
+            var html = '<div style="margin-top:24px;padding-top:20px;border-top:1px solid var(--border);">' +
+                '<h3 style="font-size:13px;color:var(--text-dim);letter-spacing:2px;margin-bottom:4px;">AUTO-BOT TRADES</h3>' +
+                '<p style="font-size:11px;color:var(--text-dim);margin-bottom:12px;">Placed automatically by your Sygnal Score bot</p>';
+
+            if (wins + losses > 0) {
+                html += '<div style="display:flex;gap:16px;margin-bottom:12px;font-size:13px;">' +
+                    '<span style="color:var(--green);font-weight:700;">' + winRate + '% win rate</span>' +
+                    '<span style="color:var(--text-dim);">' + wins + 'W / ' + losses + 'L</span>' +
+                    '<span style="color:' + (data.total_pnl >= 0 ? 'var(--green)' : 'var(--red)') + ';font-weight:600;">' + (data.total_pnl >= 0 ? '+' : '') + '$' + (data.total_pnl || 0).toFixed(2) + '</span>' +
+                '</div>';
+            }
+
+            if (openTrades.length > 0) {
+                html += openTrades.map(function(t) {
+                    var sideColor = t.side === 'yes' ? 'var(--green)' : 'var(--red)';
+                    return '<div class="bot-position">' +
+                        '<div>' +
+                            '<div class="bot-position-title">' + (t.question || t.ticker).substring(0, 40) + '</div>' +
+                            '<div class="bot-position-side">' + t.side.toUpperCase() + ' · ' + t.contracts + 'x @ ' + t.price + '¢ · Score ' + t.score + '</div>' +
+                        '</div>' +
+                        '<span style="background:rgba(0,136,255,0.1);color:var(--accent);padding:3px 8px;border-radius:6px;font-size:10px;font-weight:700;">' + t.signal + '</span>' +
+                    '</div>';
+                }).join('');
+            } else {
+                html += '<p style="color:var(--text-dim);font-size:13px;">No open auto-bot positions</p>';
+            }
+
+            html += '</div>';
+            posDiv.innerHTML += html;
+        })
+        .catch(function() {});
 }
 
 
