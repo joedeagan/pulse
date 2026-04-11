@@ -202,11 +202,19 @@ async def get_kalshi():
                     if "  " in title or title.startswith("Will  "):
                         title = event_title
 
-                    # For multi-option: combine event name + option
+                    # For multi-option: make titles sound like real questions
                     if is_multi and sub and sub != title:
-                        # Shorten event title for combo
-                        short_event = event_title.replace("Who will the next ", "Next ").replace("Who will be the next new ", "Next ").replace("Who will be the next ", "Next ").replace("Which ", "").replace("?", "").strip()
-                        title = f"{short_event}: {sub}"
+                        # Clean up the event title
+                        short_event = event_title.replace("?", "").strip()
+                        # If sub is a name/option, format as "Will [sub] [event]?"
+                        if short_event.startswith("Who will"):
+                            title = f"{short_event.replace('Who will', 'Will')} be {sub}?"
+                        elif short_event.startswith("Where will"):
+                            title = f"{short_event}: {sub}?"
+                        elif short_event.startswith("What"):
+                            title = f"{short_event}: {sub}?"
+                        else:
+                            title = f"{short_event}: {sub}"
 
                     # Parse dollar prices → cents
                     yes_price = 50
@@ -1567,7 +1575,22 @@ async def autobot_scan():
         scores = compute_sygnal_scores(kalshi, poly)
 
         # Only take actionable signals (LEAN or BUY, score >= 30)
-        actionable = [s for s in scores if s["signal"] in ("BUY YES", "BUY NO", "LEAN YES", "LEAN NO") and s["score"] >= 30]
+        # Filter out confusing multi-option titles (contain colons like "Who will X: Option Y")
+        actionable = []
+        for s in scores:
+            if s["signal"] not in ("BUY YES", "BUY NO", "LEAN YES", "LEAN NO"):
+                continue
+            if s["score"] < 30:
+                continue
+            q = s.get("question", "")
+            # Skip confusing sub-option markets
+            if ": " in q and not q.startswith("Will") and not q.startswith("How"):
+                # Check if it's a "Topic: Sub-option" format
+                parts = q.split(": ")
+                if len(parts) == 2 and len(parts[1]) < 30:
+                    # Rewrite as "Will [sub-option] [topic]?"
+                    s["question"] = parts[0] + ": " + parts[1]
+            actionable.append(s)
         actionable.sort(key=lambda s: s["score"], reverse=True)
         top_picks = actionable[:5]  # Top 5 picks per scan
 
