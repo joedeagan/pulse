@@ -3092,13 +3092,69 @@ function sellBotTrade(ticker) {
     if (!email) email = localStorage.getItem('sygnal-account-email') || '';
     if (!email) return;
 
-    if (!confirm('Sell this position at current market price?')) return;
+    // Find the trade info for the modal
+    var tradeInfo = null;
+    try {
+        var cached = JSON.parse(localStorage.getItem('sygnal-bot-cache-' + email));
+        if (cached) tradeInfo = (cached.open_trades || []).find(function(t) { return t.ticker === ticker; });
+    } catch(e) {}
+
+    var question = tradeInfo ? tradeInfo.question : 'this position';
+    var side = tradeInfo ? tradeInfo.side.toUpperCase() : '';
+    var entry = tradeInfo ? tradeInfo.price + '¢' : '';
+    var contracts = tradeInfo ? tradeInfo.contracts : '';
+    var cost = tradeInfo ? '$' + tradeInfo.cost.toFixed(2) : '';
+
+    // Get current price from server cache
+    var currentInfo = '';
+    var sc = _serverScoreCache[ticker];
+    if (sc && tradeInfo) {
+        var curPrice = tradeInfo.side === 'yes' ? sc.yes : sc.no;
+        var pnlCents = curPrice - tradeInfo.price;
+        var pnlDollars = (pnlCents * tradeInfo.contracts / 100);
+        var pnlColor = pnlDollars >= 0 ? '#00d68f' : '#ff3b5c';
+        var pnlStr = pnlDollars >= 0 ? '+$' + pnlDollars.toFixed(2) : '-$' + Math.abs(pnlDollars).toFixed(2);
+        currentInfo = '<div style="display:flex;justify-content:space-between;margin-top:12px;padding:12px;background:rgba(255,255,255,0.03);border-radius:8px;">' +
+            '<div><div style="font-size:10px;color:var(--text-dim);margin-bottom:2px;">Current</div><div style="font-size:16px;font-weight:700;color:var(--text);">' + curPrice + '¢</div></div>' +
+            '<div><div style="font-size:10px;color:var(--text-dim);margin-bottom:2px;">Entry</div><div style="font-size:16px;font-weight:700;color:var(--text);">' + entry + '</div></div>' +
+            '<div><div style="font-size:10px;color:var(--text-dim);margin-bottom:2px;">P&L</div><div style="font-size:16px;font-weight:700;color:' + pnlColor + ';">' + pnlStr + '</div></div>' +
+        '</div>';
+    }
+
+    // Build modal
+    var overlay = document.createElement('div');
+    overlay.id = 'sell-modal';
+    overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.7);z-index:10000;display:flex;align-items:center;justify-content:center;padding:20px;';
+    overlay.innerHTML = '<div style="background:var(--bg-card);border:1px solid var(--border);border-radius:16px;padding:28px;max-width:400px;width:100%;">' +
+        '<h3 style="font-size:18px;font-weight:700;color:var(--text);margin:0 0 8px;">Sell Position</h3>' +
+        '<p style="font-size:13px;color:var(--text-dim);margin:0 0 4px;line-height:1.5;">' + question + '</p>' +
+        '<div style="font-size:12px;color:var(--text-dim);">' + side + ' · ' + contracts + ' contracts · ' + cost + '</div>' +
+        currentInfo +
+        '<div style="display:flex;gap:10px;margin-top:20px;">' +
+            '<button onclick="document.getElementById(\'sell-modal\').remove();" style="flex:1;padding:12px;border-radius:10px;background:rgba(255,255,255,0.05);color:var(--text);border:1px solid var(--border);font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;">Cancel</button>' +
+            '<button id="sell-confirm-btn" onclick="confirmSellTrade(\'' + ticker + '\')" style="flex:1;padding:12px;border-radius:10px;background:#ff3b5c;color:#fff;border:none;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;">Sell Now</button>' +
+        '</div>' +
+    '</div>';
+    document.body.appendChild(overlay);
+    // Close on backdrop click
+    overlay.addEventListener('click', function(e) { if (e.target === overlay) overlay.remove(); });
+}
+
+function confirmSellTrade(ticker) {
+    var email = '';
+    if (typeof _currentUser !== 'undefined' && _currentUser) email = _currentUser.email || '';
+    if (!email) email = localStorage.getItem('sygnal-account-email') || '';
+
+    var btn = document.getElementById('sell-confirm-btn');
+    if (btn) { btn.textContent = 'Selling...'; btn.disabled = true; }
 
     fetch(API_BASE + '/api/autobot/sell', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({email: email, ticker: ticker})
     }).then(function(r) { return r.json(); }).then(function(d) {
+        var modal = document.getElementById('sell-modal');
+        if (modal) modal.remove();
         if (d.ok) {
             var pnlStr = d.pnl >= 0 ? '+$' + d.pnl.toFixed(2) : '-$' + Math.abs(d.pnl).toFixed(2);
             showToast('Sold for ' + pnlStr);
@@ -3107,7 +3163,11 @@ function sellBotTrade(ticker) {
         } else {
             showToast(d.error || 'Error selling');
         }
-    }).catch(function() { showToast('Error selling trade'); });
+    }).catch(function() {
+        var modal = document.getElementById('sell-modal');
+        if (modal) modal.remove();
+        showToast('Error selling trade');
+    });
 }
 
 var _autobotLoading = false;
