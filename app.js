@@ -2973,7 +2973,7 @@ function loadPortfolio() {
     const posDiv = document.getElementById('paper-positions');
 
     if (trades.length === 0) {
-        posDiv.innerHTML = '<div style="text-align:center;padding:24px;color:var(--text-dim);font-size:13px;"><div style="width:20px;height:20px;border:2px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin 0.8s linear infinite;margin:0 auto 8px;"></div>Loading your trades...</div>';
+        posDiv.innerHTML = '';
         document.getElementById('paper-pnl').textContent = '$0.00';
         loadAutobotOnPortfolio();
         return;

@@ -729,11 +729,17 @@ async def generate_newsletter():
 <!-- Main content -->
 <tr><td bgcolor="#0e0e1a" style="padding:24px;border-radius:0 0 12px 12px;">
 
-<!-- Bot Stats -->
-{bot_stats}
-
-<!-- Personalized section (replaced per-user when sending) -->
-{{USER_BOT_SECTION}}
+<!-- Your Bot Stats (personalized per user when sent) -->
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#0a1628;border:1px solid #1a2a4a;border-radius:10px;margin-bottom:16px;">
+<tr><td style="padding:16px;">
+<div style="font-size:11px;font-weight:700;color:#0088ff;letter-spacing:2px;margin-bottom:10px;">YOUR BOT THIS WEEK</div>
+<table width="100%"><tr>
+<td style="text-align:center;"><div style="font-size:22px;font-weight:800;color:#fff;">$9,000</div><div style="font-size:9px;color:#555;letter-spacing:1px;">BALANCE</div></td>
+<td style="text-align:center;"><div style="font-size:22px;font-weight:800;color:#00d68f;">+$0.00</div><div style="font-size:9px;color:#555;letter-spacing:1px;">P&amp;L</div></td>
+<td style="text-align:center;"><div style="font-size:22px;font-weight:800;color:#fff;">5</div><div style="font-size:9px;color:#555;letter-spacing:1px;">OPEN</div></td>
+<td style="text-align:center;"><div style="font-size:22px;font-weight:800;color:#fff;">0W/0L</div><div style="font-size:9px;color:#555;letter-spacing:1px;">RECORD</div></td>
+</tr></table>
+</td></tr></table>
 
 <!-- Top Scored Markets -->
 <table width="100%" cellpadding="0" cellspacing="0">
@@ -741,19 +747,6 @@ async def generate_newsletter():
 {scored_rows}
 </table>
 
-<tr><td style="height:20px;"></td></tr>
-
-<!-- Top Volume -->
-<table width="100%" cellpadding="0" cellspacing="0">
-<tr><td style="padding:0 0 12px;"><span style="font-size:11px;font-weight:700;color:#f0b000;letter-spacing:2px;">MOST ACTIVE</span></td></tr>
-{market_rows}
-</table>
-
-<!-- Arbitrage -->
-<table width="100%" cellpadding="0" cellspacing="0">
-<tr><td style="padding:20px 0 12px;"><span style="font-size:11px;font-weight:700;color:#a78bfa;letter-spacing:2px;">CROSS-PLATFORM EDGE</span></td></tr>
-{arb_rows}
-</table>
 
 <!-- CTA -->
 <table width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding:28px 0 8px;">
@@ -775,18 +768,6 @@ async def generate_newsletter():
 </td></tr></table>
 </body></html>"""
 
-    # For preview, show placeholder user section
-    preview_section = '''<table width="100%" cellpadding="0" cellspacing="0" style="background:#0a1628;border:1px solid #1a2a4a;border-radius:10px;margin-bottom:16px;">
-<tr><td style="padding:16px;">
-<div style="font-size:11px;font-weight:700;color:#0088ff;letter-spacing:2px;margin-bottom:10px;">YOUR BOT THIS WEEK</div>
-<table width="100%"><tr>
-<td style="text-align:center;"><div style="font-size:22px;font-weight:800;color:#fff;">$9,420</div><div style="font-size:9px;color:#555;letter-spacing:1px;">BALANCE</div></td>
-<td style="text-align:center;"><div style="font-size:22px;font-weight:800;color:#00d68f;">+$142.50</div><div style="font-size:9px;color:#555;letter-spacing:1px;">P&amp;L</div></td>
-<td style="text-align:center;"><div style="font-size:22px;font-weight:800;color:#fff;">5</div><div style="font-size:9px;color:#555;letter-spacing:1px;">OPEN</div></td>
-<td style="text-align:center;"><div style="font-size:22px;font-weight:800;color:#fff;">4W/1L</div><div style="font-size:9px;color:#555;letter-spacing:1px;">RECORD</div></td>
-</tr></table>
-</td></tr></table>'''
-    html = html.replace("{{USER_BOT_SECTION}}", preview_section)
     return HTMLResponse(content=html)
 
 
