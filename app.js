@@ -421,8 +421,8 @@ function renderMarkets(kalshiMarkets, polyMarkets) {
             el.textContent = stats.overall_win_rate + '%';
             el.style.color = stats.overall_win_rate >= 55 ? 'var(--green)' : 'var(--text)';
         } else {
-            // Hide the stat box until we have enough data
-            el.parentElement.style.display = 'none';
+            el.textContent = stats.total_trades > 0 ? stats.total_trades + ' trades' : '—';
+            el.style.color = 'var(--text-dim)';
         }
     }).catch(function(){});
 
@@ -3175,7 +3175,18 @@ function loadAutobotOnPortfolio() {
                             '</div>' +
                             '<div style="text-align:right;">' +
                                 '<span style="font-size:11px;color:var(--text-dim);">' + t.contracts + 'x @ ' + t.price + '¢</span>' +
-                                '<div style="font-size:10px;color:var(--green);margin-top:2px;">If ' + t.side.toUpperCase() + ': win $' + ((100 - t.price) * t.contracts / 100).toFixed(2) + '</div>' +
+                                (function() {
+                                    var cm = allMarketCards.find(function(c) { return c.market.ticker === t.ticker; });
+                                    if (cm) {
+                                        var curPrice = t.side === 'yes' ? cm.market.yes : cm.market.no;
+                                        var pnlCents = curPrice - t.price;
+                                        var pnlDollars = (pnlCents * t.contracts / 100);
+                                        var pnlColor = pnlCents >= 0 ? 'var(--green)' : 'var(--red)';
+                                        var arrow = pnlCents >= 0 ? '▲' : '▼';
+                                        return '<div style="font-size:12px;color:' + pnlColor + ';font-weight:700;margin-top:2px;">' + arrow + ' ' + (pnlCents >= 0 ? '+' : '') + pnlCents + '¢ (' + (pnlDollars >= 0 ? '+' : '') + '$' + pnlDollars.toFixed(2) + ')</div>';
+                                    }
+                                    return '<div style="font-size:10px;color:var(--green);margin-top:2px;">If ' + t.side.toUpperCase() + ': win $' + ((100 - t.price) * t.contracts / 100).toFixed(2) + '</div>';
+                                })() +
                             '</div>' +
                         '</div>' +
                     '</div>';
