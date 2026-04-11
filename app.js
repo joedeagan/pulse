@@ -3079,7 +3079,25 @@ function loadAutobotOnPortfolio() {
     var email = '';
     if (typeof _currentUser !== 'undefined' && _currentUser) email = _currentUser.email || '';
     if (!email) email = localStorage.getItem('sygnal-account-email') || '';
-    if (!email) { _autobotLoading = false; return; }
+    if (!email) {
+        _autobotLoading = false;
+        // Hide settings card when not signed in
+        var settingsCard = document.getElementById('bot-settings-card');
+        if (settingsCard) settingsCard.style.display = 'none';
+        // Show sign-in prompt
+        var existingAutobot = document.getElementById('autobot-section');
+        if (existingAutobot) existingAutobot.remove();
+        var signInPrompt = document.createElement('div');
+        signInPrompt.id = 'autobot-section';
+        signInPrompt.innerHTML = '<div style="text-align:center;padding:40px 20px;margin-top:20px;border-top:1px solid var(--border);">' +
+            '<div style="font-size:32px;margin-bottom:12px;">🤖</div>' +
+            '<h3 style="font-size:18px;font-weight:700;color:var(--text);margin:0 0 8px;">Sign in to activate your bot</h3>' +
+            '<p style="font-size:13px;color:var(--text-dim);margin:0 0 20px;line-height:1.5;">Get a personal paper trading bot that uses Sygnal Scores to find and place trades automatically. Start with $10,000 paper balance.</p>' +
+            '<button onclick="showAuthModal()" style="background:var(--accent);color:#fff;border:none;padding:12px 32px;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;">Sign In</button>' +
+        '</div>';
+        posDiv.appendChild(signInPrompt);
+        return;
+    }
 
     // Update the top stats with auto-bot data too
 

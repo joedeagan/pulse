@@ -1819,15 +1819,11 @@ async def autobot_scan():
         if not top_picks:
             return {"ok": True, "picks": 0, "msg": "No actionable signals"}
 
-        # Get all registered users: Pro + subscribers + anyone registered for bot
+        # Only trade for users who signed in (registered via /api/autobot/register)
         pros = load_pro_users() + ADMIN_PRO_EMAILS
         pros = list(set(p.lower() for p in pros))
-        subs = load_subscribers()
-        sub_emails = [s.lower() if isinstance(s, str) else s.get("email", "").lower() for s in subs]
-        # Include everyone already in auto_bot_trades (registered via /api/autobot/register)
-        existing_bot_users = list(load_auto_bot_trades().keys())
-        all_emails = list(set(pros + sub_emails + existing_bot_users))
-        all_emails = [e for e in all_emails if e and "@" in e]
+        all_trades = load_auto_bot_trades()
+        all_emails = [e for e in all_trades.keys() if e and "@" in e]
 
         all_trades = load_auto_bot_trades()
         new_trades = 0
