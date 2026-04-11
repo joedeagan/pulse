@@ -5716,15 +5716,27 @@ function initFirebase() {
         firebase.initializeApp(FIREBASE_CONFIG);
         _db = firebase.firestore();
 
+        var _authInitialized = false;
         firebase.auth().onAuthStateChanged(user => {
             _currentUser = user;
-            updateAuthUI(user);
+            if (_authInitialized) {
+                // Only update UI after initial load (prevents flash)
+                updateAuthUI(user);
+            }
+            _authInitialized = true;
             if (user) {
+                updateAuthUI(user);
                 loadUserData(user.uid);
                 checkProStatus();
             } else {
-                _isPro = false;
-                updateProUI();
+                // Don't reset Pro on initial null — wait for auth to settle
+                setTimeout(function() {
+                    if (!_currentUser) {
+                        _isPro = false;
+                        updateProUI();
+                        updateAuthUI(null);
+                    }
+                }, 1000);
             }
         });
     } catch (e) {
