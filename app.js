@@ -415,12 +415,20 @@ function renderMarkets(kalshiMarkets, polyMarkets) {
     fetch(API_BASE + '/api/collective/stats').then(function(r) { return r.json(); }).then(function(stats) {
         var el = document.getElementById('bot-accuracy-stat');
         if (!el) return;
-        if (stats.enough_data && stats.total_trades >= 10) {
+        if (stats.total_trades >= 10) {
             el.textContent = stats.overall_win_rate + '%';
             el.style.color = stats.overall_win_rate >= 55 ? 'var(--green)' : stats.overall_win_rate >= 45 ? 'var(--gold, #f0b000)' : 'var(--red)';
+        } else if (stats.total_trades > 0) {
+            el.textContent = stats.total_trades + ' trades';
+            el.style.color = 'var(--accent)';
         } else {
-            el.textContent = 'Tracking...';
-            el.style.color = 'var(--text-dim)';
+            // Show bot status instead
+            fetch(API_BASE + '/api/bot').then(function(r){return r.json();}).then(function(bot) {
+                if (bot.running) {
+                    el.textContent = 'Live';
+                    el.style.color = 'var(--green)';
+                }
+            }).catch(function(){});
         }
     }).catch(function() {});
 
