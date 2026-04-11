@@ -1543,23 +1543,41 @@ async def autobot_scan():
         if not top_picks:
             return {"ok": True, "picks": 0, "msg": "No actionable signals"}
 
-        # Get all pro users
-        pros = load_pro_users()
-        pros += ADMIN_PRO_EMAILS  # Include admins
+        # Get all registered users (Pro + free with trial)
+        pros = load_pro_users() + ADMIN_PRO_EMAILS
         pros = list(set(p.lower() for p in pros))
+        # Also include subscribers (free users who signed up)
+        subs = load_subscribers()
+        all_emails = list(set(pros + [s.lower() if isinstance(s, str) else s.get("email", "").lower() for s in subs]))
+        all_emails = [e for e in all_emails if e and "@" in e]
 
         all_trades = load_auto_bot_trades()
         new_trades = 0
 
-        for email in pros:
+        for email in all_emails:
             if email not in all_trades:
-                all_trades[email] = {"balance": 1000, "trades": [], "total_pnl": 0}
+                all_trades[email] = {"balance": 1000, "trades": [], "total_pnl": 0, "created": datetime.now(timezone.utc).isoformat()}
 
             user = all_trades[email]
-            open_trades = [t for t in user["trades"] if not t.get("resolved")]
+            is_pro = email.lower() in [p.lower() for p in pros]
 
-            # Max 10 open positions per user
-            if len(open_trades) >= 10:
+            # Free users: 30-day trial, max 5 positions
+            # Pro users: unlimited, max 10 positions
+            if not is_pro:
+                created = user.get("created", "")
+                if created:
+                    try:
+                        created_dt = datetime.fromisoformat(created.replace("Z", "+00:00"))
+                        days_active = (datetime.now(timezone.utc) - created_dt).days
+                        if days_active > 30:
+                            continue  # Trial expired
+                    except Exception:
+                        pass
+
+            open_trades = [t for t in user["trades"] if not t.get("resolved")]
+            max_positions = 10 if is_pro else 5
+
+            if len(open_trades) >= max_positions:
                 continue
 
             for pick in top_picks:
