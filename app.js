@@ -5804,18 +5804,9 @@ function startOnboarding() {
         overlay.id = 'onboarding-overlay';
         overlay.className = 'onboarding-overlay';
 
-        // Position card near highlighted element or center
-        let cardStyle = '';
-        if (step.position === 'bottom' && step.highlight) {
-            const el = document.querySelector(step.highlight);
-            if (el) {
-                const rect = el.getBoundingClientRect();
-                cardStyle = `position:fixed;top:${Math.min(rect.bottom + 20, window.innerHeight - 400)}px;left:50%;transform:translateX(-50%);`;
-            }
-        }
 
         overlay.innerHTML = `
-            <div class="onboarding-card onboarding-entrance" style="${cardStyle}">
+            <div class="onboarding-card onboarding-entrance" >
                 <div class="onboarding-progress">
                     ${steps.map((_, i) => `<div class="onboarding-dot ${i === currentStep ? 'active' : i < currentStep ? 'done' : ''}"></div>`).join('')}
                 </div>
