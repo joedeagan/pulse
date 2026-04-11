@@ -517,7 +517,12 @@
             <p style="font-size:11px;color:var(--text-dim);margin-top:8px;">Free 30-day trial. No credit card required.</p>
         </div>
 
-        <div id="paper-positions"></div>
+        <div id="paper-positions">
+            <div style="text-align:center;padding:24px;color:var(--text-dim);font-size:13px;">
+                <div style="width:20px;height:20px;border:2px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin 0.8s linear infinite;margin:0 auto 8px;"></div>
+                Loading your trades...
+            </div>
+        </div>
     </section>
 
     <!-- AI Market Brief -->
@@ -858,6 +863,6 @@
         if (window.caches) caches.keys().then(function(k) { k.forEach(function(c) { caches.delete(c); }); });
     }
     </script>
-    <script src="app.js?v=60"></script>
+    <script src="app.js?v=61"></script>
 </body>
 </html>
