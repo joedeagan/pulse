@@ -162,8 +162,8 @@ body {
 nav {
     display: flex;
     align-items: center;
+    justify-content: space-between;
     padding: 0 20px;
-    gap: 16px;
     height: 60px;
     background: rgba(10, 10, 18, 0.95);
     backdrop-filter: blur(24px);
@@ -317,7 +317,8 @@ body.light .nav-more-menu a.active { color: #0066cc; background: rgba(0,102,204,
     border: 1px solid rgba(255, 255, 255, 0.08);
     border-radius: 12px;
     padding: 9px 18px;
-    flex: 1;
+    flex: 0 1 320px;
+    max-width: 320px;
     min-width: 180px;
     max-width: 520px;
     margin: 0 auto;
