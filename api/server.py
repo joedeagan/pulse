@@ -1247,18 +1247,43 @@ async def check_pro(email: str = ""):
 import math
 
 def _word_set(text):
-    # Filter out common filler words
-    stop = {'will', 'the', 'and', 'for', 'that', 'this', 'with', 'from', 'have', 'are', 'was', 'were', 'been', 'being', 'before', 'after', 'between', 'about', 'than', 'there', 'their', 'what', 'when', 'where', 'which', 'who', 'how', 'not', 'but', 'does', 'did'}
+    stop = {'will', 'the', 'and', 'for', 'that', 'this', 'with', 'from', 'have', 'are', 'was', 'were', 'been', 'being', 'before', 'after', 'between', 'about', 'than', 'there', 'their', 'what', 'when', 'where', 'which', 'who', 'how', 'not', 'but', 'does', 'did', 'any', 'its', 'his', 'her', 'our', 'more', 'most', 'also', 'into', 'over', 'such', 'only'}
     return set(w.lower() for w in (text or "").split() if len(w) > 2 and w.lower() not in stop)
+
+def _extract_entities(text):
+    """Extract proper nouns, numbers, and dates from text."""
+    import re
+    t = text or ""
+    # Find capitalized words (names), numbers, years, percentages
+    names = set(w.lower() for w in re.findall(r'[A-Z][a-z]{2,}', t))
+    numbers = set(re.findall(r'\b\d+(?:\.\d+)?%?\b', t))
+    return names, numbers
 
 def _word_similarity(a, b):
     wa, wb = _word_set(a), _word_set(b)
     if not wa or not wb:
         return 0
     overlap = wa & wb
-    # Require at least 3 matching words for a valid match
+    # Require at least 3 matching meaningful words
     if len(overlap) < 3:
         return 0
+
+    # Check entity overlap — names and numbers must also match
+    names_a, nums_a = _extract_entities(a)
+    names_b, nums_b = _extract_entities(b)
+
+    # If both have names, at least one name must overlap
+    if names_a and names_b:
+        name_overlap = names_a & names_b
+        if not name_overlap:
+            return 0  # Different people/things — not the same market
+
+    # If both have numbers/dates, at least one must overlap
+    if nums_a and nums_b:
+        num_overlap = nums_a & nums_b
+        if not num_overlap:
+            return 0  # Different quantities/dates — not the same market
+
     return len(overlap) / min(len(wa), len(wb))
 
 _vegas_cache = {"data": [], "ts": 0}
@@ -1308,7 +1333,7 @@ def compute_sygnal_scores(kalshi_markets, poly_markets, vegas_odds=None):
         best, best_sim = None, 0
         for p in poly_markets:
             s = _word_similarity(k.get("question", ""), p.get("question", ""))
-            if s > best_sim and s >= 0.50:
+            if s > best_sim and s >= 0.60:
                 best_sim = s
                 best = p
         if best:
