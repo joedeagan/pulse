@@ -3067,7 +3067,7 @@ function saveBotSettings() {
     }).then(function(r) { return r.json(); }).then(function(d) {
         if (d.ok) {
             if (btn) { btn.textContent = '✓ Saved'; btn.style.background = '#00d68f'; btn.disabled = false; }
-            if (status) { status.textContent = 'Settings applied to your bot'; status.style.color = '#00d68f'; status.style.display = 'inline'; }
+            if (status) { status.textContent = 'Bot settings updated'; status.style.color = '#00d68f'; status.style.display = 'inline'; }
             showToast('Bot settings saved');
             setTimeout(function() {
                 if (btn) { btn.style.display = 'none'; btn.textContent = 'Save Changes'; btn.style.background = 'var(--accent)'; }
@@ -4640,7 +4640,7 @@ function showSharePopup(market) {
         canvas.toBlob(blob => {
             navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]).then(() => {
                 showToast('Image copied to clipboard!');
-            }).catch(() => showToast('Copy failed — try download instead'));
+            }).catch(() => showToast('Copy failed — try downloading instead'));
         });
     });
 }
@@ -7115,7 +7115,7 @@ function submitAuth(mode) {
     }).catch(() => {});
 
     document.getElementById('auth-overlay').style.display = 'none';
-    showToast(mode === 'signup' ? 'Account created! Welcome to Sygnal' : 'Signed in!');
+    showToast(mode === 'signup' ? 'Account created! Welcome to Sygnal!' : 'Signed in!');
 
     // If on profile, refresh it
     if (document.getElementById('profile-panel') && !document.getElementById('profile-panel').classList.contains('view-hidden')) {

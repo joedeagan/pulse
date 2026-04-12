@@ -404,7 +404,7 @@
                         <div class="custom-select-option active" data-value="default" onclick="selectSort(this)">Default</div>
                         <div class="custom-select-option" data-value="sygnal-desc" onclick="selectSort(this)">Sygnal Score</div>
                         <div class="custom-select-option" data-value="volume-desc" onclick="selectSort(this)">Most Volume</div>
-                        <div class="custom-select-option" data-value="volume-asc" onclick="selectSort(this)">Least Volume</div>
+                        <div class="custom-select-option" data-value="volume-asc" onclick="selectSort(this)">Lowest Volume</div>
                         <div class="custom-select-option" data-value="yes-desc" onclick="selectSort(this)">Highest YES</div>
                         <div class="custom-select-option" data-value="yes-asc" onclick="selectSort(this)">Lowest YES</div>
                         <div class="custom-select-option" data-value="change-desc" onclick="selectSort(this)">Biggest Change</div>
@@ -637,7 +637,7 @@
             <h2>Sygnal Leagues</h2>
             <span class="league-week-badge" id="league-week-label"></span>
         </div>
-        <p style="color:var(--text-dim);font-size:13px;margin-bottom:20px;">Compete weekly with paper trades. Best return wins. Resets every Monday.</p>
+        <p style="color:var(--text-dim);font-size:13px;margin-bottom:20px;">Compete weekly with paper trades. Highest return wins. Resets every Monday.</p>
         <div class="league-stats-row" id="league-stats-row"></div>
         <div class="league-section">
             <h3 style="font-size:14px;letter-spacing:1.5px;color:var(--text-dim);margin-bottom:12px;">LEADERBOARD</h3>
@@ -899,6 +899,6 @@
         if (window.caches) caches.keys().then(function(k) { k.forEach(function(c) { caches.delete(c); }); });
     }
     </script>
-    <script src="app.js?v=100"></script>
+    <script src="app.js?v=101"></script>
 </body>
 </html>
