@@ -1247,13 +1247,19 @@ async def check_pro(email: str = ""):
 import math
 
 def _word_set(text):
-    return set(w.lower() for w in (text or "").split() if len(w) > 2)
+    # Filter out common filler words
+    stop = {'will', 'the', 'and', 'for', 'that', 'this', 'with', 'from', 'have', 'are', 'was', 'were', 'been', 'being', 'before', 'after', 'between', 'about', 'than', 'there', 'their', 'what', 'when', 'where', 'which', 'who', 'how', 'not', 'but', 'does', 'did'}
+    return set(w.lower() for w in (text or "").split() if len(w) > 2 and w.lower() not in stop)
 
 def _word_similarity(a, b):
     wa, wb = _word_set(a), _word_set(b)
     if not wa or not wb:
         return 0
-    return len(wa & wb) / min(len(wa), len(wb))
+    overlap = wa & wb
+    # Require at least 3 matching words for a valid match
+    if len(overlap) < 3:
+        return 0
+    return len(overlap) / min(len(wa), len(wb))
 
 _vegas_cache = {"data": [], "ts": 0}
 
@@ -1302,7 +1308,7 @@ def compute_sygnal_scores(kalshi_markets, poly_markets, vegas_odds=None):
         best, best_sim = None, 0
         for p in poly_markets:
             s = _word_similarity(k.get("question", ""), p.get("question", ""))
-            if s > best_sim and s >= 0.35:
+            if s > best_sim and s >= 0.50:
                 best_sim = s
                 best = p
         if best:
