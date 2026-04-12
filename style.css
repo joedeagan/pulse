@@ -317,8 +317,8 @@ body.light .nav-more-menu a.active { color: #0066cc; background: rgba(0,102,204,
     border: 1px solid rgba(255, 255, 255, 0.08);
     border-radius: 12px;
     padding: 9px 18px;
-    flex: 0 1 320px;
-    max-width: 320px;
+    flex: 0 1 420px;
+    max-width: 420px;
     min-width: 180px;
     max-width: 520px;
     margin: 0 auto;
