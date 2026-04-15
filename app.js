@@ -2,15 +2,15 @@
 // SYGNAL — app.js
 // Lesson 3: Cross-platform comparison
 // ============================================
-var _isPro = false;
 
 // WHAT WE'RE BUILDING:
 // Pull data from BOTH Kalshi (via our bot) AND Polymarket
 // Show them side by side so you can spot arbitrage (price differences)
 
 // API base — uses same origin when served from backend, or Render URL from GitHub Pages
-const API_BASE = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
-    ? '' : (window.location.origin.includes('github.io') ? 'https://sygnalmarkets.com' : '');
+const API_BASE = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' ||
+    window.location.hostname === 'sygnal-markets.fly.dev' || window.location.hostname === 'sygnalmarkets.com')
+    ? '' : 'https://sygnal-markets.fly.dev';
 
 // ── AFFILIATE LINKS ──
 const AFFILIATE = {
@@ -55,27 +55,31 @@ function trackAffiliateClick(platform) {
 
 // ── NAV MORE DROPDOWN ──
 function toggleNavMore(e) {
-    if (e) e.stopPropagation();
-    var menu = document.getElementById('nav-more-menu');
-    if (menu.classList.contains('open')) {
-        menu.classList.remove('open');
-    } else {
-        menu.classList.add('open');
-        setTimeout(function() {
-            document.addEventListener('click', function handler() {
-                menu.classList.remove('open');
-                document.removeEventListener('click', handler);
-            });
+    e.stopPropagation();
+    const menu = document.getElementById('nav-more-menu');
+    const isOpen = menu.classList.toggle('open');
+    if (isOpen) {
+        setTimeout(() => {
+            document.addEventListener('click', _navMoreOutsideClick);
         }, 50);
+    } else {
+        document.removeEventListener('click', _navMoreOutsideClick);
+    }
+}
+function _navMoreOutsideClick(e) {
+    const menu = document.getElementById('nav-more-menu');
+    const btn = document.querySelector('.nav-more-btn');
+    if (menu && !menu.contains(e.target) && btn && !btn.contains(e.target)) {
+        menu.classList.remove('open');
+        document.removeEventListener('click', _navMoreOutsideClick);
     }
 }
 function closeNavMore() {
-    var menu = document.getElementById('nav-more-menu');
-    if (menu) menu.classList.remove('open');
+    document.getElementById('nav-more-menu')?.classList.remove('open');
+    document.removeEventListener('click', _navMoreOutsideClick);
 }
 function switchTabFromMore(tab, btn) {
     closeNavMore();
-    // Highlight the More button when a sub-item is active
     document.querySelectorAll('.nav-links > a').forEach(a => a.classList.remove('active'));
     document.querySelector('.nav-more-btn')?.classList.add('active');
     document.querySelectorAll('.nav-more-menu a').forEach(a => a.classList.remove('active'));
@@ -86,31 +90,31 @@ function switchTabFromMore(tab, btn) {
 // ── MOBILE MORE DROPDOWN ──
 function toggleMobileMore(e) {
     e.preventDefault();
-    var menu = document.getElementById('mobile-more-menu');
-    if (menu.classList.contains('open')) {
-        menu.classList.remove('open');
-    } else {
-        menu.classList.add('open');
-        // Close when tapping anywhere else
-        setTimeout(function() {
-            document.addEventListener('touchstart', _closeMobileMoreOnce);
-            document.addEventListener('click', _closeMobileMoreOnce);
+    e.stopPropagation();
+    const menu = document.getElementById('mobile-more-menu');
+    const isOpen = menu.classList.toggle('open');
+    if (isOpen) {
+        setTimeout(() => {
+            document.addEventListener('click', _mobileMoreOutsideClick);
         }, 50);
+    } else {
+        document.removeEventListener('click', _mobileMoreOutsideClick);
     }
 }
-function _closeMobileMoreOnce(e) {
-    if (!e.target.closest('.mobile-more-wrap')) {
-        document.getElementById('mobile-more-menu')?.classList.remove('open');
+function _mobileMoreOutsideClick(e) {
+    const menu = document.getElementById('mobile-more-menu');
+    const wrap = document.querySelector('.mobile-more-wrap');
+    if (menu && !menu.contains(e.target) && wrap && !wrap.contains(e.target)) {
+        menu.classList.remove('open');
+        document.removeEventListener('click', _mobileMoreOutsideClick);
     }
-    document.removeEventListener('touchstart', _closeMobileMoreOnce);
-    document.removeEventListener('click', _closeMobileMoreOnce);
 }
 function closeMobileMore() {
     document.getElementById('mobile-more-menu')?.classList.remove('open');
+    document.removeEventListener('click', _mobileMoreOutsideClick);
 }
 function switchTabMobile(tab) {
     closeMobileMore();
-    // Update mobile nav active
     document.querySelectorAll('.mobile-nav-item').forEach(a => a.classList.remove('active'));
     document.querySelector('.mobile-more-wrap .mobile-nav-item')?.classList.add('active');
     switchTab(tab, null);
@@ -118,12 +122,11 @@ function switchTabMobile(tab) {
 
 // ── TAB NAVIGATION ──
 function switchTab(tab, btn) {
-    closeAllMenus();
     // Update active nav link
     document.querySelectorAll('.nav-links > a').forEach(a => a.classList.remove('active'));
     if (btn) btn.classList.add('active');
     // If switching to a main tab, deactivate More
-    const mainTabs = ['markets', 'trending', 'news', 'bot', 'portfolio'];
+    const mainTabs = ['markets', 'trending', 'bot', 'portfolio'];
     if (mainTabs.includes(tab)) {
         document.querySelector('.nav-more-btn')?.classList.remove('active');
         document.querySelectorAll('.nav-more-menu a').forEach(a => a.classList.remove('active'));
@@ -154,8 +157,8 @@ function switchTab(tab, btn) {
 
     const compareEl = document.getElementById('compare-panel');
     const alertsEl = document.getElementById('alerts-panel');
+    const profileEl = document.getElementById('profile-panel');
     const newsFeedEl = document.getElementById('news-feed');
-    const newsPanelEl = document.getElementById('news-panel');
 
     const marketsView = [heroEl, statsEl, filtersEl, marketsEl, briefEl, explainerEl, signupEl, newsFeedEl];
     const botView = [botEl];
@@ -166,11 +169,8 @@ function switchTab(tab, btn) {
     const leaguesView = [leaguesEl];
     const compareView = [compareEl];
     const alertsView = [alertsEl];
-    const newsView = [newsPanelEl];
-    const profileEl = document.getElementById('profile-panel');
     const profileView = [profileEl];
-    const proPageEl = document.getElementById('pro-page');
-    const allSections = [...marketsView, ...botView, ...portfolioView, ...arbView, ...corrView, ...trendingView, ...leaguesView, ...compareView, ...alertsView, ...newsView, ...profileView, proPageEl].filter(Boolean);
+    const allSections = [...marketsView, ...botView, ...portfolioView, ...arbView, ...corrView, ...trendingView, ...leaguesView, ...compareView, ...alertsView, ...profileView];
 
     // Hide everything
     allSections.forEach(el => { if (el) el.classList.add('view-hidden'); });
@@ -178,23 +178,17 @@ function switchTab(tab, btn) {
     // Show the selected view
     let visible = [];
     if (tab === 'markets') visible = marketsView;
-    else if (tab === 'news') { visible = newsView; loadNews(); }
     else if (tab === 'bot') visible = botView;
-    else if (tab === 'portfolio') { visible = portfolioView; loadPortfolio(); _autobotLoading = false; loadAutobotOnPortfolio(); }
+    else if (tab === 'portfolio') { visible = portfolioView; loadPortfolio(); }
     else if (tab === 'arbitrage') visible = arbView;
     else if (tab === 'trending') { visible = trendingView; buildTrendingPanel(); }
     else if (tab === 'correlations') { visible = corrView; }
     else if (tab === 'leagues') { visible = leaguesView; buildLeaguePanel(); }
     else if (tab === 'compare') { visible = compareView; buildComparePanel(); }
     else if (tab === 'alerts') { visible = alertsView; renderAlertRules(); }
-    else if (tab === 'profile') { visible = profileView; if (typeof buildProfilePanel === 'function') buildProfilePanel(); }
-    else if (tab === 'pro') { var proPage = document.getElementById('pro-page'); if (proPage) { visible = [proPage]; buildProPage(); } }
+    else if (tab === 'profile') { visible = profileView; buildProfilePanel(); }
 
     visible.forEach(el => { if (el) el.classList.remove('view-hidden'); });
-
-    // Show chat button only on markets tab
-    const chatBtn = document.getElementById('sygnal-chat-btn');
-    if (chatBtn) chatBtn.style.display = (tab === 'markets') ? '' : 'none';
 }
 
 // ── WATCHLIST ──
@@ -216,7 +210,6 @@ function toggleWatchlist(ticker, btn) {
         btn.textContent = '\u2605';
     }
     localStorage.setItem('sygnal-watchlist', JSON.stringify(wl));
-    if (typeof syncWatchlistToCloud === 'function') syncWatchlistToCloud();
 }
 
 function isStarred(ticker) {
@@ -408,23 +401,8 @@ function renderMarkets(kalshiMarkets, polyMarkets) {
 
     const total = kalshiMarkets.length + polyMarkets.length;
     document.getElementById('market-count').textContent = total;
-    // Count BUY/LEAN signals
-    var signalCount = Object.values(_sygnalSignalCache).filter(function(s) { return s.signal && s.signal !== 'HOLD'; }).length;
-    document.getElementById('arb-count').textContent = signalCount || '0';
+    document.getElementById('arb-count').textContent = arbitrage.length || '0';
     document.getElementById('refresh-time').textContent = `Updated ${new Date().toLocaleTimeString([], {hour: 'numeric', minute: '2-digit'})}`;
-
-    // Fetch collective accuracy for trust indicator
-    fetch(API_BASE + '/api/collective/stats').then(function(r){return r.json();}).then(function(stats) {
-        var el = document.getElementById('bot-accuracy-stat');
-        if (!el) return;
-        if (stats.total_trades >= 5) {
-            el.textContent = stats.overall_win_rate + '%';
-            el.style.color = stats.overall_win_rate >= 55 ? 'var(--green)' : 'var(--text)';
-        } else {
-            el.textContent = stats.total_trades > 0 ? stats.total_trades + ' trades' : '—';
-            el.style.color = 'var(--text-dim)';
-        }
-    }).catch(function(){});
 
     // Apply volume filter
     filterMarkets();
@@ -735,80 +713,26 @@ function createMarketCard(market, platform, priceChange) {
 // Only SYGNAL can do this: we see BOTH platforms simultaneously
 let _sygnalScoreCache = {};
 let _sygnalSignalCache = {};
+let _sygnalFactorCache = {};
 let _crossPlatformMap = {};
 
 function buildCrossPlatformMap(allMarkets) {
     _crossPlatformMap = {};
-
-    // Extract key entities from a market question
-    const extractEntities = (text) => {
-        const t = (text || '').toLowerCase();
-        const entities = new Set();
-
-        // Extract names (capitalized words from original)
-        const names = (text || '').match(/[A-Z][a-z]{2,}/g) || [];
-        names.forEach(n => entities.add(n.toLowerCase()));
-
-        // Extract numbers (prices, percentages, dates)
-        const nums = t.match(/\d[\d,.]+/g) || [];
-        nums.forEach(n => entities.add(n.replace(/,/g, '')));
-
-        // Key topic words (not stop words)
-        const stop = 'the a an in on at to for of is will be by and or this that it as with from who what when where how next new first last does did do has have are were was than more less before after above below between during'.split(' ');
-        const words = t.replace(/[^a-z0-9\s]/g, '').split(/\s+/).filter(w => w.length > 2 && !stop.includes(w));
-        words.forEach(w => entities.add(w));
-
-        // Category keywords
-        if (/bitcoin|btc|crypto|ethereum|eth/i.test(t)) entities.add('_crypto');
-        if (/nba|nfl|mlb|nhl|soccer|football|basketball|baseball/i.test(t)) entities.add('_sports');
-        if (/trump|biden|election|president|congress|senate|governor/i.test(t)) entities.add('_politics');
-        if (/rain|snow|weather|temperature|hurricane|storm/i.test(t)) entities.add('_weather');
-        if (/fed|inflation|gdp|unemployment|jobs|economy|rate/i.test(t)) entities.add('_economics');
-
-        return entities;
-    };
-
+    const stop = new Set(['the','a','an','in','on','at','to','for','of','is','will','be','by','and','or','this','that','it','as','with','from']);
+    const kw = t => (t||'').toLowerCase().replace(/[^a-z0-9\s]/g,'').split(/\s+/).filter(w => w.length > 2 && !stop.has(w));
     const sim = (a, b) => {
-        const ae = extractEntities(a), be = extractEntities(b);
-        if (!ae.size || !be.size) return 0;
-
-        // Count matching entities (skip single common words)
-        let matches = 0;
-        let matchedWords = [];
-        for (const e of ae) {
-            if (be.has(e)) {
-                matches++;
-                matchedWords.push(e);
-            }
-        }
-
-        // Require at least 3 matching words OR 2 matching names/numbers
-        if (matches < 3) {
-            // Check if matched words are meaningful (names, not generic words)
-            const generic = ['will', 'market', 'price', 'win', 'team', 'game', 'next', 'year', 'make'];
-            const meaningful = matchedWords.filter(w => !generic.includes(w) && !w.startsWith('_') && w.length > 3);
-            if (meaningful.length < 2) return 0;
-        }
-
-        // Category must match (don't compare sports with politics)
-        const catA = [...ae].filter(e => e.startsWith('_'));
-        const catB = [...be].filter(e => e.startsWith('_'));
-        if (catA.length > 0 && catB.length > 0) {
-            const catOverlap = catA.some(c => catB.includes(c));
-            if (!catOverlap) return 0; // Different categories = no match
-        }
-
-        const score = matches / Math.min(ae.size, be.size);
-        return score;
+        const aw = new Set(kw(a)), bw = new Set(kw(b));
+        if (!aw.size || !bw.size) return 0;
+        let m = 0; for (const w of aw) if (bw.has(w)) m++;
+        return m / Math.min(aw.size, bw.size);
     };
-
     const kalshi = allMarkets.filter(m => m.source === 'kalshi');
     const poly = allMarkets.filter(m => m.source === 'poly');
     for (const k of kalshi) {
         let best = null, bestS = 0;
         for (const p of poly) {
             const s = sim(k.question, p.question);
-            if (s > bestS && s >= 0.35) { bestS = s; best = p; }  // Higher threshold
+            if (s > bestS && s >= 0.4) { bestS = s; best = p; }
         }
         if (best) {
             const d = Math.abs(k.yes - best.yes);
@@ -818,27 +742,16 @@ function buildCrossPlatformMap(allMarkets) {
     }
 }
 
-// Vegas odds cache
-var _vegasOdds = null;
-function fetchVegasOdds() {
-    if (_vegasOdds) return;
-    fetch(API_BASE + '/api/intelligence').then(r => r.json()).then(data => {
-        _vegasOdds = data.sports_odds || [];
-        // Re-score if we have odds now
-        if (_vegasOdds.length > 0 && allMarketCards.length > 0) {
-            computeAllSygnalScores(allMarketCards.map(c => c.market));
-        }
-    }).catch(() => {});
-}
-// Fetch odds on load
-setTimeout(fetchVegasOdds, 5000);
-
 function computeAllSygnalScores(allMarkets) {
     _sygnalScoreCache = {};
     _sygnalSignalCache = {};
+    _sygnalFactorCache = {};
     if (!allMarkets || allMarkets.length === 0) return;
 
     buildCrossPlatformMap(allMarkets);
+
+    // Pre-compute signal accuracy for history bonus
+    const pastAccuracy = _getSignalAccuracyMap();
 
     for (const m of allMarkets) {
         const yes = m.yes || 50;
@@ -847,134 +760,190 @@ function computeAllSygnalScores(allMarkets) {
         const change = getMarketChange(m.ticker) || 0;
         const absChange = Math.abs(change);
         const xp = _crossPlatformMap[m.ticker];
+        const history = getPriceHistory(m.ticker);
+        // Rich data from API (Polymarket: dayChange/weekChange, Kalshi: prevPrice, both: spread/bid/ask/liquidity)
+        const spread = m.spread || 0;
+        const bestBid = m.bestBid || 0;
+        const bestAsk = m.bestAsk || 0;
+        const liq = m.liquidity || 0;
+        const dayChange = m.dayChange ? Math.abs(m.dayChange) * 100 : 0;
+        const weekChange = m.weekChange ? Math.abs(m.weekChange) * 100 : 0;
+        const openInterest = m.openInterest || 0;
 
-        // ═══════════════════════════════════════════════
-        // SYGNAL SCORE V2 — "Is this a smart bet?"
-        // Answers: Is it mispriced? Is there edge? Is it safe?
-        // ═══════════════════════════════════════════════
+        // ═══ 1. PRICE VALUE ZONE (0-22) ═══
+        // Best risk/reward: 15-40¢ (cheap YES) or 60-85¢ (strong conviction)
+        // Dead zones: 0-5¢, 95-100¢ (resolved), 45-55¢ (coin flip)
+        let priceScore = 0;
+        if (yes <= 5 || yes >= 95) priceScore = 0;           // Dead/resolved
+        else if (yes >= 45 && yes <= 55) priceScore = 4;      // Coin flip — low edge
+        else if (yes >= 15 && yes <= 40) priceScore = 18 + Math.round(4 * (1 - Math.abs(yes - 28) / 12));  // Sweet spot YES
+        else if (yes >= 60 && yes <= 85) priceScore = 18 + Math.round(4 * (1 - Math.abs(yes - 72) / 13));  // Sweet spot NO
+        else if (yes > 5 && yes < 15) priceScore = Math.round(8 * (yes - 5) / 10);   // Cheap longshot
+        else if (yes > 85 && yes < 95) priceScore = Math.round(8 * (95 - yes) / 10);  // Expensive favorite
+        else priceScore = 8;
+        priceScore = Math.min(22, Math.max(0, priceScore));
 
-        // 1. EDGE DETECTION (0-30): Is this market mispriced?
-        let edgeScore = 0;
-        let edgeDirection = 'NEUTRAL';
-        let edgeSize = 0;
+        // ═══ 2. VOLUME — ABSOLUTE THRESHOLDS (0-20) ═══
+        // Real-money flow = real conviction. Absolute thresholds, not relative.
+        let volScore = 0;
+        if (vol >= 5000000) volScore = 20;
+        else if (vol >= 2000000) volScore = 18;
+        else if (vol >= 1000000) volScore = 16;
+        else if (vol >= 500000) volScore = 14;
+        else if (vol >= 200000) volScore = 12;
+        else if (vol >= 100000) volScore = 10;
+        else if (vol >= 50000) volScore = 8;
+        else if (vol >= 20000) volScore = 6;
+        else if (vol >= 10000) volScore = 4;
+        else if (vol >= 1000) volScore = 2;
+        else if (vol > 0) volScore = 1;
 
-        // Cross-platform edge (Kalshi vs Polymarket)
-        if (xp) {
-            const otherYes = xp.match.yes || 50;
-            edgeSize = Math.abs(yes - otherYes);
-            if (edgeSize >= 3) edgeScore = Math.min(Math.round(30 * (edgeSize / 12)), 30);
-            if (yes < otherYes - 2) edgeDirection = 'YES';
-            else if (yes > otherYes + 2) edgeDirection = 'NO';
-        }
+        // ═══ 3. MOMENTUM + TREND (0-22) ═══
+        // Use API day/week change when available, plus snapshot history for trend
+        let momentumScore = 0;
+        // Best available momentum signal
+        const bestChange = dayChange > 0 ? dayChange : absChange;
+        const baseMomentum = Math.min(bestChange / 6, 1);
 
-        // Vegas odds edge (sports markets)
-        if (_vegasOdds && _vegasOdds.length > 0) {
-            const q = (m.question || '').toLowerCase();
-            for (const game of _vegasOdds) {
-                const home = (game.home || '').toLowerCase();
-                const away = (game.away || '').toLowerCase();
-                if (q.includes(home) || q.includes(away) ||
-                    home.split(' ').some(w => w.length > 3 && q.includes(w)) ||
-                    away.split(' ').some(w => w.length > 3 && q.includes(w))) {
-                    // Found a matching game — compare Vegas prob vs market price
-                    const vegasProb = q.includes(home) ? game.home_prob : game.away_prob;
-                    const vegasEdge = Math.abs(vegasProb - yes);
-                    if (vegasEdge > edgeSize) {
-                        edgeSize = vegasEdge;
-                        edgeScore = Math.min(Math.round(30 * (vegasEdge / 12)), 30);
-                        if (yes < vegasProb - 2) edgeDirection = 'YES';
-                        else if (yes > vegasProb + 2) edgeDirection = 'NO';
-                    }
-                    break;
-                }
+        // Trend analysis from price history
+        let trendBonus = 0;
+        if (history.length >= 4) {
+            const recent = history.slice(-4);
+            const diffs = [];
+            for (let i = 1; i < recent.length; i++) diffs.push(recent[i] - recent[i - 1]);
+            const allUp = diffs.every(d => d > 0);
+            const allDown = diffs.every(d => d < 0);
+            if (allUp || allDown) trendBonus = 0.4;
+            if (diffs.length >= 2) {
+                const accel = Math.abs(diffs[diffs.length - 1]) > Math.abs(diffs[0]);
+                if ((allUp || allDown) && accel) trendBonus = 0.6;
             }
         }
+        // Weekly trend bonus — sustained moves are stronger signals
+        if (weekChange > 10) trendBonus = Math.max(trendBonus, 0.5);
+        momentumScore = Math.round(22 * Math.min(baseMomentum + trendBonus, 1));
 
-        // 2. VALUE (0-30): Is the payout worth the risk?
-        let valueScore = 0;
-        const yesROI = yes > 0 ? ((100 - yes) / yes) : 0;
-        const noROI = no > 0 ? ((100 - no) / no) : 0;
-        const bestROI = Math.max(yesROI, noROI);
-        if (bestROI >= 4) valueScore = 30;
-        else if (bestROI >= 2.5) valueScore = 26;
-        else if (bestROI >= 1.5) valueScore = 22;
-        else if (bestROI >= 1) valueScore = 18;
-        else if (bestROI >= 0.5) valueScore = 12;
-        else if (bestROI >= 0.25) valueScore = 7;
-        else valueScore = 3;
-        if (yes <= 5 || yes >= 95) valueScore = 0;
+        // ═══ 4. CROSS-PLATFORM EDGE (0-25) ═══
+        // This is SYGNAL's killer feature — weight it highest
+        // When Kalshi and Polymarket disagree, that's real alpha
+        let crossScore = 0;
+        if (xp) {
+            const gap = xp.priceDiff;
+            if (gap >= 10) crossScore = 25;       // Huge disagreement
+            else if (gap >= 7) crossScore = 22;
+            else if (gap >= 5) crossScore = 18;   // Strong edge
+            else if (gap >= 3) crossScore = 13;   // Moderate edge
+            else if (gap >= 2) crossScore = 8;    // Small edge
+            else if (gap >= 1) crossScore = 4;    // Tiny edge
+        }
 
-        // 3. MOMENTUM (0-15): Smart money moving
-        let momScore = 0;
-        if (absChange >= 8) momScore = 15;
-        else if (absChange >= 5) momScore = 12;
-        else if (absChange >= 3) momScore = 9;
-        else if (absChange >= 1) momScore = 5;
-        else momScore = 2;  // Base points — market exists
+        // ═══ 5. LIQUIDITY (0-11) ═══
+        // Uses real spread + liquidity data when available, falls back to volume
+        let liqScore = 0;
+        if (spread > 0 && spread <= 2) liqScore = 11;       // Tight spread = great liquidity
+        else if (spread > 0 && spread <= 5) liqScore = 8;
+        else if (spread > 0 && spread <= 10) liqScore = 5;
+        else if (spread > 10) liqScore = 2;
+        else {
+            // Fallback to volume-based if no spread data
+            if (vol >= 1000000) liqScore = 11;
+            else if (vol >= 500000) liqScore = 9;
+            else if (vol >= 100000) liqScore = 7;
+            else if (vol >= 50000) liqScore = 5;
+            else if (vol >= 10000) liqScore = 3;
+            else if (vol >= 1000) liqScore = 1;
+        }
+        // Bonus for high open interest (lots of contracts outstanding = active market)
+        if (openInterest > 100000) liqScore = Math.min(11, liqScore + 2);
+        else if (openInterest > 10000) liqScore = Math.min(11, liqScore + 1);
 
-        // 4. CONFIDENCE (0-15): Volume = trustworthy price
-        let confScore = 0;
-        if (vol >= 500000) confScore = 15;
-        else if (vol >= 100000) confScore = 13;
-        else if (vol >= 50000) confScore = 11;
-        else if (vol >= 10000) confScore = 9;
-        else if (vol >= 5000) confScore = 7;
-        else if (vol >= 1000) confScore = 5;
-        else if (vol >= 100) confScore = 3;
-        else confScore = 2;
+        // ═══ FINAL SCORE ═══
+        // Max: 22 + 20 + 22 + 25 + 11 = 100 → capped at 99
+        let total = priceScore + volScore + momentumScore + crossScore + liqScore;
 
-        // 5. TIMING (0-9): Confirmation bonus
-        let timingScore = 0;
-        if (edgeSize >= 3 && absChange >= 2) timingScore += 5;
-        if (vol >= 10000 && absChange >= 3) timingScore += 4;
-        // Bonus for tradeable price range (not extreme)
-        if (yes >= 15 && yes <= 85) timingScore = Math.max(timingScore, 3);
+        // Signal accuracy bonus: if past signals on this market were correct, boost score
+        const accuracy = pastAccuracy[m.ticker];
+        if (accuracy && accuracy.total >= 2 && accuracy.correct / accuracy.total >= 0.6) {
+            total = Math.round(total * 1.08); // 8% boost for proven accuracy
+        }
 
-        const total = Math.max(1, Math.min(edgeScore + valueScore + momScore + confScore + timingScore, 99));
+        total = Math.max(1, Math.min(total, 99));
         _sygnalScoreCache[m.ticker] = total;
+        _sygnalFactorCache[m.ticker] = { price: priceScore, volume: volScore, momentum: momentumScore, edge: crossScore, liquidity: liqScore };
 
-        // ═══════════════════════════════════════════════
-        // DIRECTIONAL SIGNAL — "Which side should I bet?"
-        // Only gives BUY when multiple factors agree
-        // ═══════════════════════════════════════════════
+        // ═══ DIRECTIONAL SIGNAL — WEIGHTED CONFIDENCE ═══
         let signal = 'HOLD';
-        let confidence = 0;
+        let yesWeight = 0;
+        let noWeight = 0;
 
-        // Factor 1: Cross-platform edge direction (strongest signal)
-        const crossVote = edgeDirection;
+        // Price lean (weighted by distance from 50)
+        const priceDist = Math.abs(yes - 50);
+        if (yes >= 55) yesWeight += 0.3 + (priceDist - 5) / 50;
+        else if (yes <= 45) noWeight += 0.3 + (priceDist - 5) / 50;
 
-        // Factor 2: Momentum direction
-        const momVote = change >= 2 ? 'YES' : change <= -2 ? 'NO' : 'NEUTRAL';
+        // Momentum lean (weighted by magnitude)
+        if (change >= 1) yesWeight += 0.2 + Math.min(absChange / 10, 0.5);
+        else if (change <= -1) noWeight += 0.2 + Math.min(absChange / 10, 0.5);
 
-        // Factor 3: Value lean — which side has better risk/reward?
-        const valueVote = yes <= 40 ? 'YES' : yes >= 60 ? 'NO' : 'NEUTRAL';
+        // Cross-platform lean (weighted by gap size — strongest signal)
+        if (xp) {
+            const other = xp.match.yes || 50;
+            const gap = other - yes;
+            // Use bid/ask for more accurate edge: if our price < other's bid, that's real alpha
+            const otherBid = xp.match.bestBid ? xp.match.bestBid * 100 : other;
+            const bidGap = otherBid - yes;
+            const effectiveGap = Math.abs(bidGap) > Math.abs(gap) ? bidGap : gap;
+            if (effectiveGap > 1.5) { yesWeight += 0.6 + Math.min(Math.abs(effectiveGap) / 15, 0.4); }
+            else if (effectiveGap < -1.5) { noWeight += 0.6 + Math.min(Math.abs(effectiveGap) / 15, 0.4); }
+        }
 
-        const votes = [crossVote, momVote, valueVote];
-        const yesVotes = votes.filter(v => v === 'YES').length;
-        const noVotes = votes.filter(v => v === 'NO').length;
+        // Trend lean
+        if (history.length >= 3) {
+            const recentTrend = history[history.length - 1] - history[history.length - 3];
+            if (recentTrend > 2) yesWeight += 0.2;
+            else if (recentTrend < -2) noWeight += 0.2;
+        }
 
-        // BUY = 2+ factors agree, LEAN = strong single factor
-        if (yesVotes >= 2) { signal = 'BUY YES'; confidence = yesVotes; }
-        else if (noVotes >= 2) { signal = 'BUY NO'; confidence = noVotes; }
-        // Cross-platform edge alone = LEAN
-        else if (crossVote === 'YES') { signal = 'LEAN YES'; confidence = 1; }
-        else if (crossVote === 'NO') { signal = 'LEAN NO'; confidence = 1; }
-        // Strong value alone = LEAN (cheap YES under 30 or cheap NO under 30)
-        else if (yes <= 28 && momScore >= 5) { signal = 'LEAN YES'; confidence = 1; }
-        else if (yes >= 72 && momScore >= 5) { signal = 'LEAN NO'; confidence = 1; }
-        // Value vote alone = LEAN if score is decent
-        else if (valueVote === 'YES' && total >= 30) { signal = 'LEAN YES'; confidence = 1; }
-        else if (valueVote === 'NO' && total >= 30) { signal = 'LEAN NO'; confidence = 1; }
-        // Extreme prices = never signal
-        if (yes <= 5 || yes >= 95) signal = 'HOLD';
+        // Determine signal from weights
+        const netWeight = yesWeight - noWeight;
+        const confidence = Math.max(yesWeight, noWeight);
+        if (netWeight >= 0.7) signal = 'BUY YES';
+        else if (netWeight <= -0.7) signal = 'BUY NO';
+        else if (netWeight >= 0.35) signal = 'LEAN YES';
+        else if (netWeight <= -0.35) signal = 'LEAN NO';
+
+        // Dead/extreme markets = HOLD
+        if (yes <= 8 || yes >= 92) signal = 'HOLD';
+        // BUY requires minimum score of 35
+        if (total < 35 && signal.includes('BUY')) {
+            signal = signal.replace('BUY', 'LEAN');
+        }
+        // LEAN requires minimum score of 20
+        if (total < 20) signal = 'HOLD';
 
         _sygnalSignalCache[m.ticker] = {
-            signal, confidence,
+            signal,
+            confidence: Math.round(confidence * 100) / 100,
             crossEdge: xp ? xp.priceDiff : 0,
-            edgeDirection,
-            breakdown: { edge: edgeScore, value: valueScore, momentum: momScore, confidence: confScore, timing: timingScore }
+            yesWeight: Math.round(yesWeight * 100) / 100,
+            noWeight: Math.round(noWeight * 100) / 100
         };
     }
+}
+
+// Helper: build accuracy map from signal history
+function _getSignalAccuracyMap() {
+    const map = {};
+    try {
+        const record = JSON.parse(localStorage.getItem('sygnal-track-record') || '[]');
+        for (const r of record) {
+            if (!r.ticker) continue;
+            if (!map[r.ticker]) map[r.ticker] = { correct: 0, total: 0 };
+            map[r.ticker].total++;
+            if (r.correct) map[r.ticker].correct++;
+        }
+    } catch {}
+    return map;
 }
 
 function calcSygnalScore(market, priceChange) {
@@ -993,19 +962,6 @@ function calcSygnalScore(market, priceChange) {
 function getSygnalSignal(ticker) {
     return _sygnalSignalCache[ticker] || { signal: 'HOLD', confidence: 0, crossEdge: 0 };
 }
-
-// Server score cache — single source of truth
-var _serverScoreCache = {};
-function loadServerScores() {
-    fetch(API_BASE + '/api/scores?min_score=0').then(function(r){return r.json();}).then(function(data) {
-        var scores = data.scores || [];
-        scores.forEach(function(s) {
-            _serverScoreCache[s.ticker] = s;
-        });
-    }).catch(function(){});
-}
-// Load on startup
-loadServerScores();
 
 // ── SHARE MARKET ──
 function shareMarket(market) {
@@ -1102,87 +1058,9 @@ function getTrackRecord() {
 function getAccuracyStats() {
     const record = getTrackRecord();
     const results = record.results;
-    if (results.length === 0) return { total: 0, correct: 0, pct: 0, pending: record.pending.length, buyOnly: { total: 0, correct: 0, pct: 0 } };
+    if (results.length === 0) return { total: 0, correct: 0, pct: 0, pending: record.pending.length };
     const correct = results.filter(r => r.correct).length;
-    const buyResults = results.filter(r => r.signal === 'BUY YES' || r.signal === 'BUY NO');
-    const buyCorrect = buyResults.filter(r => r.correct).length;
-    return {
-        total: results.length,
-        correct,
-        pct: Math.round((correct / results.length) * 100),
-        pending: record.pending.length,
-        buyOnly: {
-            total: buyResults.length,
-            correct: buyCorrect,
-            pct: buyResults.length > 0 ? Math.round((buyCorrect / buyResults.length) * 100) : 0,
-        }
-    };
-}
-
-function renderTrackRecord() {
-    const stats = getAccuracyStats();
-    const el = document.getElementById('track-record-stats');
-    const badge = document.getElementById('track-record-badge');
-    const recentEl = document.getElementById('track-record-recent');
-    if (!el) return;
-
-    if (stats.total === 0) {
-        badge.textContent = stats.pending + ' signals tracking...';
-        el.innerHTML = '<p style="color:var(--text-dim);font-size:12px;grid-column:1/-1;">Signals are being tracked. Accuracy data will appear after markets resolve (1+ hours).</p>';
-        return;
-    }
-
-    const pctColor = stats.pct >= 60 ? '#00d68f' : stats.pct >= 45 ? '#f0b000' : '#ff3b5c';
-    badge.innerHTML = '<span style="color:' + pctColor + ';font-weight:700;">' + stats.pct + '% accurate</span> (' + stats.total + ' signals)';
-
-    el.innerHTML = [
-        { label: 'All Signals', val: stats.pct + '%', sub: stats.correct + '/' + stats.total, color: pctColor },
-        { label: 'BUY Signals', val: stats.buyOnly.pct + '%', sub: stats.buyOnly.correct + '/' + stats.buyOnly.total, color: stats.buyOnly.pct >= 55 ? '#00d68f' : '#f0b000' },
-        { label: 'Pending', val: stats.pending, sub: 'tracking', color: 'var(--accent)' },
-        { label: 'Streak', val: getStreak(), sub: 'current', color: 'var(--text)' },
-    ].map(s => '<div style="text-align:center;"><div style="font-size:20px;font-weight:700;color:' + s.color + ';">' + s.val + '</div><div style="font-size:10px;color:var(--text-dim);">' + s.sub + '</div><div style="font-size:9px;color:var(--text-dim);margin-top:2px;">' + s.label + '</div></div>').join('');
-
-    // Recent results
-    const record = getTrackRecord();
-    const recent = record.results.slice(-5).reverse();
-    if (recent.length > 0) {
-        recentEl.innerHTML = '<div style="font-size:10px;color:var(--text-dim);margin-bottom:6px;">RECENT CALLS</div>' +
-            recent.map(r => {
-                const icon = r.correct ? '<span style="color:#00d68f;">&#10003;</span>' : '<span style="color:#ff3b5c;">&#10007;</span>';
-                return '<div style="display:flex;align-items:center;gap:8px;padding:3px 0;font-size:11px;color:var(--text-dim);">' + icon + ' ' + r.signal + ' — ' + (r.question || r.ticker) + '</div>';
-            }).join('');
-    }
-}
-
-function _getSignalReason(market, sig) {
-    const reasons = [];
-    const yes = market.yes || 50;
-    if (sig.crossEdge > 0) {
-        reasons.push('Cross-platform price gap of ' + sig.crossEdge + '¢');
-    }
-    if (sig.breakdown) {
-        if (sig.breakdown.value >= 18) {
-            const roi = yes <= 50 ? Math.round((100 - yes) / yes * 100) : Math.round((100 - (100-yes)) / (100-yes) * 100);
-            reasons.push(roi + '% potential return');
-        }
-        if (sig.breakdown.momentum >= 9) reasons.push('Strong price momentum');
-        if (sig.breakdown.timing >= 5) reasons.push('Multiple signals confirmed');
-    }
-    if (reasons.length === 0) reasons.push('Favorable risk/reward ratio');
-    return reasons.join('. ') + '.';
-}
-
-function getStreak() {
-    const record = getTrackRecord();
-    const results = record.results;
-    if (results.length === 0) return '—';
-    let streak = 0;
-    const last = results[results.length - 1].correct;
-    for (let i = results.length - 1; i >= 0; i--) {
-        if (results[i].correct === last) streak++;
-        else break;
-    }
-    return (last ? '+' : '-') + streak;
+    return { total: results.length, correct, pct: Math.round((correct / results.length) * 100), pending: record.pending.length };
 }
 
 function getSygnalScoreHistory(ticker) {
@@ -1437,8 +1315,21 @@ document.getElementById('ai-popup')?.addEventListener('click', (e) => {
 // ── SEARCH & FILTER ──
 let allMarketCards = [];  // Store all cards for filtering
 let currentFilter = 'all';
-let showLowVolume = false;
-const MIN_VOLUME = 0; // Show all markets
+let showLowVolume = true; // Show all markets by default
+const MIN_VOLUME = 0;
+
+const MAX_DAYS_OUT = 30; // Hide markets expiring more than 30 days from now
+
+function isNearTerm(market) {
+    const closeTime = market.closeTime;
+    if (!closeTime) return true; // No date = show it
+    try {
+        const closeDate = new Date(closeTime);
+        const now = new Date();
+        const daysOut = (closeDate - now) / (1000 * 60 * 60 * 24);
+        return daysOut <= MAX_DAYS_OUT && daysOut > -1; // Within 30 days and not expired
+    } catch { return true; }
+}
 
 function filterMarkets() {
     const query = document.getElementById('search-input').value.toLowerCase();
@@ -1453,11 +1344,10 @@ function filterMarkets() {
         } else if (currentFilter !== 'all') {
             matchesFilter = (market.category || categorize(market.question)) === currentFilter;
         }
-        // Volume filter — hide low volume unless toggled
-        const vol = market.volume || 0;
         const isStarred = wl.includes(market.ticker);
-        const passesVolume = showLowVolume || vol >= MIN_VOLUME || isStarred || currentFilter === 'watchlist';
-        const show = matchesSearch && matchesFilter && passesVolume;
+        // Date filter — hide markets months/years away
+        const passesDate = isNearTerm(market) || isStarred || currentFilter === 'watchlist';
+        const show = matchesSearch && matchesFilter && passesDate;
         card.style.display = show ? '' : 'none';
         if (show) visibleCount++;
     }
@@ -1482,7 +1372,7 @@ function setFilter(filter, btn) {
 }
 
 // ── SORT MARKETS ──
-let currentSort = 'default';
+let currentSort = 'sygnal-desc'; // Default to best Sygnal Score first
 // ── CUSTOM SORT DROPDOWN ──
 function toggleSortDropdown() {
     const dropdown = document.getElementById('sort-dropdown');
@@ -1631,11 +1521,23 @@ function drawSparkline(canvas, data) {
 // ── THEME TOGGLE ──
 // ── SETTINGS DROPDOWN ──
 function toggleSettings() {
-    var menu = document.getElementById('settings-menu');
-    if (menu.classList.contains('open')) {
-        menu.classList.remove('open');
-    } else {
-        menu.classList.add('open');
+    const menu = document.getElementById('settings-menu');
+    menu.classList.toggle('open');
+    // Update Pro/Account button label
+    const proLabel = document.getElementById('settings-pro-label');
+    const proBtn = document.getElementById('settings-pro-btn');
+    if (proLabel && proBtn) {
+        const email = localStorage.getItem('sygnal-account-email');
+        if (isPro()) {
+            proLabel.textContent = 'Pro Account' + (email ? ' (' + email + ')' : '');
+            proBtn.onclick = () => { showToast('You\'re a Pro member!'); };
+        } else if (email) {
+            proLabel.textContent = 'Upgrade to Pro';
+            proBtn.onclick = () => showProUpsell('Sygnal Pro');
+        } else {
+            proLabel.textContent = 'Create Account';
+            proBtn.onclick = () => showSignupPopup();
+        }
     }
 }
 
@@ -1646,30 +1548,6 @@ document.addEventListener('click', (e) => {
         if (menu) menu.classList.remove('open');
     }
 });
-
-// ── MENU BACKDROP (fixes mobile touch close) ──
-function closeAllMenus() {
-    var mm = document.getElementById('mobile-more-menu');
-    if (mm) { mm.classList.remove('open'); mm.style.display = 'none'; }
-    document.getElementById('settings-menu')?.classList.remove('open');
-    document.getElementById('nav-more-menu')?.classList.remove('open');
-    hideMenuBackdrop();
-}
-
-function showMenuBackdrop(onClose) {
-    hideMenuBackdrop();
-    const bd = document.createElement('div');
-    bd.id = 'menu-backdrop';
-    bd.style.cssText = 'position:fixed;inset:0;z-index:8999;background:transparent;pointer-events:auto;';
-    bd.addEventListener('click', function() { if (onClose) onClose(); closeAllMenus(); });
-    bd.addEventListener('touchend', function(e) { e.preventDefault(); if (onClose) onClose(); closeAllMenus(); });
-    document.body.appendChild(bd);
-}
-
-function hideMenuBackdrop() {
-    const bd = document.getElementById('menu-backdrop');
-    if (bd) bd.remove();
-}
 
 function toggleTheme() {
     document.body.classList.toggle('light');
@@ -2189,13 +2067,10 @@ async function loadBot() {
                     const pnlStr = pnl >= 0 ? '+$' + pnl.toFixed(2) : '-$' + Math.abs(pnl).toFixed(2);
                     const posTitle = p.title && !p.title.includes('KX') ? p.title : decodeTicker(p.ticker);
                     const contracts = p.contracts || p.count || 1;
-                    const entryPrice = p.avg_price ? (p.avg_price * 100).toFixed(0) + '¢' : p.entry_price ? p.entry_price + '¢' : '';
-                    const currentPrice = p.current_price ? (p.current_price * 100).toFixed(0) + '¢' : p.bid ? p.bid + '¢' : '';
-                    const priceInfo = entryPrice && currentPrice ? `${entryPrice} → ${currentPrice}` : entryPrice || '';
                     return `<div class="bot-position">
                         <div>
                             <div class="bot-position-title">${posTitle}</div>
-                            <div class="bot-position-side">${(p.side || '').toUpperCase()} · ${contracts}x${priceInfo ? ' · ' + priceInfo : ''}</div>
+                            <div class="bot-position-side">${(p.side || '').toUpperCase()} · ${contracts} contract${contracts > 1 ? 's' : ''}</div>
                         </div>
                         <div class="bot-position-pnl ${pnlClass}">${pnlStr}</div>
                     </div>`;
@@ -2204,54 +2079,10 @@ async function loadBot() {
             posDiv.innerHTML = '<p style="color:var(--text-dim);font-size:13px;">No open positions</p>';
         }
     } catch(e) {
+        // Bot offline — show error message instead of hiding
         document.getElementById('bot-balance').textContent = '—';
         document.getElementById('bot-status').textContent = 'Offline';
         document.getElementById('bot-status').className = 'bot-stat-value stopped';
-    }
-
-    // Load bot paper picks
-    loadBotPicks();
-}
-
-async function loadBotPicks() {
-    var el = document.getElementById('bot-picks-list');
-    if (!el) return;
-    try {
-        var resp = await fetch(API_BASE + '/api/bot/picks?limit=10');
-        var data = await resp.json();
-        var picks = data.picks || [];
-        if (picks.length === 0) {
-            el.innerHTML = '<p style="color:var(--text-dim);font-size:13px;">No paper picks yet — bot is scanning for opportunities.</p>';
-            return;
-        }
-        var wins = picks.filter(function(p) { return p.outcome === 'win'; }).length;
-        var losses = picks.filter(function(p) { return p.outcome === 'loss'; }).length;
-        var resolved = wins + losses;
-        var winRate = resolved > 0 ? Math.round(wins / resolved * 100) : 0;
-
-        el.innerHTML = (resolved > 0 ? '<div style="margin-bottom:12px;padding:10px;background:var(--bg-card);border:1px solid var(--border);border-radius:8px;display:flex;gap:16px;font-size:13px;"><span style="color:var(--green);font-weight:700;">' + winRate + '% win rate</span><span style="color:var(--text-dim);">' + wins + 'W / ' + losses + 'L</span></div>' : '') +
-            picks.map(function(p) {
-                var statusColor = p.resolved ? (p.outcome === 'win' ? 'var(--green)' : 'var(--red)') : 'var(--accent)';
-                var statusText = p.resolved ? (p.outcome === 'win' ? 'WON' : 'LOST') : 'OPEN';
-                var pnlText = p.pnl != null ? (p.pnl >= 0 ? '+' + p.pnl + '¢' : p.pnl + '¢') : '';
-                var timeAgo = '';
-                try {
-                    var mins = Math.floor((Date.now() - new Date(p.timestamp).getTime()) / 60000);
-                    if (mins < 60) timeAgo = mins + 'm ago';
-                    else if (mins < 1440) timeAgo = Math.floor(mins/60) + 'h ago';
-                    else timeAgo = Math.floor(mins/1440) + 'd ago';
-                } catch(e) {}
-                return '<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.04);">' +
-                    '<span style="color:' + statusColor + ';font-weight:700;font-size:11px;min-width:40px;">' + statusText + '</span>' +
-                    '<span style="color:' + (p.side === 'yes' ? 'var(--green)' : 'var(--red)') + ';font-weight:600;font-size:11px;min-width:30px;">' + p.side.toUpperCase() + '</span>' +
-                    '<span style="flex:1;color:var(--text);font-size:13px;">' + (p.question || p.ticker).substring(0, 40) + '</span>' +
-                    '<span style="color:var(--text-dim);font-size:11px;">' + p.price + '¢</span>' +
-                    (pnlText ? '<span style="color:' + statusColor + ';font-size:11px;font-weight:600;">' + pnlText + '</span>' : '') +
-                    '<span style="color:var(--text-dim);font-size:10px;">' + timeAgo + '</span>' +
-                '</div>';
-            }).join('');
-    } catch(e) {
-        el.innerHTML = '<p style="color:var(--text-dim);font-size:13px;">Bot picks unavailable.</p>';
     }
 }
 
@@ -2447,13 +2278,12 @@ function openDetail(market, platform) {
         </div>
     `;
 
-    // Actions — use server score if available, else client-side
+    // Actions
     const url = getAffiliateUrl(market);
-    var serverSig = _serverScoreCache[market.ticker];
-    const sygnalScore = serverSig ? serverSig.score : calcSygnalScore(market, getMarketChange(market.ticker));
+    const sygnalScore = calcSygnalScore(market, getMarketChange(market.ticker));
     const sygnalColor = sygnalScore >= 67 ? 'var(--green)' : sygnalScore >= 34 ? 'var(--gold)' : 'var(--red)';
     const sygnalLabel = sygnalScore >= 67 ? 'TRADE' : sygnalScore >= 34 ? 'WATCH' : 'SKIP';
-    const sig = serverSig ? {signal: serverSig.signal, crossEdge: serverSig.cross_edge || 0, breakdown: serverSig.breakdown} : getSygnalSignal(market.ticker);
+    const sig = getSygnalSignal(market.ticker);
     const sigColor = sig.signal.includes('YES') ? 'var(--green)' : sig.signal.includes('NO') ? 'var(--red)' : 'var(--gold)';
     const sigBg = sig.signal.includes('YES') ? 'rgba(0,214,143,0.12)' : sig.signal.includes('NO') ? 'rgba(255,59,92,0.12)' : 'rgba(240,176,0,0.10)';
 
@@ -2475,12 +2305,38 @@ function openDetail(market, platform) {
     const volRaw = market.volume || 0;
     const maxVol = 10000000;
     const vs = volRaw > 0 ? Math.round(20*Math.min(Math.log10(volRaw)/7,1)) : 0;
-    const absChange = Math.abs(getMarketChange(market.ticker) || 0);
+    const change = getMarketChange(market.ticker) || 0;
+    const absChange = Math.abs(change);
     const ms = Math.round(20*Math.min(absChange/8,1));
     const cs = xp ? Math.round(20*Math.min(xp.priceDiff/10,1)) : 0;
     let ls = 0;
     if (volRaw >= 1e6) ls = 19; else if (volRaw >= 5e5) ls = 16; else if (volRaw >= 1e5) ls = 13;
     else if (volRaw >= 5e4) ls = 10; else if (volRaw >= 1e4) ls = 7; else if (volRaw >= 1e3) ls = 4; else if (volRaw > 0) ls = 1;
+
+    // Build factor breakdown — show bars for Pro, locked for free
+    const factors = _sygnalFactorCache[market.ticker] || { price: ps, volume: vs, momentum: ms, edge: cs, liquidity: ls };
+    const showBreakdown = isPro() || isTrialActive();
+    const sigData = _sygnalSignalCache[market.ticker] || {};
+    const confidencePct = sigData.confidence ? Math.round(sigData.confidence * 50) : 0;
+    const breakdownHtml = showBreakdown ? `
+        <div class="score-breakdown">
+            <div class="score-factor-row"><span class="score-factor-name">Value Zone</span><div class="score-factor-bar"><div class="score-factor-fill" style="width:${factors.price/22*100}%;background:var(--accent);"></div></div><span class="score-factor-pts">${factors.price}/22</span></div>
+            <div class="score-factor-row"><span class="score-factor-name">Volume</span><div class="score-factor-bar"><div class="score-factor-fill" style="width:${factors.volume/20*100}%;background:var(--green);"></div></div><span class="score-factor-pts">${factors.volume}/20</span></div>
+            <div class="score-factor-row"><span class="score-factor-name">Momentum</span><div class="score-factor-bar"><div class="score-factor-fill" style="width:${factors.momentum/22*100}%;background:var(--gold);"></div></div><span class="score-factor-pts">${factors.momentum}/22</span></div>
+            <div class="score-factor-row"><span class="score-factor-name">Cross-Platform</span><div class="score-factor-bar"><div class="score-factor-fill" style="width:${factors.edge/25*100}%;background:var(--purple);"></div></div><span class="score-factor-pts">${factors.edge}/25</span></div>
+            <div class="score-factor-row"><span class="score-factor-name">Liquidity</span><div class="score-factor-bar"><div class="score-factor-fill" style="width:${factors.liquidity/11*100}%;background:#4dc9ff;"></div></div><span class="score-factor-pts">${factors.liquidity}/11</span></div>
+            <div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--border);font-size:11px;color:var(--text-dim);">
+                Signal confidence: <b style="color:var(--text)">${confidencePct}%</b> · YES weight: ${sigData.yesWeight || 0} · NO weight: ${sigData.noWeight || 0}
+            </div>
+        </div>
+    ` : `
+        <div class="score-breakdown-locked" onclick="showProUpsell('Score Breakdown')">
+            <div class="score-factor-row blurred"><span class="score-factor-name">Price Position</span><div class="score-factor-bar"><div class="score-factor-fill" style="width:60%;background:var(--accent);opacity:0.3;"></div></div><span class="score-factor-pts">?/20</span></div>
+            <div class="score-factor-row blurred"><span class="score-factor-name">Volume</span><div class="score-factor-bar"><div class="score-factor-fill" style="width:45%;background:var(--green);opacity:0.3;"></div></div><span class="score-factor-pts">?/20</span></div>
+            <div class="score-factor-row blurred"><span class="score-factor-name">Momentum</span><div class="score-factor-bar"><div class="score-factor-fill" style="width:70%;background:var(--gold);opacity:0.3;"></div></div><span class="score-factor-pts">?/20</span></div>
+            <div class="locked-overlay">🔒 Unlock Score Breakdown with Pro</div>
+        </div>
+    `;
 
     document.getElementById('detail-actions').innerHTML = `
         <div class="detail-sygnal-row">
@@ -2493,12 +2349,12 @@ function openDetail(market, platform) {
                     <span style="color:${sygnalColor};font-weight:700;">${sygnalLabel}</span>
                     <span style="color:${sigColor};background:${sigBg};padding:2px 8px;border-radius:4px;font-size:11px;font-weight:700;">${sig.signal}</span>
                 </div>
-                ${_isPro ? '<span style="color:var(--text-dim);font-size:12px;display:block;">' + (sig.breakdown ? 'Edge ' + (sig.breakdown.edge||0) + ' + Value ' + (sig.breakdown.value||0) + ' + Mom ' + (sig.breakdown.momentum||0) + ' + Conf ' + (sig.breakdown.confidence||0) + ' + Timing ' + (sig.breakdown.timing||0) : 'Score ' + sygnalScore + '/99') + '</span>' : '<span style="color:var(--text-dim);font-size:12px;display:block;">Score breakdown <a href="#" onclick="closeDetail();switchTab(\'pro\',null);return false;" style="color:var(--accent);">Unlock with Pro</a></span>'}
-                ${_isPro && sig.crossEdge > 0 ? '<span style="color:var(--purple);font-size:11px;display:block;margin-top:4px;">Cross-platform edge: ' + sig.crossEdge + '¢ price gap detected</span>' : ''}
-                ${(sig.signal.includes('BUY') || sig.signal.includes('LEAN')) ? (_isPro ? '<span style="color:var(--green);font-size:11px;display:block;margin-top:2px;">Why: ' + _getSignalReason(market, sig) + '</span>' : '<span style="color:var(--text-dim);font-size:11px;display:block;margin-top:2px;">Signal explanation <a href="#" onclick="closeDetail();switchTab(\'pro\',null);return false;" style="color:var(--accent);">Unlock with Pro</a></span>') : ''}
             </div>
         </div>
+        ${getWhyToBetHtml(market, sig, sygnalScore, factors, xp, change)}
+        ${breakdownHtml}
         ${crossHtml}
+        ${getMispricingHtml(market)}
         <div class="detail-btn-row">
             <a class="detail-btn detail-btn-yes" href="${url}" target="_blank">Buy YES on ${platform === 'kalshi' ? 'Kalshi' : 'Polymarket'}</a>
             <a class="detail-btn detail-btn-no" href="${url}" target="_blank">Buy NO on ${platform === 'kalshi' ? 'Kalshi' : 'Polymarket'}</a>
@@ -2579,6 +2435,10 @@ function openDetail(market, platform) {
         detailChartData.push(basePrice);
     }
     setTimeout(() => drawDetailChart(canvas, detailChartData), 50);
+
+    // Load news sentiment and order book
+    loadNewsSentiment(market);
+    loadOrderBook(market);
 
     // Sygnal Score history
     const scoreHistory = getSygnalScoreHistory(market.ticker);
@@ -2864,73 +2724,9 @@ function savePaperPortfolio(portfolio) {
     localStorage.setItem('sygnal-portfolio', JSON.stringify(portfolio));
 }
 
-function closePaperTrade(index) {
-    var portfolio = getPaperPortfolio();
-    var trade = portfolio.trades[index];
-    if (!trade || trade.closed) return;
-
-    // Get current price from cached market data
-    var currentPrice = trade.entryPrice; // default to entry if can't find
-    var market = allMarketCards.find(function(c) { return c.market.ticker === trade.ticker; });
-    if (market) {
-        currentPrice = trade.side === 'yes' ? market.market.yes : market.market.no;
-    }
-
-    var pnl = (currentPrice - trade.entryPrice) * trade.amount / 100;
-    if (trade.side === 'no') pnl = (trade.entryPrice - currentPrice) * trade.amount / 100;
-    var outcome = pnl >= 0 ? 'win' : 'loss';
-
-    trade.closed = true;
-    trade.closePrice = currentPrice;
-    trade.pnl = pnl;
-    trade.outcome = outcome;
-    trade.closedAt = Date.now();
-    portfolio.balance += (trade.amount * currentPrice / 100);
-    savePaperPortfolio(portfolio);
-
-    // Report to collective learning
-    fetch(API_BASE + '/api/collective/trade', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-            ticker: trade.ticker,
-            side: trade.side,
-            score: trade.score || 0,
-            category: trade.category || 'other',
-            outcome: outcome,
-            signal: trade.signal || '',
-        })
-    }).catch(function() {});
-
-    // Sync to Firestore if logged in
-    if (typeof _currentUser !== 'undefined' && _currentUser && typeof _db !== 'undefined' && _db) {
-        _db.collection('collective_trades').add({
-            uid: _currentUser.uid,
-            ticker: trade.ticker,
-            side: trade.side,
-            score: trade.score || 0,
-            outcome: outcome,
-            pnl: pnl,
-            timestamp: new Date().toISOString(),
-        }).catch(function() {});
-    }
-
-    loadPortfolio();
-    showToast(outcome === 'win' ? 'Trade closed — profit!' : 'Trade closed');
-}
-
 function placePaperTrade() {
+    if (!requireProOrTrial('Paper Trading')) return;
     if (!currentDetailMarket) return;
-
-    // Free user trial check (no position limit, just trial expiration)
-    if (!isPro()) {
-        const trialDays = getTrialDaysLeft();
-        if (trialDays <= 0) {
-            showProUpsell('Paper Trading — Trial Expired. Upgrade to Pro for unlimited trading.');
-            return;
-        }
-    }
-
     const side = document.getElementById('paper-side').value;
     const amount = parseInt(document.getElementById('paper-amount').value) || 0;
     if (amount <= 0) return;
@@ -2945,8 +2741,6 @@ function placePaperTrade() {
     }
 
     portfolio.balance -= cost;
-    var sig = getSygnalSignal(currentDetailMarket.ticker);
-    var score = _sygnalScoreCache[currentDetailMarket.ticker] || 0;
     portfolio.trades.push({
         ticker: currentDetailMarket.ticker,
         question: currentDetailMarket.question,
@@ -2956,10 +2750,6 @@ function placePaperTrade() {
         cost: cost,
         timestamp: Date.now(),
         platform: currentDetailMarket.source || 'unknown',
-        score: score,
-        signal: sig ? sig.signal : '',
-        category: categorize(currentDetailMarket.question || ''),
-        amount: amount,
         settled: false,
     });
 
@@ -2975,8 +2765,61 @@ function placePaperTrade() {
 }
 
 function loadPortfolio() {
+    // Require sign-in to see paper trading
+    if (!localStorage.getItem('sygnal-account-email')) {
+        const portfolioPanel = document.getElementById('portfolio-panel');
+        if (portfolioPanel) {
+            portfolioPanel.innerHTML = `
+                <h2>Paper Trading</h2>
+                <div style="text-align:center;padding:40px 20px;">
+                    <div style="font-size:36px;margin-bottom:12px;">◇</div>
+                    <h3 style="color:var(--text);margin:0 0 8px;">Sign in to Paper Trade</h3>
+                    <p style="color:var(--text-dim);font-size:13px;margin:0 0 20px;line-height:1.5;">Create a free account to practice trading with $1,000 in virtual money. Track your picks and build your accuracy.</p>
+                    <button class="pro-btn" onclick="showAuthPage()">Create Free Account</button>
+                </div>
+            `;
+        }
+        return;
+    }
+
     const portfolio = getPaperPortfolio();
     const trades = portfolio.trades || [];
+
+    // Restore the full panel HTML if it was replaced by sign-in prompt
+    const portfolioPanel = document.getElementById('portfolio-panel');
+    if (!document.getElementById('paper-balance')) {
+        portfolioPanel.innerHTML = `
+            <h2>Paper Trading</h2>
+            <div id="trial-banner"></div>
+            <div class="bot-grid" id="portfolio-stats">
+                <div class="bot-stat"><div class="bot-stat-label">Paper Balance</div><div class="bot-stat-value" id="paper-balance">$1,000.00</div></div>
+                <div class="bot-stat"><div class="bot-stat-label">Invested</div><div class="bot-stat-value" id="paper-invested">$0.00</div></div>
+                <div class="bot-stat"><div class="bot-stat-label">Total P&L</div><div class="bot-stat-value" id="paper-pnl">$0.00</div></div>
+                <div class="bot-stat"><div class="bot-stat-label">Trades</div><div class="bot-stat-value" id="paper-trades">0</div></div>
+            </div>
+            <div class="portfolio-chart-section">
+                <h3 style="font-size:13px;color:var(--text-dim);letter-spacing:2px;margin-bottom:8px;">PORTFOLIO VALUE OVER TIME</h3>
+                <canvas id="portfolio-chart" width="800" height="200"></canvas>
+            </div>
+            <div id="paper-positions"></div>
+        `;
+    }
+
+    // Show trial status banner
+    let trialBanner = document.getElementById('trial-banner');
+    if (!trialBanner) {
+        trialBanner = document.createElement('div');
+        trialBanner.id = 'trial-banner';
+        portfolioPanel?.insertBefore(trialBanner, portfolioPanel.firstChild?.nextSibling);
+    }
+    if (isPro()) {
+        trialBanner.innerHTML = '<div class="trial-badge pro">PRO</div>';
+    } else if (isTrialActive()) {
+        const days = getTrialDaysLeft();
+        trialBanner.innerHTML = `<div class="trial-badge trial">${days} day${days !== 1 ? 's' : ''} left on free trial · <a href="#" onclick="showProUpsell('Paper Trading'); return false;" style="color:var(--accent);text-decoration:underline;">Upgrade</a></div>`;
+    } else {
+        trialBanner.innerHTML = '<div class="trial-badge expired">Trial expired · <a href="#" onclick="showProUpsell(\'Paper Trading\'); return false;" style="color:var(--accent);text-decoration:underline;">Upgrade to Pro</a></div>';
+    }
 
     document.getElementById('paper-balance').textContent = '$' + portfolio.balance.toFixed(2);
 
@@ -2989,7 +2832,7 @@ function loadPortfolio() {
     const posDiv = document.getElementById('paper-positions');
 
     if (trades.length === 0) {
-        posDiv.innerHTML = '';
+        posDiv.innerHTML = '<p style="color:var(--text-dim);font-size:13px;">No paper trades yet. Click any market card to place one.</p>';
         document.getElementById('paper-pnl').textContent = '$0.00';
         return;
     }
@@ -3028,549 +2871,6 @@ function loadPortfolio() {
     const pnlEl = document.getElementById('paper-pnl');
     pnlEl.textContent = totalPnl >= 0 ? '+$' + totalPnl.toFixed(2) : '-$' + Math.abs(totalPnl).toFixed(2);
     pnlEl.className = 'bot-stat-value ' + (totalPnl >= 0 ? 'running' : 'stopped');
-
-}
-
-function saveBotSettings() {
-    var email = '';
-    if (typeof _currentUser !== 'undefined' && _currentUser) email = _currentUser.email || '';
-    if (!email) email = localStorage.getItem('sygnal-account-email') || '';
-    if (!email) { showToast('Sign in to save settings'); return; }
-
-    var btn = document.getElementById('bot-settings-save');
-    var status = document.getElementById('bot-settings-status');
-
-    // Gather all settings
-    var payload = {email: email};
-    var tf = document.getElementById('portfolio-timeframe-select');
-    if (tf) payload.max_days = parseFloat(tf.value);
-    var risk = document.getElementById('bot-risk-select');
-    if (risk && !risk.disabled) payload.risk_level = risk.value;
-    var cat = document.getElementById('bot-category-select');
-    if (cat && !cat.disabled) payload.categories = [cat.value];
-    var ms = document.getElementById('bot-minscore-select');
-    if (ms && !ms.disabled) payload.min_score = parseInt(ms.value);
-    var sig = document.getElementById('bot-signal-select');
-    if (sig && !sig.disabled) payload.signal_filter = sig.value;
-    var tp = document.getElementById('bot-tp-select');
-    if (tp && !tp.disabled) payload.take_profit = parseInt(tp.value);
-    var sl = document.getElementById('bot-sl-select');
-    if (sl && !sl.disabled) payload.stop_loss = parseInt(sl.value);
-
-    // Show saving state
-    if (btn) { btn.textContent = 'Saving...'; btn.style.background = 'rgba(0,136,255,0.5)'; btn.disabled = true; }
-
-    fetch(API_BASE + '/api/autobot/settings', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify(payload)
-    }).then(function(r) { return r.json(); }).then(function(d) {
-        if (d.ok) {
-            if (btn) { btn.textContent = '✓ Saved'; btn.style.background = '#00d68f'; btn.disabled = false; }
-            if (status) { status.textContent = 'Bot settings updated'; status.style.color = '#00d68f'; status.style.display = 'inline'; }
-            showToast('Bot settings saved');
-            setTimeout(function() {
-                if (btn) { btn.style.display = 'none'; btn.textContent = 'Save Changes'; btn.style.background = 'var(--accent)'; }
-                if (status) status.style.display = 'none';
-            }, 2000);
-        } else {
-            var msg = d.error || 'Error saving';
-            if (d.pro_required) msg = d.error;
-            if (btn) { btn.textContent = msg; btn.style.background = '#ff3b5c'; btn.disabled = false; }
-            setTimeout(function() {
-                if (btn) { btn.textContent = 'Save Changes'; btn.style.background = 'var(--accent)'; }
-            }, 3000);
-        }
-    }).catch(function() {
-        if (btn) { btn.textContent = 'Error — Try Again'; btn.style.background = '#ff3b5c'; btn.disabled = false; }
-    });
-}
-
-function sellBotTrade(ticker) {
-    var email = '';
-    if (typeof _currentUser !== 'undefined' && _currentUser) email = _currentUser.email || '';
-    if (!email) email = localStorage.getItem('sygnal-account-email') || '';
-    if (!email) return;
-
-    // Find the trade info for the modal
-    var tradeInfo = null;
-    try {
-        var cached = JSON.parse(localStorage.getItem('sygnal-bot-cache-' + email));
-        if (cached) tradeInfo = (cached.open_trades || []).find(function(t) { return t.ticker === ticker; });
-    } catch(e) {}
-
-    var question = tradeInfo ? tradeInfo.question : 'this position';
-    var side = tradeInfo ? tradeInfo.side.toUpperCase() : '';
-    var entry = tradeInfo ? tradeInfo.price + '¢' : '';
-    var contracts = tradeInfo ? tradeInfo.contracts : '';
-    var cost = tradeInfo ? '$' + tradeInfo.cost.toFixed(2) : '';
-
-    // Get current price from server cache
-    var currentInfo = '';
-    var sc = _serverScoreCache[ticker];
-    if (sc && tradeInfo) {
-        var curPrice = tradeInfo.side === 'yes' ? sc.yes : sc.no;
-        var pnlCents = curPrice - tradeInfo.price;
-        var pnlDollars = (pnlCents * tradeInfo.contracts / 100);
-        var pnlColor = pnlDollars >= 0 ? '#00d68f' : '#ff3b5c';
-        var pnlStr = pnlDollars >= 0 ? '+$' + pnlDollars.toFixed(2) : '-$' + Math.abs(pnlDollars).toFixed(2);
-        currentInfo = '<div style="display:flex;justify-content:space-between;margin-top:12px;padding:12px;background:rgba(255,255,255,0.03);border-radius:8px;">' +
-            '<div><div style="font-size:10px;color:var(--text-dim);margin-bottom:2px;">Current</div><div style="font-size:16px;font-weight:700;color:var(--text);">' + curPrice + '¢</div></div>' +
-            '<div><div style="font-size:10px;color:var(--text-dim);margin-bottom:2px;">Entry</div><div style="font-size:16px;font-weight:700;color:var(--text);">' + entry + '</div></div>' +
-            '<div><div style="font-size:10px;color:var(--text-dim);margin-bottom:2px;">P&L</div><div style="font-size:16px;font-weight:700;color:' + pnlColor + ';">' + pnlStr + '</div></div>' +
-        '</div>';
-    }
-
-    // Build modal
-    var overlay = document.createElement('div');
-    overlay.id = 'sell-modal';
-    overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.7);z-index:10000;display:flex;align-items:center;justify-content:center;padding:20px;';
-    overlay.innerHTML = '<div style="background:var(--bg-card);border:1px solid var(--border);border-radius:16px;padding:28px;max-width:400px;width:100%;">' +
-        '<h3 style="font-size:18px;font-weight:700;color:var(--text);margin:0 0 8px;">Sell Position</h3>' +
-        '<p style="font-size:13px;color:var(--text-dim);margin:0 0 4px;line-height:1.5;">' + question + '</p>' +
-        '<div style="font-size:12px;color:var(--text-dim);">' + side + ' · ' + contracts + ' contracts · ' + cost + '</div>' +
-        currentInfo +
-        '<div style="display:flex;gap:10px;margin-top:20px;">' +
-            '<button onclick="document.getElementById(\'sell-modal\').remove();" style="flex:1;padding:12px;border-radius:10px;background:rgba(255,255,255,0.05);color:var(--text);border:1px solid var(--border);font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;">Cancel</button>' +
-            '<button id="sell-confirm-btn" onclick="confirmSellTrade(\'' + ticker + '\')" style="flex:1;padding:12px;border-radius:10px;background:#ff3b5c;color:#fff;border:none;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;">Sell Now</button>' +
-        '</div>' +
-    '</div>';
-    document.body.appendChild(overlay);
-    // Close on backdrop click
-    overlay.addEventListener('click', function(e) { if (e.target === overlay) overlay.remove(); });
-}
-
-function confirmSellTrade(ticker) {
-    var email = '';
-    if (typeof _currentUser !== 'undefined' && _currentUser) email = _currentUser.email || '';
-    if (!email) email = localStorage.getItem('sygnal-account-email') || '';
-
-    var btn = document.getElementById('sell-confirm-btn');
-    if (btn) { btn.textContent = 'Selling...'; btn.disabled = true; }
-
-    fetch(API_BASE + '/api/autobot/sell', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({email: email, ticker: ticker})
-    }).then(function(r) { return r.json(); }).then(function(d) {
-        var modal = document.getElementById('sell-modal');
-        if (modal) modal.remove();
-        if (d.ok) {
-            var pnlStr = d.pnl >= 0 ? '+$' + d.pnl.toFixed(2) : '-$' + Math.abs(d.pnl).toFixed(2);
-            showToast('Sold for ' + pnlStr);
-            _autobotLoading = false;
-            loadAutobotOnPortfolio();
-        } else {
-            showToast(d.error || 'Error selling');
-        }
-    }).catch(function() {
-        var modal = document.getElementById('sell-modal');
-        if (modal) modal.remove();
-        showToast('Error selling trade');
-    });
-}
-
-var _autobotLoading = false;
-function loadAutobotOnPortfolio() {
-    var posDiv = document.getElementById('paper-positions');
-    if (!posDiv) return;
-    if (_autobotLoading) return; // prevent duplicate calls
-    _autobotLoading = true;
-    var email = '';
-    if (typeof _currentUser !== 'undefined' && _currentUser) email = _currentUser.email || '';
-    if (!email) email = localStorage.getItem('sygnal-account-email') || '';
-    if (!email) {
-        _autobotLoading = false;
-        // Hide settings card when not signed in
-        var settingsCard = document.getElementById('bot-settings-card');
-        if (settingsCard) settingsCard.style.display = 'none';
-        // Show sign-in prompt
-        var existingAutobot = document.getElementById('autobot-section');
-        if (existingAutobot) existingAutobot.remove();
-        var signInPrompt = document.createElement('div');
-        signInPrompt.id = 'autobot-section';
-        signInPrompt.innerHTML = '<div style="text-align:center;padding:40px 20px;margin-top:20px;border-top:1px solid var(--border);">' +
-            '<div style="font-size:32px;margin-bottom:12px;">🤖</div>' +
-            '<h3 style="font-size:18px;font-weight:700;color:var(--text);margin:0 0 8px;">Create an account to use this feature</h3>' +
-            '<p style="font-size:13px;color:var(--text-dim);margin:0 0 6px;line-height:1.5;">Your personal paper trading bot uses Sygnal Scores to find and place trades automatically every 5 minutes.</p>' +
-            '<p style="font-size:12px;color:var(--text-dim);margin:0 0 20px;">Sign up free to get started with $10,000 paper balance.</p>' +
-            '<button onclick="openAuthModal()" style="background:var(--accent);color:#fff;border:none;padding:12px 32px;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;">Create Account</button>' +
-            '<div style="margin-top:10px;"><span style="font-size:11px;color:var(--text-dim);">Already have an account? <a href="#" onclick="openAuthModal();return false;" style="color:var(--accent);text-decoration:none;">Sign In</a></span></div>' +
-        '</div>';
-        posDiv.appendChild(signInPrompt);
-        return;
-    }
-
-    // Render cached data instantly while fresh data loads
-    var cachedData = null;
-    try { cachedData = JSON.parse(localStorage.getItem('sygnal-bot-cache-' + email)); } catch(e) {}
-    if (cachedData && cachedData.open_trades) {
-        var balEl = document.getElementById('paper-balance');
-        if (balEl) balEl.textContent = '$' + (cachedData.balance || 0).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
-    }
-
-    // Use AbortController for 8-second timeout
-    var controller = new AbortController();
-    var timeoutId = setTimeout(function() { controller.abort(); }, 8000);
-
-    fetch(API_BASE + '/api/autobot/portfolio?email=' + encodeURIComponent(email), {signal: controller.signal})
-        .then(function(r) { clearTimeout(timeoutId); return r.json(); })
-        .then(function(data) {
-            // Cache for instant load next time
-            try { localStorage.setItem('sygnal-bot-cache-' + email, JSON.stringify(data)); } catch(e) {}
-            var openTrades = data.open_trades || [];
-
-            // Populate all bot settings dropdowns
-            var s = data.settings || {};
-            var userIsPro = isPro();
-
-            // Helper to populate a select
-            function populateSelect(id, options, savedVal) {
-                var el = document.getElementById(id);
-                if (!el) return;
-                el.innerHTML = '';
-                options.forEach(function(o) {
-                    var opt = document.createElement('option');
-                    opt.value = o.val;
-                    opt.textContent = o.label;
-                    if (String(o.val) === String(savedVal)) opt.selected = true;
-                    el.appendChild(opt);
-                });
-            }
-
-            // Timeframe — free gets 7/30, Pro gets all
-            var tfOpts = userIsPro
-                ? [{val:0.5,label:'12 Hours'},{val:1,label:'24 Hours'},{val:3,label:'3 Days'},{val:7,label:'1 Week'},{val:14,label:'2 Weeks'},{val:30,label:'1 Month'},{val:90,label:'3 Months'},{val:0,label:'Any'}]
-                : [{val:7,label:'1 Week'},{val:30,label:'1 Month'}];
-            populateSelect('portfolio-timeframe-select', tfOpts, s.max_days !== undefined ? s.max_days : 30);
-
-            // Risk Level
-            populateSelect('bot-risk-select', [{val:'conservative',label:'Conservative'},{val:'moderate',label:'Moderate'},{val:'aggressive',label:'Aggressive'}], s.risk_level || 'moderate');
-
-            // Categories
-            populateSelect('bot-category-select', [{val:'all',label:'All Markets'},{val:'sports',label:'Sports'},{val:'politics',label:'Politics'},{val:'crypto',label:'Crypto'},{val:'entertainment',label:'Entertainment'}], (s.categories && s.categories[0]) || 'all');
-
-            // Min Score
-            populateSelect('bot-minscore-select', [{val:30,label:'30+ (Default)'},{val:40,label:'40+'},{val:50,label:'50+'},{val:60,label:'60+'},{val:70,label:'70+ (Strict)'}], s.min_score || 30);
-
-            // Signal Filter
-            populateSelect('bot-signal-select', [{val:'all',label:'BUY + LEAN'},{val:'buy_only',label:'BUY Only'}], s.signal_filter || 'all');
-
-            // Take Profit
-            populateSelect('bot-tp-select', [{val:10,label:'10%'},{val:15,label:'15%'},{val:20,label:'20% (Default)'},{val:30,label:'30%'},{val:50,label:'50%'}], s.take_profit || 20);
-
-            // Stop Loss
-            populateSelect('bot-sl-select', [{val:15,label:'15%'},{val:20,label:'20%'},{val:30,label:'30% (Default)'},{val:40,label:'40%'},{val:50,label:'50%'}], s.stop_loss || 30);
-
-            // Enable Pro selects if Pro, add click-to-upgrade for free
-            var proSelectIds = ['bot-risk-select','bot-category-select','bot-minscore-select','bot-signal-select','bot-tp-select','bot-sl-select'];
-            proSelectIds.forEach(function(id) {
-                var el = document.getElementById(id);
-                if (!el) return;
-                if (userIsPro) {
-                    el.disabled = false;
-                } else {
-                    el.disabled = true;
-                    // Wrap in clickable div that shows upgrade prompt
-                    var row = el.closest('.bot-setting-row');
-                    if (row && !row._proWired) {
-                        row._proWired = true;
-                        row.style.cursor = 'pointer';
-                        row.addEventListener('click', function(e) {
-                            if (!isPro()) {
-                                var status = document.getElementById('bot-settings-status');
-                                if (status) {
-                                    status.style.display = 'inline';
-                                    status.innerHTML = '<span style="color:#ff3b5c;">Pro required</span> — <a href="#" onclick="switchTab(\'pro\',null);return false;" style="color:var(--accent);text-decoration:none;">Upgrade to unlock</a>';
-                                }
-                                showToast('Upgrade to Pro to change this setting');
-                            }
-                        });
-                    }
-                }
-            });
-            // Hide PRO tags if user is Pro
-            if (userIsPro) {
-                document.querySelectorAll('.pro-setting-tag').forEach(function(t) { t.style.display = 'none'; });
-            }
-
-            // Wire unsaved changes — show Save button only when changed
-            document.querySelectorAll('.bot-select').forEach(function(sel) {
-                sel.onchange = function() {
-                    var btn = document.getElementById('bot-settings-save');
-                    var status = document.getElementById('bot-settings-status');
-                    if (btn) { btn.style.display = ''; btn.style.background = 'var(--accent)'; btn.textContent = 'Save Changes'; }
-                    if (status) { status.style.display = 'inline'; status.textContent = 'Unsaved changes'; status.style.color = '#f0b000'; }
-                };
-            });
-
-            // Update top stats with auto-bot data
-            var balEl = document.getElementById('paper-balance');
-            var investedEl = document.getElementById('paper-invested');
-            var pnlEl = document.getElementById('paper-pnl');
-            var tradesEl = document.getElementById('paper-trades');
-            // Big balance number
-            if (balEl) balEl.textContent = '$' + (data.balance || 0).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
-
-            // P&L — always fetch live prices from scores API
-            if (pnlEl && openTrades.length > 0) {
-                var realizedPnl = data.total_pnl || 0;
-                pnlEl.textContent = '+$0.00';
-                // Use server score cache if available, otherwise fetch
-                var priceMap = _serverScoreCache || {};
-                var uPnl = 0;
-                var matched = 0;
-                openTrades.forEach(function(t) {
-                    var s = priceMap[t.ticker];
-                    if (s) {
-                        var cp = t.side === 'yes' ? s.yes : s.no;
-                        uPnl += (cp - t.price) * t.contracts / 100;
-                        matched++;
-                    }
-                });
-                if (matched > 0) {
-                    var tp = realizedPnl + uPnl;
-                    pnlEl.textContent = (tp >= 0 ? '+$' : '-$') + Math.abs(tp).toFixed(2);
-                    pnlEl.style.color = tp >= 0 ? 'var(--green)' : 'var(--red)';
-                    if (balEl && uPnl !== 0) {
-                        balEl.textContent = '$' + ((data.balance || 0) + uPnl).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
-                    }
-                } else {
-                    // Fetch fresh if cache empty
-                    fetch(API_BASE + '/api/scores?min_score=0').then(function(r){return r.json();}).then(function(sc) {
-                        var scores = sc.scores || [];
-                        var pm = {};
-                        scores.forEach(function(s) { pm[s.ticker] = s; _serverScoreCache[s.ticker] = s; });
-                        var up = 0;
-                        openTrades.forEach(function(t) {
-                            var s = pm[t.ticker];
-                            if (s) { up += ((t.side === 'yes' ? s.yes : s.no) - t.price) * t.contracts / 100; }
-                        });
-                        var total = realizedPnl + up;
-                        pnlEl.textContent = (total >= 0 ? '+$' : '-$') + Math.abs(total).toFixed(2);
-                        pnlEl.style.color = total >= 0 ? 'var(--green)' : 'var(--red)';
-                        if (balEl && up !== 0) {
-                            balEl.textContent = '$' + ((data.balance || 0) + up).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
-                        }
-                    }).catch(function(){});
-                }
-            } else if (pnlEl) {
-                pnlEl.textContent = '+$0.00';
-                pnlEl.style.color = 'var(--green)';
-            }
-
-            // Win/Loss badge
-            var badgeEl = document.getElementById('portfolio-win-badge');
-            if (badgeEl && (data.wins + data.losses) > 0) {
-                badgeEl.style.display = 'inline-block';
-                badgeEl.textContent = data.wins + 'W / ' + data.losses + 'L';
-                badgeEl.style.color = data.win_rate >= 55 ? 'var(--green)' : 'var(--text-dim)';
-                badgeEl.style.background = 'rgba(255,255,255,0.04)';
-                badgeEl.style.padding = '3px 10px';
-                badgeEl.style.borderRadius = '12px';
-                badgeEl.style.fontSize = '11px';
-            }
-
-            // Stats
-            var startingBalance = 10000;
-            var invested = Math.max(0, startingBalance - (data.balance || startingBalance));
-            if (investedEl) investedEl.textContent = '$' + invested.toLocaleString('en-US', {maximumFractionDigits: 0});
-            if (tradesEl) tradesEl.textContent = openTrades.length + (data.resolved_count || 0);
-
-            // Missed profits banner (non-Pro only)
-            if (!isPro()) {
-                var potentialProfit = 0;
-                openTrades.forEach(function(t) {
-                    potentialProfit += (100 - t.price) * t.contracts / 100;
-                });
-                var banner = document.getElementById('missed-profits-banner');
-                var amountEl = document.getElementById('missed-profits-amount');
-                if (banner && potentialProfit > 0) {
-                    banner.style.display = 'block';
-                    if (amountEl) amountEl.textContent = '$' + potentialProfit.toFixed(0);
-                }
-            }
-
-            // Win rate stat
-            var winRateEl = document.getElementById('paper-win-rate');
-            if (winRateEl) {
-                if ((data.wins + data.losses) > 0) {
-                    winRateEl.textContent = data.win_rate + '%';
-                    winRateEl.style.color = data.win_rate >= 55 ? 'var(--green)' : 'var(--text)';
-                }
-            }
-
-            // Show/hide start bot button
-            var startBtn = document.getElementById('portfolio-start-bot');
-            if (startBtn) {
-                startBtn.style.display = (openTrades.length === 0 && data.resolved_count === 0) ? '' : 'none';
-            }
-
-            if (openTrades.length === 0 && data.resolved_count === 0) return;
-
-            var wins = data.wins || 0;
-            var losses = data.losses || 0;
-            var winRate = data.win_rate || 0;
-
-            var html = '<div style="margin-top:24px;padding-top:20px;border-top:1px solid var(--border);">' +
-                '<h3 style="font-size:13px;color:var(--text-dim);letter-spacing:2px;margin:0 0 4px;">AUTO-BOT TRADES</h3>' +
-                '<p style="font-size:11px;color:var(--text-dim);margin-bottom:12px;">Placed automatically by your Sygnal Score bot</p>';
-
-            if (wins + losses > 0) {
-                html += '<div style="display:flex;gap:16px;margin-bottom:12px;font-size:13px;">' +
-                    '<span style="color:var(--green);font-weight:700;">' + winRate + '% win rate</span>' +
-                    '<span style="color:var(--text-dim);">' + wins + 'W / ' + losses + 'L</span>' +
-                    '<span style="color:' + (data.total_pnl >= 0 ? 'var(--green)' : 'var(--red)') + ';font-weight:600;">' + (data.total_pnl >= 0 ? '+' : '') + '$' + (data.total_pnl || 0).toFixed(2) + '</span>' +
-                '</div>';
-            }
-
-            // Timeframe performance breakdown
-            html += '<div id="timeframe-perf-section"></div>';
-
-            if (openTrades.length > 0) {
-                html += '<div class="market-grid" style="margin-top:12px;">';
-                html += openTrades.map(function(t) {
-                    var yesPrice = t.side === 'yes' ? t.price : (100 - t.price);
-                    var noPrice = t.side === 'yes' ? (100 - t.price) : t.price;
-                    var scoreColor = t.score >= 60 ? '#00d68f' : t.score >= 40 ? '#f0b000' : '#ff3b5c';
-                    var sigColor = t.signal.includes('BUY') ? '#00d68f' : '#f0b000';
-                    var sigBg = t.signal.includes('BUY') ? 'rgba(0,214,143,0.1)' : 'rgba(240,176,0,0.1)';
-                    // Detect platform from ticker format
-                    var isKalshi = (t.ticker || '').startsWith('KX') || (t.ticker || '').startsWith('kx');
-                    var platform = isKalshi ? 'KALSHI' : 'POLY';
-                    var platColor = isKalshi ? 'rgba(0,136,255,0.15)' : 'rgba(0,214,143,0.15)';
-                    var platText = isKalshi ? '#0088ff' : '#00d68f';
-                    var timeAgo = '';
-                    try {
-                        var mins = Math.floor((Date.now() - new Date(t.timestamp).getTime()) / 60000);
-                        if (mins < 60) timeAgo = mins + 'm ago';
-                        else if (mins < 1440) timeAgo = Math.floor(mins/60) + 'h ago';
-                        else timeAgo = Math.floor(mins/1440) + 'd ago';
-                    } catch(e) {}
-
-                    return '<div class="market-card" style="cursor:pointer;" onclick="if(allMarketCards.length){var m=allMarketCards.find(function(c){return c.market.ticker===\'' + t.ticker + '\'});if(m)openDetail(m.market);}">' +
-                        '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">' +
-                            '<span style="background:' + platColor + ';color:' + platText + ';padding:2px 8px;border-radius:4px;font-size:9px;font-weight:800;letter-spacing:1px;">' + platform + '</span>' +
-                            '<span style="font-size:10px;color:var(--text-dim);">' + timeAgo + '</span>' +
-                        '</div>' +
-                        '<h3 style="font-size:14px;font-weight:600;color:var(--text);line-height:1.4;margin-bottom:10px;min-height:40px;">' + (t.question || t.ticker) + '</h3>' +
-                        '<div style="display:flex;gap:12px;margin-bottom:12px;">' +
-                            '<span style="color:#00d68f;font-weight:700;font-size:15px;">YES ' + yesPrice + '¢</span>' +
-                            '<span style="color:#ff3b5c;font-weight:700;font-size:15px;">NO ' + noPrice + '¢</span>' +
-                        '</div>' +
-                        '<div style="display:flex;justify-content:space-between;align-items:center;padding-top:10px;border-top:1px solid var(--border);">' +
-                            '<div style="display:flex;align-items:center;gap:8px;">' +
-                                '<div style="width:32px;height:32px;border-radius:50%;border:2px solid ' + scoreColor + ';display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;color:' + scoreColor + ';">' + t.score + '</div>' +
-                                '<span style="background:' + sigBg + ';color:' + sigColor + ';padding:3px 10px;border-radius:6px;font-size:10px;font-weight:800;">' + t.signal + '</span>' +
-                            '</div>' +
-                            '<div style="text-align:right;">' +
-                                '<span style="font-size:12px;font-weight:700;color:var(--text);">$' + (t.cost || 0).toFixed(2) + '</span>' +
-                                '<div style="font-size:10px;color:var(--text-dim);margin-top:1px;">' + t.contracts + ' contracts @ ' + t.price + '¢</div>' +
-                                (t.ev_per_dollar ? '<div style="font-size:9px;color:var(--accent);margin-top:3px;">EV: ' + (t.ev_per_dollar * 100).toFixed(0) + '¢/$1 · Edge: ' + (t.edge || 0) + '%</div>' : '') +
-                                (function() {
-                                    var sc = _serverScoreCache[t.ticker];
-                                    var cm = sc || allMarketCards.find(function(c) { return c.market.ticker === t.ticker; });
-                                    if (cm) {
-                                        var curPrice = sc ? (t.side === 'yes' ? sc.yes : sc.no) : (t.side === 'yes' ? cm.market.yes : cm.market.no);
-                                        var pnlCents = curPrice - t.price;
-                                        var pnlDollars = (pnlCents * t.contracts / 100);
-                                        var pnlColor = pnlCents >= 0 ? 'var(--green)' : 'var(--red)';
-                                        var arrow = pnlCents >= 0 ? '▲' : '▼';
-                                        return '<div style="font-size:12px;color:' + pnlColor + ';font-weight:700;margin-top:2px;">' + arrow + ' ' + (pnlCents >= 0 ? '+' : '') + pnlCents + '¢ (' + (pnlDollars >= 0 ? '+' : '') + '$' + pnlDollars.toFixed(2) + ')</div>';
-                                    }
-                                    return '<div style="font-size:10px;color:var(--text-dim);margin-top:2px;">Waiting for price data...</div>';
-                                })() +
-                            '</div>' +
-                        '</div>' +
-                        '<div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border);text-align:right;">' +
-                            '<button onclick="sellBotTrade(\'' + t.ticker + '\');event.stopPropagation();" style="background:rgba(255,59,92,0.1);color:#ff3b5c;border:1px solid rgba(255,59,92,0.2);padding:6px 16px;border-radius:8px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;">Sell</button>' +
-                        '</div>' +
-                    '</div>';
-                }).join('');
-                html += '</div>';
-            } else {
-                html += '<p style="color:var(--text-dim);font-size:13px;">No open auto-bot positions — bot is scanning for opportunities.</p>';
-            }
-
-            html += '</div>';
-            // Replace any existing autobot section, don't append
-            var existingAutobot = document.getElementById('autobot-section');
-            if (existingAutobot) existingAutobot.remove();
-            var wrapper = document.createElement('div');
-            wrapper.id = 'autobot-section';
-            wrapper.innerHTML = html;
-            posDiv.appendChild(wrapper);
-
-            // Load timeframe performance chart
-            loadTimeframePerformance();
-            _autobotLoading = false;
-        })
-        .catch(function() {
-            _autobotLoading = false;
-            // Use cached data on timeout/error
-            var cached = null;
-            try { cached = JSON.parse(localStorage.getItem('sygnal-bot-cache-' + email)); } catch(e) {}
-            if (cached && cached.open_trades && cached.open_trades.length > 0) {
-                var posDiv2 = document.getElementById('paper-positions');
-                if (posDiv2) {
-                    posDiv2.innerHTML = '<p style="color:var(--text-dim);font-size:12px;text-align:center;padding:8px;">Showing cached data — server is loading...</p>';
-                }
-            }
-        });
-}
-
-
-function loadTimeframePerformance() {
-    var section = document.getElementById('timeframe-perf-section');
-    if (!section) return;
-
-    fetch(API_BASE + '/api/collective/stats')
-        .then(function(r) { return r.json(); })
-        .then(function(stats) {
-            var tf = stats.by_timeframe || {};
-            var bucketOrder = ['12h', '24h', '3d', '1w', '2w', '1m', '3m', '3m+'];
-            var bucketLabels = {'12h':'12H','24h':'24H','3d':'3D','1w':'1W','2w':'2W','1m':'1M','3m':'3M','3m+':'3M+'};
-            var hasTfData = false;
-            bucketOrder.forEach(function(b) { if (tf[b] && tf[b].trades > 0) hasTfData = true; });
-
-            if (!hasTfData) {
-                section.innerHTML = '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:16px;">' +
-                    '<div style="font-size:11px;font-weight:700;color:#0088ff;letter-spacing:2px;margin-bottom:8px;">TIMEFRAME PERFORMANCE</div>' +
-                    '<p style="font-size:12px;color:var(--text-dim);">Waiting for trades to resolve to show which timeframes perform best...</p>' +
-                '</div>';
-                return;
-            }
-
-            var maxTrades = 1;
-            bucketOrder.forEach(function(b) { if (tf[b]) maxTrades = Math.max(maxTrades, tf[b].trades); });
-
-            var bars = '';
-            bucketOrder.forEach(function(b) {
-                var d = tf[b] || {trades: 0, win_rate: 0, total_pnl: 0};
-                if (d.trades === 0) return;
-                var wr = d.win_rate;
-                var barColor = wr >= 60 ? '#00d68f' : wr >= 45 ? '#f0b000' : '#ff3b5c';
-                var barWidth = Math.max(10, (d.trades / maxTrades) * 100);
-                var pnlStr = d.total_pnl >= 0 ? '+$' + d.total_pnl.toFixed(0) : '-$' + Math.abs(d.total_pnl).toFixed(0);
-                var pnlColor = d.total_pnl >= 0 ? '#00d68f' : '#ff3b5c';
-                bars += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">' +
-                    '<span style="font-size:11px;color:var(--text-dim);width:28px;text-align:right;font-weight:600;">' + bucketLabels[b] + '</span>' +
-                    '<div style="flex:1;height:22px;background:rgba(255,255,255,0.04);border-radius:4px;position:relative;overflow:hidden;">' +
-                        '<div style="width:' + barWidth + '%;height:100%;background:' + barColor + ';border-radius:4px;opacity:0.8;"></div>' +
-                        '<span style="position:absolute;left:8px;top:3px;font-size:11px;color:#fff;font-weight:700;">' + wr + '%</span>' +
-                    '</div>' +
-                    '<span style="font-size:10px;color:var(--text-dim);width:35px;text-align:right;">' + d.trades + ' tr</span>' +
-                    '<span style="font-size:10px;color:' + pnlColor + ';width:40px;text-align:right;font-weight:600;">' + pnlStr + '</span>' +
-                '</div>';
-            });
-
-            section.innerHTML = '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:16px;">' +
-                '<div style="font-size:11px;font-weight:700;color:#0088ff;letter-spacing:2px;margin-bottom:10px;">TIMEFRAME PERFORMANCE</div>' +
-                bars +
-                '<p style="font-size:10px;color:var(--text-dim);margin-top:8px;">Set your timeframe above to focus on the best-performing window</p>' +
-            '</div>';
-        })
-        .catch(function() {});
 }
 
 
@@ -3649,7 +2949,7 @@ async function toggleNotifications() {
     if (!notificationsEnabled) {
         // Request permission
         if (!('Notification' in window)) {
-            alert('Your browser doesn\'t support notifications');
+            showToast('Add Sygnal to your Home Screen first, then enable notifications');
             return;
         }
         const perm = await Notification.requestPermission();
@@ -3658,7 +2958,7 @@ async function toggleNotifications() {
             localStorage.setItem('sygnal-notifications', 'true');
             sendNotification('Sygnal Alerts Enabled', 'You\'ll be notified when watchlisted markets move 5%+ or your bot trades.');
         } else {
-            alert('Notifications blocked — enable them in browser settings');
+            showToast('Notifications blocked — check browser settings');
             return;
         }
     } else {
@@ -4158,22 +3458,17 @@ function drawPortfolioChart() {
     ctx.clearRect(0, 0, w, h);
 
     const history = getPortfolioHistory();
-    const portfolio = getPaperPortfolio();
-    const trades = portfolio.trades || [];
-
-    // Hide chart entirely if no trades
-    if (trades.length === 0 || history.length < 2) {
-        canvas.parentElement.style.display = 'none';
+    if (history.length < 2) {
+        ctx.fillStyle = 'rgba(255,255,255,0.15)';
+        ctx.font = '13px Sora, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('Portfolio chart will appear after a few refreshes', w/2, h/2);
         return;
     }
-    canvas.parentElement.style.display = '';
 
     const values = history.map(h => h.value);
-    const actualRange = Math.max(...values) - Math.min(...values);
-    // If all values are the same (flat line), pad more
-    const padding = actualRange < 10 ? 50 : actualRange * 0.1;
-    const min = Math.min(...values) - padding;
-    const max = Math.max(...values) + padding;
+    const min = Math.min(...values) * 0.98;
+    const max = Math.max(...values) * 1.02;
     const range = max - min || 1;
     const trending = values[values.length - 1] >= values[0];
     const color = trending ? '0, 214, 143' : '255, 59, 92';
@@ -4640,7 +3935,7 @@ function showSharePopup(market) {
         canvas.toBlob(blob => {
             navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]).then(() => {
                 showToast('Image copied to clipboard!');
-            }).catch(() => showToast('Copy failed — try downloading instead'));
+            }).catch(() => showToast('Copy failed — try download instead'));
         });
     });
 }
@@ -5350,31 +4645,114 @@ function shareRecap() {
     }
 }
 
-// ── SYGNAL PRO ──
-function isPro() {
-    if (typeof _isPro !== 'undefined' && _isPro) return true;
-    if (localStorage.getItem('sygnal-pro') === 'true') return true;
-    // 3-day Pro trial for new users
-    if (isProTrialActive()) return true;
+// ── 30-DAY FREE TRIAL ──
+const TRIAL_DAYS = 30;
+
+function getTrialStart() {
+    let start = localStorage.getItem('sygnal-trial-start');
+    if (!start) {
+        start = Date.now().toString();
+        localStorage.setItem('sygnal-trial-start', start);
+    }
+    return parseInt(start);
+}
+
+function getTrialDaysLeft() {
+    const start = getTrialStart();
+    const elapsed = Date.now() - start;
+    const daysElapsed = Math.floor(elapsed / (1000 * 60 * 60 * 24));
+    return Math.max(0, TRIAL_DAYS - daysElapsed);
+}
+
+function isTrialActive() {
+    return getTrialDaysLeft() > 0;
+}
+
+function requireProOrTrial(feature) {
+    if (isPro() || isTrialActive()) return true;
+    showTrialExpired(feature);
     return false;
 }
 
-function isProTrialActive() {
-    var trialStart = localStorage.getItem('sygnal-pro-trial-start');
-    if (!trialStart) {
-        // Start trial on first visit
-        localStorage.setItem('sygnal-pro-trial-start', Date.now().toString());
-        return true;
-    }
-    var elapsed = (Date.now() - parseInt(trialStart)) / 86400000; // days
-    return elapsed <= 3;
+function showTrialExpired(feature) {
+    // Reuse the Pro upsell with trial expired messaging
+    showProUpsell('Your 30-Day Trial Has Ended');
 }
 
-function getProTrialDaysLeft() {
-    var trialStart = localStorage.getItem('sygnal-pro-trial-start');
-    if (!trialStart) return 3;
-    var elapsed = (Date.now() - parseInt(trialStart)) / 86400000;
-    return Math.max(0, Math.ceil(3 - elapsed));
+// ── ACCOUNT SIGNUP POPUP ──
+function hasAccount() {
+    return localStorage.getItem('sygnal-account-email') !== null;
+}
+
+function showSignupPopup() {
+    if (hasAccount()) return;
+    // Show after 30 seconds of first visit
+    const existing = document.querySelector('.signup-modal');
+    if (existing) return;
+
+    const daysLeft = getTrialDaysLeft();
+    const modal = document.createElement('div');
+    modal.className = 'pro-modal signup-modal';
+    modal.innerHTML = `
+        <div class="pro-modal-content">
+            <div style="font-size:10px;letter-spacing:3px;color:var(--accent);font-weight:700;margin-bottom:8px;">CREATE YOUR ACCOUNT</div>
+            <h3 style="margin:0 0 8px;font-size:18px;color:var(--text);">Welcome to Sygnal Markets</h3>
+            <p style="color:var(--text-dim);font-size:13px;margin:0 0 6px;line-height:1.5;">Sign up to track your paper trades, save your watchlist, and get market alerts.</p>
+            <p style="color:var(--green);font-size:13px;font-weight:600;margin:0 0 16px;">${daysLeft} days left on your free trial</p>
+            <input type="email" id="signup-modal-email" placeholder="your@email.com" style="width:100%;padding:12px 14px;border-radius:8px;border:1px solid var(--border);background:var(--bg);color:var(--text);font-family:var(--font);font-size:14px;margin-bottom:10px;box-sizing:border-box;">
+            <input type="text" id="signup-modal-name" placeholder="Your name (optional)" style="width:100%;padding:12px 14px;border-radius:8px;border:1px solid var(--border);background:var(--bg);color:var(--text);font-family:var(--font);font-size:14px;margin-bottom:16px;box-sizing:border-box;">
+            <button class="pro-btn" onclick="submitSignupModal()">Create Free Account</button>
+            <button onclick="this.closest('.pro-modal').remove(); localStorage.setItem('sygnal-signup-dismissed', Date.now())" style="background:none;border:none;color:var(--text-dim);font-size:12px;cursor:pointer;margin-top:10px;">Skip for now</button>
+        </div>
+    `;
+    document.body.appendChild(modal);
+}
+
+async function submitSignupModal() {
+    const email = document.getElementById('signup-modal-email')?.value?.trim();
+    const name = document.getElementById('signup-modal-name')?.value?.trim();
+    if (!email || !email.includes('@')) {
+        showToast('Please enter a valid email');
+        return;
+    }
+    localStorage.setItem('sygnal-account-email', email);
+    if (name) localStorage.setItem('sygnal-account-name', name);
+
+    // Send to Beehiiv / backend
+    try {
+        await fetch((API_BASE || '') + '/api/signup', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, name }),
+        });
+    } catch {}
+
+    const modal = document.querySelector('.signup-modal');
+    if (modal) modal.remove();
+    showToast('Account created! Welcome to Sygnal');
+}
+
+// Show signup popup after 30 seconds if no account
+setTimeout(() => {
+    if (!hasAccount()) {
+        const dismissed = localStorage.getItem('sygnal-signup-dismissed');
+        // Don't show again within 24 hours of dismissal
+        if (dismissed && Date.now() - parseInt(dismissed) < 86400000) return;
+        showSignupPopup();
+    }
+}, 30000);
+
+// ── SYGNAL PRO ──
+const PRO_EMAILS = ['joeydeagan2010@gmail.com'];
+
+function isPro() {
+    if (localStorage.getItem('sygnal-pro') === 'true') return true;
+    const email = localStorage.getItem('sygnal-account-email');
+    if (email && PRO_EMAILS.includes(email.toLowerCase())) {
+        localStorage.setItem('sygnal-pro', 'true');
+        return true;
+    }
+    return false;
 }
 
 function exportSignalHistory() {
@@ -5396,68 +4774,64 @@ function exportSignalHistory() {
 }
 
 function showProUpsell(feature) {
-    // Remove any existing toast
-    var existing = document.getElementById('pro-toast');
+    const existing = document.querySelector('.pro-modal');
     if (existing) existing.remove();
 
-    // Check if user is on Pro trial
-    var trialDays = getProTrialDaysLeft();
-    var trialMsg = (trialDays > 0 && !localStorage.getItem('sygnal-pro')) ? ' (' + trialDays + ' day' + (trialDays > 1 ? 's' : '') + ' left in trial)' : '';
-
-    // Subtle toast banner at bottom — not a blocking popup
-    var toast = document.createElement('div');
-    toast.id = 'pro-toast';
-    toast.style.cssText = 'position:fixed;bottom:60px;left:50%;transform:translateX(-50%);background:var(--bg-card);border:1px solid rgba(0,136,255,0.2);border-radius:12px;padding:12px 20px;display:flex;align-items:center;gap:12px;z-index:9999;box-shadow:0 4px 20px rgba(0,0,0,0.4);max-width:90%;';
-    toast.innerHTML = '<span style="color:var(--accent);font-size:12px;font-weight:700;">PRO</span>' +
-        '<span style="color:var(--text);font-size:13px;">' + (feature || 'Upgrade for full access') + trialMsg + '</span>' +
-        '<button onclick="switchTab(\'pro\',null);this.parentElement.remove();" style="background:var(--accent);color:#fff;border:none;padding:6px 14px;border-radius:8px;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap;">See Pro</button>' +
-        '<button onclick="this.parentElement.remove()" style="background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:14px;">✕</button>';
-    document.body.appendChild(toast);
-
-    // Auto-dismiss after 5 seconds
-    setTimeout(function() { if (toast.parentElement) toast.remove(); }, 5000);
+    const savedEmail = localStorage.getItem('sygnal-account-email') || '';
+    const modal = document.createElement('div');
+    modal.className = 'pro-modal';
+    modal.innerHTML = `
+        <div class="pro-modal-content">
+            <div style="font-size:10px;letter-spacing:3px;color:var(--accent);font-weight:700;margin-bottom:8px;">SYGNAL PRO</div>
+            <h3 style="margin:0 0 8px;font-size:18px;color:var(--text);">${feature || 'Unlock Premium Features'}</h3>
+            <p style="color:var(--text-dim);font-size:13px;margin:0 0 16px;line-height:1.5;">Score breakdowns, AI analysis, real-time alerts, Pro Picks, signal history export, and 30-second data refresh.</p>
+            <div style="font-size:24px;font-weight:800;color:var(--text);margin-bottom:16px;">$9.99<span style="font-size:13px;color:var(--text-dim);font-weight:400;">/month</span></div>
+            ${!savedEmail ? '<input type="email" id="pro-checkout-email" placeholder="your@email.com" style="width:100%;padding:12px 14px;border-radius:8px;border:1px solid var(--border);background:var(--bg);color:var(--text);font-family:var(--font);font-size:14px;margin-bottom:12px;box-sizing:border-box;">' : ''}
+            <button class="pro-btn" onclick="startProCheckout()">Upgrade to Pro</button>
+            <button onclick="this.closest('.pro-modal').remove()" style="background:none;border:none;color:var(--text-dim);font-size:12px;cursor:pointer;margin-top:10px;">Maybe later</button>
+        </div>
+    `;
+    document.body.appendChild(modal);
 }
 
-// Old startProCheckout removed — using the one defined later with email support
+async function startProCheckout() {
+    // Get email from input or localStorage
+    let email = localStorage.getItem('sygnal-account-email') || '';
+    const emailInput = document.getElementById('pro-checkout-email');
+    if (emailInput) {
+        email = emailInput.value.trim();
+        if (!email || !email.includes('@')) {
+            showToast('Please enter your email');
+            return;
+        }
+        localStorage.setItem('sygnal-account-email', email);
+    }
 
-// Check for pro=success in URL (returned from Stripe checkout)
-if (window.location.search.includes('pro=success')) {
-    history.replaceState({}, '', '/');
-
-    // Verify with Stripe server-side (don't trust URL alone)
-    var proEmail = '';
-    if (typeof _currentUser !== 'undefined' && _currentUser) proEmail = _currentUser.email;
-    if (!proEmail) proEmail = localStorage.getItem('sygnal-account-email');
-    if (proEmail) {
-        fetch(API_BASE + '/api/pro/verify-checkout', {
+    try {
+        const resp = await fetch((API_BASE || '') + '/api/pro/checkout', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email: proEmail })
-        }).then(function(r) { return r.json(); }).then(function(data) {
-            if (data.pro) {
-                localStorage.setItem('sygnal-pro', 'true');
-                _isPro = true;
-                updateProUI();
-                showToast('Welcome to Sygnal Pro!');
-                // Reset auto-bot to Pro balance
-                fetch(API_BASE + '/api/autobot/reset', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ email: proEmail })
-                }).catch(function(){});
-            } else {
-                showToast('Payment verification pending — Pro will activate shortly.');
-            }
-        }).catch(function() {
-            showToast('Verifying payment...');
+            body: JSON.stringify({ email }),
         });
+        const data = await resp.json();
+        if (data.url) {
+            window.location.href = data.url;
+            return;
+        } else {
+            showToast(data.error || 'Stripe not configured yet — coming soon!');
+        }
+    } catch {
+        showToast('Pro subscriptions coming soon!');
     }
+    const modal = document.querySelector('.pro-modal');
+    if (modal) modal.remove();
 }
 
-// Handle cancel
-if (window.location.search.includes('pro=cancel')) {
+// Check for pro=success in URL
+if (window.location.search.includes('pro=success')) {
+    localStorage.setItem('sygnal-pro', 'true');
+    showToast('Welcome to Sygnal Pro!');
     history.replaceState({}, '', '/');
-    showToast('Checkout cancelled');
 }
 
 // ── SYGNAL AUTOPILOT ──
@@ -5574,16 +4948,8 @@ function drawEquityChart() {
     const w = canvas.width, h = canvas.height;
     ctx.clearRect(0, 0, w, h);
 
-    // Build cumulative P&L curve (filtered by period)
-    let trades = [..._botTradesCache].reverse();
-    if (_equityPeriodDays > 0) {
-        const cutoff = new Date();
-        cutoff.setDate(cutoff.getDate() - _equityPeriodDays);
-        trades = trades.filter(t => {
-            const ts = t.created_at || t.timestamp || '';
-            return ts ? new Date(ts) >= cutoff : true;
-        });
-    }
+    // Build cumulative P&L curve
+    const trades = [..._botTradesCache].reverse();
     let cumPnl = 0;
     const points = [0];
     for (const t of trades) {
@@ -5636,146 +5002,9 @@ function drawEquityChart() {
     ctx.fill();
 }
 
-// ── EQUITY CHART TIME PERIOD ──
-let _equityPeriodDays = 0; // 0 = all
-
-function setEquityPeriod(days, btn) {
-    _equityPeriodDays = days;
-    document.querySelectorAll('.equity-period-pills .chip').forEach(c => c.classList.remove('active'));
-    if (btn) btn.classList.add('active');
-    drawEquityChart();
-}
-
-// ── DAILY P&L BARS ──
-async function loadDailyPnl() {
-    try {
-        const resp = await fetch(API_BASE + '/api/bot/trades?limit=200');
-        if (!resp.ok) return;
-        const data = await resp.json();
-        const trades = data.trades || data || [];
-        if (!trades.length) return;
-
-        // Group by date
-        const byDay = {};
-        for (const t of trades) {
-            const ts = t.created_at || t.timestamp || '';
-            if (!ts) continue;
-            const day = ts.slice(0, 10);
-            if (!byDay[day]) byDay[day] = 0;
-            byDay[day] += (t.realized_pnl || t.pnl || 0);
-        }
-
-        const days = Object.entries(byDay).sort((a, b) => a[0].localeCompare(b[0])).slice(-14);
-        if (!days.length) return;
-
-        const maxAbs = Math.max(...days.map(d => Math.abs(d[1])), 0.01);
-        const el = document.getElementById('daily-pnl-bars');
-        if (!el) return;
-
-        el.innerHTML = days.map(([day, pnl]) => {
-            const pct = Math.abs(pnl) / maxAbs * 100;
-            const color = pnl >= 0 ? 'var(--green)' : 'var(--red)';
-            const label = new Date(day + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-            const pnlStr = pnl >= 0 ? '+$' + pnl.toFixed(2) : '-$' + Math.abs(pnl).toFixed(2);
-            return `<div class="daily-pnl-row">
-                <span class="daily-pnl-date">${label}</span>
-                <div class="daily-pnl-track">
-                    <div class="daily-pnl-fill" style="width:${pct}%;background:${color};"></div>
-                </div>
-                <span class="daily-pnl-val" style="color:${color}">${pnlStr}</span>
-            </div>`;
-        }).join('');
-    } catch (e) { console.log('Daily P&L unavailable'); }
-}
-
 // ══════════════════════════════════════════════
-// FEATURE 2: NEWS FEED (Real Headlines + Market Activity)
+// FEATURE 2: NEWS FEED
 // ══════════════════════════════════════════════
-
-let _newsData = null;
-let _newsLoaded = false;
-let _newsFilter = 'all';
-
-async function loadNews() {
-    if (_newsLoaded) return;
-    const listEl = document.getElementById('news-list');
-    const loadingEl = document.getElementById('news-loading');
-    if (loadingEl) loadingEl.style.display = 'block';
-
-    try {
-        const res = await fetch(`${API_BASE}/api/news`);
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const data = await res.json();
-        _newsData = data.articles || [];
-        _newsLoaded = true;
-        renderNews(_newsData);
-        // Also build market activity section
-        buildNewsFeed();
-    } catch (err) {
-        if (listEl) listEl.innerHTML = `<p style="color:var(--red);font-size:13px;">Failed to load news: ${err.message}</p>`;
-    } finally {
-        if (loadingEl) loadingEl.style.display = 'none';
-    }
-}
-
-function filterNews(category, btn) {
-    _newsFilter = category;
-    document.querySelectorAll('.news-pill').forEach(p => p.classList.remove('active'));
-    if (btn) btn.classList.add('active');
-    if (_newsData) {
-        const filtered = category === 'all' ? _newsData : _newsData.filter(a => a.category === category);
-        renderNews(filtered);
-    }
-}
-
-function renderNews(articles) {
-    const listEl = document.getElementById('news-list');
-    if (!listEl) return;
-
-    if (!articles || articles.length === 0) {
-        listEl.innerHTML = '<p style="color:var(--text-dim);font-size:13px;text-align:center;padding:24px;">No headlines available.</p>';
-        return;
-    }
-
-    const categoryColors = {
-        politics: '#8b5cf6',
-        economics: '#f59e0b',
-        crypto: '#06b6d4',
-        sports: '#22c55e',
-        weather: '#3b82f6',
-        markets: '#ec4899',
-    };
-
-    listEl.innerHTML = articles.map(a => {
-        const color = categoryColors[a.category] || 'var(--text-dim)';
-        const timeStr = a.pub_date ? timeAgoFromDate(a.pub_date) : '';
-        const source = a.source || '';
-        return `<a href="${a.link}" target="_blank" rel="noopener" class="news-article">
-            <span class="news-article-tag" style="color:${color}">${(a.category || '').toUpperCase()}</span>
-            <span class="news-article-title">${escapeHtml(a.title)}</span>
-            <span class="news-article-meta">${source}${source && timeStr ? ' · ' : ''}${timeStr}</span>
-        </a>`;
-    }).join('');
-}
-
-function timeAgoFromDate(dateStr) {
-    try {
-        const d = new Date(dateStr);
-        const now = new Date();
-        const diff = Math.floor((now - d) / 1000);
-        if (diff < 60) return 'just now';
-        if (diff < 3600) return Math.floor(diff / 60) + 'm ago';
-        if (diff < 86400) return Math.floor(diff / 3600) + 'h ago';
-        return Math.floor(diff / 86400) + 'd ago';
-    } catch { return ''; }
-}
-
-function escapeHtml(str) {
-    const div = document.createElement('div');
-    div.textContent = str;
-    return div.innerHTML;
-}
-
 function buildNewsFeed() {
     const container = document.getElementById('news-feed-content');
     if (!container || !allMarketCards.length) return;
@@ -6163,665 +5392,467 @@ function formatVol(v) {
 }
 
 // ══════════════════════════════════════════════
-// INIT ALL NEW FEATURES
+// PRO PICKS — Top 3 highest-conviction signals
 // ══════════════════════════════════════════════
-setTimeout(() => {
-    loadBotPerformance();
-    loadDailyPnl();
-    buildNewsFeed();
-    renderTrackRecord();
-}, 3000);
+function buildProPicks() {
+    const el = document.getElementById('pro-picks');
+    if (!el || !allMarketCards.length) return;
+    el.style.display = '';
 
-// Run alert checks every 2 minutes
-setInterval(() => {
-    checkWatchlistAlerts();
-    evaluateCustomAlertRules();
-}, 120000);
+    // Get top signals by score + confidence
+    const picks = allMarketCards
+        .map(c => ({
+            market: c.market,
+            platform: c.platform,
+            score: calcSygnalScore(c.market, 0),
+            sig: getSygnalSignal(c.market.ticker)
+        }))
+        .filter(p => p.sig.signal.includes('BUY') && p.score >= 60)
+        .sort((a, b) => b.score - a.score)
+        .slice(0, 3);
 
+    if (!picks.length) { el.style.display = 'none'; return; }
 
-// ══════════════════════════════════════════════
-// FIREBASE AUTH
-// ══════════════════════════════════════════════
+    const userCanSee = isPro() || isTrialActive();
 
-let _authMode = 'signin'; // 'signin' or 'signup'
-let _currentUser = null;
-let _db = null;
-
-// Initialize Firebase — replace with your config from Firebase Console
-const FIREBASE_CONFIG = {
-    apiKey: "AIzaSyD7gyNbLZd4mSNX22KfrsgBhTxQwMSL3fA",
-    authDomain: "sygnal-markets.firebaseapp.com",
-    projectId: "sygnal-markets",
-    storageBucket: "sygnal-markets.firebasestorage.app",
-    messagingSenderId: "679826649714",
-    appId: "1:679826649714:web:7f5ec2007bf0d7dd10c8eb",
-    measurementId: "G-9V0VTRPJH6"
-};
-
-function initFirebase() {
-    if (!FIREBASE_CONFIG.apiKey) {
-        console.log('[Auth] Firebase not configured — auth disabled');
-        return;
-    }
-    try {
-        firebase.initializeApp(FIREBASE_CONFIG);
-        _db = firebase.firestore();
-
-        var _authInitialized = false;
-        firebase.auth().onAuthStateChanged(user => {
-            _currentUser = user;
-            if (_authInitialized) {
-                // Only update UI after initial load (prevents flash)
-                updateAuthUI(user);
-            }
-            _authInitialized = true;
-            if (user) {
-                updateAuthUI(user);
-                loadUserData(user.uid);
-                checkProStatus();
-                // Register user for auto-bot trading
-                if (user.email) {
-                    fetch(API_BASE + '/api/autobot/register', {
-                        method: 'POST',
-                        headers: {'Content-Type': 'application/json'},
-                        body: JSON.stringify({email: user.email})
-                    }).catch(function(){});
-                }
-            } else {
-                // Don't reset Pro on initial null — wait for auth to settle
-                setTimeout(function() {
-                    if (!_currentUser) {
-                        _isPro = false;
-                        updateProUI();
-                        updateAuthUI(null);
-                    }
-                }, 1000);
-            }
-        });
-    } catch (e) {
-        console.log('[Auth] Firebase init error:', e.message);
-    }
-}
-
-function updateAuthUI(user) {
-    const label = document.getElementById('auth-settings-label');
-    const icon = document.getElementById('auth-settings-item')?.querySelector('span:first-child');
-    if (!label) return;
-
-    if (user) {
-        const name = user.displayName || user.email?.split('@')[0] || 'Account';
-        label.textContent = name;
-        if (icon) icon.style.color = 'var(--green)';
-    } else {
-        label.textContent = 'Sign In';
-        if (icon) icon.style.color = '';
-    }
-}
-
-function handleAuthAction() {
-    if (_currentUser) {
-        switchTab('profile', null);
-        if (typeof buildProfilePanel === 'function') buildProfilePanel();
-    } else {
-        openAuthModal();
-    }
-}
-
-function showAccountPanel() {
-    const name = _currentUser.displayName || _currentUser.email?.split('@')[0] || 'User';
-    const email = _currentUser.email || '';
-    const proLabel = _isPro ? '<span style="color:#00d68f;font-weight:700;">PRO</span>' : '<span style="color:var(--text-dim);">Free</span>';
-    const stats = getAccuracyStats();
-    const trackInfo = stats.total > 0 ? stats.pct + '% accuracy (' + stats.total + ' signals)' : 'Tracking signals...';
-
-    const panel = document.createElement('div');
-    panel.className = 'auth-modal-overlay';
-    panel.id = 'account-panel';
-    panel.innerHTML = '<div class="auth-modal">' +
-        '<button class="auth-close" onclick="document.getElementById(\'account-panel\').remove()">&#10005;</button>' +
-        '<h2 class="auth-title">' + name + '</h2>' +
-        '<p style="color:var(--text-dim);font-size:13px;margin-bottom:4px;">' + email + '</p>' +
-        '<p style="margin-bottom:20px;">Plan: ' + proLabel + '</p>' +
-        '<div style="background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:16px;">' +
-            '<div style="font-size:11px;color:var(--text-dim);letter-spacing:1px;margin-bottom:8px;">YOUR TRACK RECORD</div>' +
-            '<div style="font-size:16px;font-weight:700;color:var(--text);">' + trackInfo + '</div>' +
-            '<div style="font-size:12px;color:var(--text-dim);margin-top:4px;">' + stats.pending + ' signals pending</div>' +
-        '</div>' +
-        (!_isPro ? '<button class="auth-submit" onclick="document.getElementById(\'account-panel\').remove();upgradeToPro();" style="margin-bottom:10px;">Upgrade to Pro — $9.99/mo</button>' : '') +
-        '<button onclick="firebase.auth().signOut();document.getElementById(\'account-panel\').remove();" style="width:100%;padding:10px;border-radius:10px;background:rgba(255,59,92,0.1);color:#ff3b5c;border:1px solid rgba(255,59,92,0.2);font-size:14px;font-weight:500;cursor:pointer;font-family:inherit;">Sign Out</button>' +
-    '</div>';
-    document.body.appendChild(panel);
-}
-
-function openAuthModal() {
-    _authMode = 'signin';
-    updateAuthModalMode();
-    document.getElementById('auth-modal').style.display = 'flex';
-    document.getElementById('auth-error').style.display = 'none';
-    document.getElementById('auth-email').value = '';
-    document.getElementById('auth-password').value = '';
-}
-
-function closeAuthModal() {
-    document.getElementById('auth-modal').style.display = 'none';
-}
-
-function toggleAuthMode() {
-    _authMode = _authMode === 'signin' ? 'signup' : 'signin';
-    updateAuthModalMode();
-}
-
-function updateAuthModalMode() {
-    const isSignIn = _authMode === 'signin';
-    document.getElementById('auth-modal-title').textContent = isSignIn ? 'Sign In' : 'Create Account';
-    document.getElementById('auth-submit-btn').textContent = isSignIn ? 'Sign In' : 'Sign Up';
-    document.getElementById('auth-toggle-text').textContent = isSignIn ? "Don't have an account?" : 'Already have an account?';
-    document.getElementById('auth-toggle-link').textContent = isSignIn ? 'Sign Up' : 'Sign In';
-}
-
-async function signInWithGoogle() {
-    if (!FIREBASE_CONFIG.apiKey) {
-        showAuthError('Firebase not configured yet.');
-        return;
-    }
-    try {
-        const provider = new firebase.auth.GoogleAuthProvider();
-        await firebase.auth().signInWithPopup(provider);
-        closeAuthModal();
-        migrateLocalData();
-    } catch (err) {
-        if (err.code === 'auth/popup-blocked' || err.code === 'auth/cancelled-popup-request') {
-            showAuthError('Popup blocked. Please allow popups for this site.');
-        } else if (err.code === 'auth/unauthorized-domain') {
-            showAuthError('Domain not authorized. Contact support.');
-        } else {
-            showAuthError(err.message);
-        }
-    }
-}
-
-async function handleEmailAuth(e) {
-    e.preventDefault();
-    if (!FIREBASE_CONFIG.apiKey) {
-        showAuthError('Firebase not configured yet.');
-        return;
-    }
-
-    const email = document.getElementById('auth-email').value;
-    const password = document.getElementById('auth-password').value;
-    const btn = document.getElementById('auth-submit-btn');
-    btn.disabled = true;
-
-    try {
-        if (_authMode === 'signup') {
-            await firebase.auth().createUserWithEmailAndPassword(email, password);
-        } else {
-            await firebase.auth().signInWithEmailAndPassword(email, password);
-        }
-        closeAuthModal();
-        migrateLocalData();
-    } catch (err) {
-        let msg = err.message;
-        if (err.code === 'auth/user-not-found') msg = 'No account found with that email.';
-        else if (err.code === 'auth/wrong-password') msg = 'Incorrect password.';
-        else if (err.code === 'auth/email-already-in-use') msg = 'Email already registered. Try signing in.';
-        else if (err.code === 'auth/weak-password') msg = 'Password must be at least 6 characters.';
-        showAuthError(msg);
-    } finally {
-        btn.disabled = false;
-    }
-}
-
-function showAuthError(msg) {
-    const el = document.getElementById('auth-error');
-    el.textContent = msg;
-    el.style.display = 'block';
-}
-
-// Migrate localStorage data to Firestore on first login
-async function migrateLocalData() {
-    if (!_currentUser || !_db) return;
-    const uid = _currentUser.uid;
-    const docRef = _db.collection('users').doc(uid);
-    const doc = await docRef.get();
-
-    if (!doc.exists) {
-        // First login — save localStorage data to Firestore
-        const watchlist = JSON.parse(localStorage.getItem('sygnal-watchlist') || '[]');
-        const alerts = JSON.parse(localStorage.getItem('sygnal-custom-alerts') || '[]');
-        const theme = localStorage.getItem('sygnal-theme') || 'dark';
-
-        await docRef.set({
-            email: _currentUser.email || '',
-            watchlist: watchlist,
-            alerts: alerts,
-            theme: theme,
-            createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-        });
-    }
-}
-
-// Load user data from Firestore
-async function loadUserData(uid) {
-    if (!_db) return;
-    try {
-        const doc = await _db.collection('users').doc(uid).get();
-        if (doc.exists) {
-            const data = doc.data();
-            // Sync watchlist from cloud if it has more items
-            const cloudWatchlist = data.watchlist || [];
-            const localWatchlist = JSON.parse(localStorage.getItem('sygnal-watchlist') || '[]');
-            if (cloudWatchlist.length > localWatchlist.length) {
-                localStorage.setItem('sygnal-watchlist', JSON.stringify(cloudWatchlist));
-            }
-        }
-    } catch (e) {
-        console.log('[Auth] Failed to load user data:', e.message);
-    }
-}
-
-// Save watchlist to Firestore when it changes
-function syncWatchlistToCloud() {
-    if (!_currentUser || !_db) return;
-    const watchlist = JSON.parse(localStorage.getItem('sygnal-watchlist') || '[]');
-    _db.collection('users').doc(_currentUser.uid).update({ watchlist }).catch(() => {});
-}
-
-// ── PRO STATUS ──
-// _isPro declared at top of file
-
-async function checkProStatus() {
-    if (!_currentUser) { _isPro = false; return; }
-    const email = _currentUser.email || '';
-
-    // Check Firestore first (manual bypass)
-    if (_db) {
-        try {
-            const doc = await _db.collection('users').doc(_currentUser.uid).get();
-            if (doc.exists && doc.data().pro === true) {
-                _isPro = true;
-                updateProUI();
-                return;
-            }
-        } catch (e) {}
-    }
-
-    // Check server (Stripe subscribers + manual grants)
-    try {
-        const resp = await fetch(API_BASE + '/api/pro/check?email=' + encodeURIComponent(email));
-        const data = await resp.json();
-        _isPro = data.pro === true;
-        if (_isPro) localStorage.setItem('sygnal-pro', 'true');
-    } catch (e) {
-        _isPro = localStorage.getItem('sygnal-pro') === 'true';
-    }
-    updateProUI();
-}
-
-function updateProUI() {
-    const badge = document.getElementById('auth-settings-label');
-    if (badge && _isPro) {
-        badge.textContent = (_currentUser?.displayName || _currentUser?.email?.split('@')[0] || 'Pro') + ' (Pro)';
-    }
-    // Show/hide pro-locked content
-    document.querySelectorAll('.pro-locked').forEach(el => {
-        el.style.display = _isPro ? 'none' : '';
-    });
-    document.querySelectorAll('.pro-content').forEach(el => {
-        el.style.display = _isPro ? '' : 'none';
-    });
-    // Hide Pro upsell section for Pro users
-    // Pro section removed from markets page — dedicated Pro tab handles upsell
-}
-
-async function upgradeToPro() {
-    // Show full Pro page
-    switchTab('pro', null);
-    return;
-}
-
-function buildProPage() {
-    var el = document.getElementById('pro-page-content');
-    if (!el) return;
-    var alreadyPro = isPro();
     el.innerHTML = `
-        <div style="max-width:700px;margin:0 auto;padding:40px 0;">
-            <div style="text-align:center;margin-bottom:32px;">
-                <div style="font-size:10px;letter-spacing:4px;color:var(--accent);font-weight:700;margin-bottom:8px;">SYGNAL</div>
-                <h2 style="font-size:32px;font-weight:800;color:var(--text);margin:0 0 8px;">Pro</h2>
-                <p style="color:var(--text-dim);font-size:15px;line-height:1.6;">Everything you need to trade prediction markets with confidence.</p>
-                ${alreadyPro ? '<div style="margin-top:12px;"><span style="background:var(--accent);color:#fff;padding:6px 16px;border-radius:20px;font-size:12px;font-weight:700;letter-spacing:1px;">YOU HAVE PRO</span></div>' : ''}
+        <div class="pro-picks-section">
+            <div class="pro-picks-header">
+                <h3>▲ TOP SIGNALS RIGHT NOW</h3>
+                ${!userCanSee ? '<span class="pro-picks-badge">PRO</span>' : '<span class="pro-picks-badge trial">LIVE</span>'}
             </div>
-
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:32px;">
-                <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:14px;padding:20px;">
-                    <div style="font-size:20px;margin-bottom:8px;">◆</div>
-                    <h4 style="color:var(--text);font-size:15px;margin:0 0 4px;">Score Breakdown</h4>
-                    <p style="color:var(--text-dim);font-size:12px;margin:0;line-height:1.5;">See all 5 factors behind every Sygnal Score — Edge, Value, Momentum, Confidence, Timing.</p>
-                </div>
-                <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:14px;padding:20px;">
-                    <div style="font-size:20px;margin-bottom:8px;">▲</div>
-                    <h4 style="color:var(--text);font-size:15px;margin:0 0 4px;">Signal Explanations</h4>
-                    <p style="color:var(--text-dim);font-size:12px;margin:0;line-height:1.5;">Know WHY every BUY signal fires. "7¢ cross-platform gap + 212% return potential."</p>
-                </div>
-                <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:14px;padding:20px;">
-                    <div style="font-size:20px;margin-bottom:8px;">★</div>
-                    <h4 style="color:var(--text);font-size:15px;margin:0 0 4px;">Vegas Odds Comparison</h4>
-                    <p style="color:var(--text-dim);font-size:12px;margin:0;line-height:1.5;">Compare Kalshi prices against DraftKings, FanDuel, and 40+ bookmakers. Instant edge detection.</p>
-                </div>
-                <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:14px;padding:20px;">
-                    <div style="font-size:20px;margin-bottom:8px;">◇</div>
-                    <h4 style="color:var(--text);font-size:15px;margin:0 0 4px;">Unlimited Paper Trading</h4>
-                    <p style="color:var(--text-dim);font-size:12px;margin:0;line-height:1.5;">Practice with unlimited positions. Free users get 5 positions for 30 days.</p>
-                </div>
-                <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:14px;padding:20px;">
-                    <div style="font-size:20px;margin-bottom:8px;">◎</div>
-                    <h4 style="color:var(--text);font-size:15px;margin:0 0 4px;">Push Alerts</h4>
-                    <p style="color:var(--text-dim);font-size:12px;margin:0;line-height:1.5;">Get notified instantly when Score 60+ opportunities appear. Never miss a trade.</p>
-                </div>
-                <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:14px;padding:20px;">
-                    <div style="font-size:20px;margin-bottom:8px;">◈</div>
-                    <h4 style="color:var(--text);font-size:15px;margin:0 0 4px;">AI Market Analysis</h4>
-                    <p style="color:var(--text-dim);font-size:12px;margin:0;line-height:1.5;">Deep AI-powered analysis on any market. Conviction level, risk assessment, and trade recommendation.</p>
-                </div>
+            <div class="pro-picks-grid">
+                ${picks.map((p, i) => {
+                    const sigColor = p.sig.signal.includes('YES') ? 'var(--green)' : 'var(--red)';
+                    const title = shortenTitle(p.market.question, 50);
+                    if (userCanSee) {
+                        return `<div class="pro-pick-card" onclick="openDetail(allMarketCards.find(c=>c.market.ticker==='${p.market.ticker}')?.market, '${p.platform}')">
+                            <div class="pro-pick-rank">#${i + 1}</div>
+                            <div class="pro-pick-info">
+                                <div class="pro-pick-title">${title}</div>
+                                <div class="pro-pick-meta">
+                                    <span style="color:${sigColor};font-weight:700;">${p.sig.signal}</span>
+                                    <span>YES ${p.market.yes}¢</span>
+                                    <span>Score: ${p.score}</span>
+                                </div>
+                            </div>
+                        </div>`;
+                    } else {
+                        return `<div class="pro-pick-card locked" onclick="showProUpsell('Pro Picks')">
+                            <div class="pro-pick-rank">#${i + 1}</div>
+                            <div class="pro-pick-info">
+                                <div class="pro-pick-title blurred-text">${title}</div>
+                                <div class="pro-pick-meta blurred-text">
+                                    <span>${p.sig.signal}</span>
+                                    <span>YES ??¢</span>
+                                    <span>Score: ??</span>
+                                </div>
+                            </div>
+                            <div class="pro-pick-lock">🔒</div>
+                        </div>`;
+                    }
+                }).join('')}
             </div>
-
-            <!-- Bot Controls Preview -->
-            <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:14px;padding:24px;margin-bottom:32px;">
-                <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px;">
-                    <span style="font-size:10px;letter-spacing:2px;color:var(--accent);font-weight:700;">PRO BOT CONTROLS</span>
-                    ${alreadyPro ? '' : '<span style="background:rgba(0,136,255,0.1);color:var(--accent);padding:2px 8px;border-radius:4px;font-size:9px;font-weight:700;">LOCKED</span>'}
-                </div>
-                <p style="color:var(--text-dim);font-size:13px;margin:0 0 16px;line-height:1.5;">Fine-tune your auto-bot with advanced controls. Free users get basic settings only.</p>
-                <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
-                    <div style="background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:10px;padding:14px;">
-                        <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:2px;">Risk Level</div>
-                        <div style="font-size:11px;color:var(--text-dim);">Conservative · Moderate · Aggressive</div>
-                    </div>
-                    <div style="background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:10px;padding:14px;">
-                        <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:2px;">Category Filter</div>
-                        <div style="font-size:11px;color:var(--text-dim);">Sports · Politics · Crypto · All</div>
-                    </div>
-                    <div style="background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:10px;padding:14px;">
-                        <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:2px;">Score Threshold</div>
-                        <div style="font-size:11px;color:var(--text-dim);">Set minimum score from 30 to 70</div>
-                    </div>
-                    <div style="background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:10px;padding:14px;">
-                        <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:2px;">Signal Filter</div>
-                        <div style="font-size:11px;color:var(--text-dim);">BUY only or BUY + LEAN</div>
-                    </div>
-                    <div style="background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:10px;padding:14px;">
-                        <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:2px;">Take Profit</div>
-                        <div style="font-size:11px;color:var(--text-dim);">Auto-close at 10–50% profit</div>
-                    </div>
-                    <div style="background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:10px;padding:14px;">
-                        <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:2px;">Stop Loss</div>
-                        <div style="font-size:11px;color:var(--text-dim);">Auto-close at 15–50% loss</div>
-                    </div>
-                    <div style="background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:10px;padding:14px;">
-                        <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:2px;">All Timeframes</div>
-                        <div style="font-size:11px;color:var(--text-dim);">12h · 24h · 3d · 1w · 2w · 1m · 3m</div>
-                    </div>
-                    <div style="background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:10px;padding:14px;">
-                        <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:2px;">15 Positions</div>
-                        <div style="font-size:11px;color:var(--text-dim);">3x more positions than free (5)</div>
-                    </div>
-                </div>
-            </div>
-
-            <div style="background:linear-gradient(135deg,rgba(0,136,255,0.08),rgba(0,214,143,0.05));border:1px solid rgba(0,136,255,0.15);border-radius:16px;padding:28px;text-align:center;margin-bottom:24px;">
-                <div style="font-size:11px;letter-spacing:3px;color:var(--accent);font-weight:700;margin-bottom:16px;">COMPARE PLANS</div>
-
-                <div style="display:grid;grid-template-columns:1fr auto 1fr;gap:0;font-size:13px;">
-                    <!-- Headers -->
-                    <div style="padding:12px 16px;font-weight:700;color:var(--text-dim);border-bottom:1px solid var(--border);">Feature</div>
-                    <div style="padding:12px 16px;font-weight:700;color:var(--text-dim);text-align:center;border-bottom:1px solid var(--border);">Free</div>
-                    <div style="padding:12px 16px;font-weight:700;color:var(--accent);text-align:center;border-bottom:1px solid var(--border);background:rgba(0,136,255,0.04);">Pro</div>
-
-                    <!-- Rows -->
-                    <div style="padding:10px 16px;color:var(--text);border-bottom:1px solid rgba(255,255,255,0.03);">Auto Paper Bot</div>
-                    <div style="padding:10px 16px;text-align:center;color:var(--text-dim);border-bottom:1px solid rgba(255,255,255,0.03);">30-day trial</div>
-                    <div style="padding:10px 16px;text-align:center;color:var(--green);border-bottom:1px solid rgba(255,255,255,0.03);background:rgba(0,136,255,0.04);">Unlimited</div>
-
-                    <div style="padding:10px 16px;color:var(--text);border-bottom:1px solid rgba(255,255,255,0.03);">Max Positions</div>
-                    <div style="padding:10px 16px;text-align:center;color:var(--text-dim);border-bottom:1px solid rgba(255,255,255,0.03);">5</div>
-                    <div style="padding:10px 16px;text-align:center;color:var(--green);border-bottom:1px solid rgba(255,255,255,0.03);background:rgba(0,136,255,0.04);">15</div>
-
-                    <div style="padding:10px 16px;color:var(--text);border-bottom:1px solid rgba(255,255,255,0.03);">Timeframes</div>
-                    <div style="padding:10px 16px;text-align:center;color:var(--text-dim);border-bottom:1px solid rgba(255,255,255,0.03);">1W / 1M</div>
-                    <div style="padding:10px 16px;text-align:center;color:var(--green);border-bottom:1px solid rgba(255,255,255,0.03);background:rgba(0,136,255,0.04);">12h – Any</div>
-
-                    <div style="padding:10px 16px;color:var(--text);border-bottom:1px solid rgba(255,255,255,0.03);">Risk Level / Kelly Sizing</div>
-                    <div style="padding:10px 16px;text-align:center;color:var(--text-dim);border-bottom:1px solid rgba(255,255,255,0.03);">&#128274;</div>
-                    <div style="padding:10px 16px;text-align:center;color:var(--green);border-bottom:1px solid rgba(255,255,255,0.03);background:rgba(0,136,255,0.04);">&#10003;</div>
-
-                    <div style="padding:10px 16px;color:var(--text);border-bottom:1px solid rgba(255,255,255,0.03);">Category & Signal Filters</div>
-                    <div style="padding:10px 16px;text-align:center;color:var(--text-dim);border-bottom:1px solid rgba(255,255,255,0.03);">&#128274;</div>
-                    <div style="padding:10px 16px;text-align:center;color:var(--green);border-bottom:1px solid rgba(255,255,255,0.03);background:rgba(0,136,255,0.04);">&#10003;</div>
-
-                    <div style="padding:10px 16px;color:var(--text);border-bottom:1px solid rgba(255,255,255,0.03);">Take Profit / Stop Loss</div>
-                    <div style="padding:10px 16px;text-align:center;color:var(--text-dim);border-bottom:1px solid rgba(255,255,255,0.03);">&#128274;</div>
-                    <div style="padding:10px 16px;text-align:center;color:var(--green);border-bottom:1px solid rgba(255,255,255,0.03);background:rgba(0,136,255,0.04);">&#10003;</div>
-
-                    <div style="padding:10px 16px;color:var(--text);border-bottom:1px solid rgba(255,255,255,0.03);">Paper Balance</div>
-                    <div style="padding:10px 16px;text-align:center;color:var(--text-dim);border-bottom:1px solid rgba(255,255,255,0.03);">$10,000</div>
-                    <div style="padding:10px 16px;text-align:center;color:var(--green);border-bottom:1px solid rgba(255,255,255,0.03);background:rgba(0,136,255,0.04);">$10K + refill</div>
-
-                    <div style="padding:10px 16px;color:var(--text);border-bottom:1px solid rgba(255,255,255,0.03);">Sygnal Score</div>
-                    <div style="padding:10px 16px;text-align:center;color:var(--green);border-bottom:1px solid rgba(255,255,255,0.03);">&#10003;</div>
-                    <div style="padding:10px 16px;text-align:center;color:var(--green);border-bottom:1px solid rgba(255,255,255,0.03);background:rgba(0,136,255,0.04);">&#10003;</div>
-
-                    <div style="padding:10px 16px;color:var(--text);border-bottom:1px solid rgba(255,255,255,0.03);">BUY/SELL Signals</div>
-                    <div style="padding:10px 16px;text-align:center;color:var(--green);border-bottom:1px solid rgba(255,255,255,0.03);">&#10003;</div>
-                    <div style="padding:10px 16px;text-align:center;color:var(--green);border-bottom:1px solid rgba(255,255,255,0.03);background:rgba(0,136,255,0.04);">&#10003;</div>
-
-                    <div style="padding:10px 16px;color:var(--text);border-bottom:1px solid rgba(255,255,255,0.03);">Score Breakdown (5 factors)</div>
-                    <div style="padding:10px 16px;text-align:center;color:var(--text-dim);border-bottom:1px solid rgba(255,255,255,0.03);">&#128274;</div>
-                    <div style="padding:10px 16px;text-align:center;color:var(--green);border-bottom:1px solid rgba(255,255,255,0.03);background:rgba(0,136,255,0.04);">&#10003;</div>
-
-                    <div style="padding:10px 16px;color:var(--text);border-bottom:1px solid rgba(255,255,255,0.03);">Signal "Why" Explanations</div>
-                    <div style="padding:10px 16px;text-align:center;color:var(--text-dim);border-bottom:1px solid rgba(255,255,255,0.03);">&#128274;</div>
-                    <div style="padding:10px 16px;text-align:center;color:var(--green);border-bottom:1px solid rgba(255,255,255,0.03);background:rgba(0,136,255,0.04);">&#10003;</div>
-
-                    <div style="padding:10px 16px;color:var(--text);border-bottom:1px solid rgba(255,255,255,0.03);">Vegas Odds Comparison</div>
-                    <div style="padding:10px 16px;text-align:center;color:var(--text-dim);border-bottom:1px solid rgba(255,255,255,0.03);">&#128274;</div>
-                    <div style="padding:10px 16px;text-align:center;color:var(--green);border-bottom:1px solid rgba(255,255,255,0.03);background:rgba(0,136,255,0.04);">&#10003;</div>
-
-                    <div style="padding:10px 16px;color:var(--text);border-bottom:1px solid rgba(255,255,255,0.03);">AI Market Analysis</div>
-                    <div style="padding:10px 16px;text-align:center;color:var(--text-dim);border-bottom:1px solid rgba(255,255,255,0.03);">&#128274;</div>
-                    <div style="padding:10px 16px;text-align:center;color:var(--green);border-bottom:1px solid rgba(255,255,255,0.03);background:rgba(0,136,255,0.04);">&#10003;</div>
-
-                    <div style="padding:10px 16px;color:var(--text);border-bottom:1px solid rgba(255,255,255,0.03);">Push Alerts (Score 60+)</div>
-                    <div style="padding:10px 16px;text-align:center;color:var(--text-dim);border-bottom:1px solid rgba(255,255,255,0.03);">&#128274;</div>
-                    <div style="padding:10px 16px;text-align:center;color:var(--green);border-bottom:1px solid rgba(255,255,255,0.03);background:rgba(0,136,255,0.04);">&#10003;</div>
-
-                    <div style="padding:10px 16px;color:var(--text);border-bottom:1px solid rgba(255,255,255,0.03);">Custom Price Alerts</div>
-                    <div style="padding:10px 16px;text-align:center;color:var(--text-dim);border-bottom:1px solid rgba(255,255,255,0.03);">&#128274;</div>
-                    <div style="padding:10px 16px;text-align:center;color:var(--green);border-bottom:1px solid rgba(255,255,255,0.03);background:rgba(0,136,255,0.04);">&#10003;</div>
-
-                    <div style="padding:10px 16px;color:var(--text);">Signal History Export</div>
-                    <div style="padding:10px 16px;text-align:center;color:var(--text-dim);">&#128274;</div>
-                    <div style="padding:10px 16px;text-align:center;color:var(--green);background:rgba(0,136,255,0.04);">&#10003;</div>
-                </div>
-
-                <div style="text-align:center;margin-top:24px;">
-                    <div style="font-size:32px;font-weight:800;color:var(--text);margin-bottom:4px;">$9.99<span style="font-size:14px;color:var(--text-dim);font-weight:400;">/month</span></div>
-                    <div style="font-size:12px;color:var(--text-dim);margin-bottom:16px;">Less than a single losing trade. Cancel anytime.</div>
-                    ${alreadyPro ? '' : '<button class="pro-cta-btn" onclick="startProCheckout()" style="padding:14px 40px;font-size:16px;">Get Pro Now</button>'}
-                </div>
-            </div>
-
-            <div style="text-align:center;color:var(--text-dim);font-size:12px;margin-top:16px;">
-                <p>Our bot trades real money using these same signals.</p>
-            </div>
-
-            <div style="max-width:700px;margin:32px auto 0;">
-                <h3 style="font-size:13px;letter-spacing:2px;color:var(--text-dim);margin-bottom:16px;text-align:center;">FREQUENTLY ASKED</h3>
-                <div style="display:flex;flex-direction:column;gap:12px;">
-                    <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:16px;">
-                        <div style="font-size:14px;font-weight:600;color:var(--text);margin-bottom:6px;">How does the auto paper bot work?</div>
-                        <div style="font-size:13px;color:var(--text-dim);line-height:1.5;">Every 5 minutes, our algorithm scans all markets and places paper trades on the best opportunities using your personal $1,000 paper balance. You can track your bot's performance in your Profile.</div>
-                    </div>
-                    <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:16px;">
-                        <div style="font-size:14px;font-weight:600;color:var(--text);margin-bottom:6px;">What makes Sygnal different?</div>
-                        <div style="font-size:13px;color:var(--text-dim);line-height:1.5;">We see both Kalshi AND Polymarket simultaneously, plus Vegas odds from 40+ bookmakers. When prices disagree across platforms, that's real edge. No other tool does this.</div>
-                    </div>
-                    <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:16px;">
-                        <div style="font-size:14px;font-weight:600;color:var(--text);margin-bottom:6px;">Does the bot learn?</div>
-                        <div style="font-size:13px;color:var(--text-dim);line-height:1.5;">Yes. Every paper trade outcome from every user feeds into our collective learning system. The more users trade, the smarter the Sygnal Score gets. Your bot improves from everyone's results.</div>
-                    </div>
-                    <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:16px;">
-                        <div style="font-size:14px;font-weight:600;color:var(--text);margin-bottom:6px;">Can I cancel anytime?</div>
-                        <div style="font-size:13px;color:var(--text-dim);line-height:1.5;">Yes. Cancel your subscription anytime from your Stripe account. No questions, no tricks.</div>
-                    </div>
-                </div>
-            </div>
+            ${!userCanSee ? '<p class="pro-picks-cta" onclick="showProUpsell(\'Pro Picks\')">Unlock daily Pro Picks →</p>' : ''}
         </div>
     `;
 }
 
-async function _oldUpgradeToPro() {
-    if (!_currentUser) {
-        return;
-    }
+// ══════════════════════════════════════════════
+// ACCURACY PROOF BANNER
+// ══════════════════════════════════════════════
+function buildAccuracyBanner() {
+    const el = document.getElementById('accuracy-banner');
+    if (!el) return;
 
+    const record = getTrackRecord();
+    if (record.length < 5) { el.style.display = 'none'; return; }
+
+    const correct = record.filter(r => r.correct).length;
+    const total = record.length;
+    const pct = ((correct / total) * 100).toFixed(0);
+
+    // Only show if accuracy is decent
+    if (pct < 50) { el.style.display = 'none'; return; }
+
+    // Calculate hypothetical profit
+    const avgReturn = record.filter(r => r.correct).reduce((s, r) => s + (r.profit || 0.1), 0) / Math.max(correct, 1);
+    const totalReturn = ((avgReturn * correct - 0.05 * (total - correct)) * 100).toFixed(0);
+
+    el.style.display = '';
+    el.innerHTML = `
+        <div class="accuracy-content">
+            <span class="accuracy-stat">${pct}% accurate</span>
+            <span class="accuracy-text">Sygnal signals were right on ${correct} of ${total} tracked markets</span>
+            <span class="accuracy-cta" onclick="switchTab('portfolio', document.querySelector('.nav-links > a:nth-child(4)'))">See Track Record →</span>
+        </div>
+    `;
+}
+
+// ══════════════════════════════════════════════
+// CONVERSION TRIGGERS ON MARKET CARDS
+// ══════════════════════════════════════════════
+function addConversionTriggers() {
+    if (isPro()) return; // Pro users don't need these
+
+    // Add "Pro users saw this 2h ago" to high-score cards
+    document.querySelectorAll('.card-sygnal-footer').forEach(footer => {
+        const scoreEl = footer.querySelector('.card-sygnal-score');
+        if (!scoreEl) return;
+        const score = parseInt(scoreEl.textContent);
+        if (score >= 75 && !footer.querySelector('.pro-teaser')) {
+            const teaser = document.createElement('span');
+            teaser.className = 'pro-teaser';
+            teaser.textContent = 'PRO';
+            teaser.title = 'Pro users get real-time alerts for high scores';
+            teaser.onclick = (e) => { e.stopPropagation(); showProUpsell('Real-time Score Alerts'); };
+            footer.appendChild(teaser);
+        }
+    });
+}
+
+// ══════════════════════════════════════════════
+// RESOLUTION DATABASE — Backtesting calibration data
+// ══════════════════════════════════════════════
+async function fetchResolutionData() {
     try {
-        const resp = await fetch(API_BASE + '/api/pro/checkout', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email: _currentUser.email })
-        });
+        const cached = localStorage.getItem('sygnal-resolutions');
+        const cacheTime = localStorage.getItem('sygnal-resolutions-time');
+        if (cached && cacheTime && Date.now() - parseInt(cacheTime) < 86400000) return;
+
+        const resp = await fetch(API_BASE + '/api/resolutions?limit=200');
+        if (!resp.ok) return;
         const data = await resp.json();
-        if (data.url) {
-            window.location.href = data.url;  // redirect instead of popup
-        } else {
-            alert(data.error || 'Checkout failed');
+        if (data.resolutions) {
+            localStorage.setItem('sygnal-resolutions', JSON.stringify(data.resolutions));
+            localStorage.setItem('sygnal-resolutions-time', Date.now().toString());
         }
-    } catch (e) {
-        alert('Checkout error: ' + e.message);
-    }
+    } catch(e) { console.log('Resolution fetch failed:', e); }
 }
 
-// Share paper trading results
-function shareResults() {
-    var portfolio = getPaperPortfolio();
-    var trades = portfolio.trades || [];
-    var wins = trades.filter(function(t) { return t.outcome === 'win'; }).length;
-    var losses = trades.filter(function(t) { return t.outcome === 'loss'; }).length;
-    var totalPnl = trades.reduce(function(sum, t) { return sum + (t.pnl || 0); }, 0);
-    var winRate = (wins + losses) > 0 ? Math.round(wins / (wins + losses) * 100) : 0;
+// ══════════════════════════════════════════════
+// MISPRICING DETECTOR — "Is this market fairly priced?"
+// ══════════════════════════════════════════════
+// Theoretical calibration: a perfectly calibrated market at X¢ should resolve YES X% of the time
+// Any deviation = mispricing = opportunity
+function getMispricingSignal(market) {
+    const yes = market.yes || 50;
+    const xp = _crossPlatformMap[market.ticker];
 
-    var text = 'My Sygnal paper trading results:\n' +
-        (wins + losses > 0 ? winRate + '% win rate (' + wins + 'W / ' + losses + 'L)\n' : trades.length + ' open trades\n') +
-        'P&L: ' + (totalPnl >= 0 ? '+' : '') + '$' + totalPnl.toFixed(2) + '\n\n' +
-        'Try it free at sygnalmarkets.com';
-
-    if (navigator.share) {
-        navigator.share({ title: 'My Sygnal Results', text: text, url: 'https://sygnalmarkets.com' }).catch(function(){});
-    } else {
-        navigator.clipboard.writeText(text).then(function() { showToast('Copied to clipboard!'); }).catch(function() {
-            prompt('Copy this:', text);
-        });
+    // Method 1: Cross-platform mispricing (strongest signal)
+    let crossMispricing = 0;
+    let cheaperPlatform = null;
+    if (xp) {
+        const otherYes = xp.match.yes || 50;
+        crossMispricing = otherYes - yes; // positive = underpriced here
+        if (Math.abs(crossMispricing) >= 3) {
+            cheaperPlatform = crossMispricing > 0 ? market.source : (market.source === 'kalshi' ? 'poly' : 'kalshi');
+        }
     }
+
+    // Method 2: Volume-weighted fair value
+    // If huge volume at a price, the crowd has conviction. Low-volume outliers are likely mispriced
+    const vol = market.volume || 0;
+    const vol24h = market.volume24h || 0;
+    let volumeConfidence = 'low';
+    if (vol >= 500000 || vol24h >= 50000) volumeConfidence = 'high';
+    else if (vol >= 50000 || vol24h >= 10000) volumeConfidence = 'medium';
+
+    // Method 3: Spread-based mispricing
+    // Wide spread = uncertainty = possible mispricing
+    const spread = market.spread || 0;
+    let spreadSignal = 'neutral';
+    if (spread > 8) spreadSignal = 'wide — potential mispricing';
+    else if (spread > 4) spreadSignal = 'moderate';
+    else if (spread > 0 && spread <= 2) spreadSignal = 'tight — well-priced';
+
+    // Method 4: Day/week trend divergence
+    // If price moved 10%+ in a day but weekly trend is opposite, market may be overreacting
+    const dayChange = market.dayChange ? market.dayChange * 100 : 0;
+    const weekChange = market.weekChange ? market.weekChange * 100 : 0;
+    let overreaction = false;
+    if (Math.abs(dayChange) > 8 && weekChange !== 0 && Math.sign(dayChange) !== Math.sign(weekChange)) {
+        overreaction = true;
+    }
+
+    // Compute mispricing score (-100 to +100)
+    // Positive = underpriced YES, Negative = overpriced YES
+    let mispricingScore = 0;
+    if (crossMispricing) mispricingScore += crossMispricing * 3; // Strongest signal
+    if (overreaction) mispricingScore += dayChange > 0 ? -15 : 15; // Counter the overreaction
+    mispricingScore = Math.max(-100, Math.min(100, mispricingScore));
+
+    let verdict = 'FAIRLY PRICED';
+    if (mispricingScore >= 15) verdict = 'UNDERPRICED YES';
+    else if (mispricingScore <= -15) verdict = 'OVERPRICED YES';
+    else if (mispricingScore >= 8) verdict = 'SLIGHTLY CHEAP';
+    else if (mispricingScore <= -8) verdict = 'SLIGHTLY EXPENSIVE';
+
+    return {
+        verdict,
+        mispricingScore,
+        crossMispricing,
+        cheaperPlatform,
+        volumeConfidence,
+        spreadSignal,
+        overreaction,
+    };
 }
 
-// Activate auto-bot for user
-async function activateAutoBot() {
-    var email = '';
-    if (typeof _currentUser !== 'undefined' && _currentUser) email = _currentUser.email;
-    if (!email) {
-        showToast('Sign in first to start your bot');
-        openAuthModal();
-        return;
+// ══════════════════════════════════════════════
+// SMART MONEY DETECTION — Volume spike alerts
+// ══════════════════════════════════════════════
+let _volumeHistory = {};
+try { _volumeHistory = JSON.parse(localStorage.getItem('sygnal-volume-history') || '{}'); } catch {}
+
+function detectSmartMoney(allMarkets) {
+    const alerts = [];
+    const now = Date.now();
+
+    for (const m of allMarkets) {
+        if (!m.ticker) continue;
+        const vol = m.volume || 0;
+        const vol24h = m.volume24h || m.volume24h || 0;
+
+        // Track volume over time
+        if (!_volumeHistory[m.ticker]) _volumeHistory[m.ticker] = [];
+        const history = _volumeHistory[m.ticker];
+        const last = history[history.length - 1];
+
+        // Only record every 5 min
+        if (!last || now - last.t > 300000) {
+            history.push({ t: now, v: vol });
+            if (history.length > 24) history.shift(); // Keep 2 hours
+        }
+
+        // Detect spike: current volume >> average of last readings
+        if (history.length >= 4) {
+            const recentAvg = history.slice(-4, -1).reduce((s, h) => s + h.v, 0) / 3;
+            const current = vol;
+            if (recentAvg > 0 && current > recentAvg * 2.5) {
+                alerts.push({
+                    market: m,
+                    spike: ((current / recentAvg - 1) * 100).toFixed(0),
+                    volume: current,
+                    avgVolume: recentAvg,
+                });
+            }
+        }
     }
+
+    localStorage.setItem('sygnal-volume-history', JSON.stringify(_volumeHistory));
+
+    // Send notifications for significant spikes
+    if (notificationsEnabled && alerts.length > 0) {
+        for (const a of alerts.slice(0, 3)) {
+            sendNotification(
+                `Smart Money Alert: ${shortenTitle(a.market.question, 35)}`,
+                `Volume spike +${a.spike}% — someone is moving big`,
+                'sygnal-smartmoney-' + a.market.ticker
+            );
+        }
+    }
+
+    return alerts;
+}
+
+// ══════════════════════════════════════════════
+// ENHANCED ARBITRAGE — Guaranteed profit calculator
+// ══════════════════════════════════════════════
+function calculateArbProfit(kalshiYes, polyYes, investment) {
+    // Buy YES where it's cheaper, buy NO where it's more expensive
+    // If kalshiYes < polyYes: buy YES on Kalshi at kalshiYes, buy NO on Poly at (100-polyYes)
+    const cheapYes = Math.min(kalshiYes, polyYes);
+    const cheapNo = 100 - Math.max(kalshiYes, polyYes);
+    const totalCost = (cheapYes + cheapNo) / 100; // Cost per $1 of exposure
+
+    if (totalCost >= 1) return null; // No arb
+
+    const profitPer = 1 - totalCost; // Guaranteed profit per $1
+    const profitPct = (profitPer / totalCost * 100).toFixed(1);
+    const profitDollars = ((investment / totalCost) * profitPer).toFixed(2);
+
+    return {
+        totalCost: (totalCost * 100).toFixed(1),
+        profitPct,
+        profitDollars,
+        cheapYesPlatform: kalshiYes < polyYes ? 'Kalshi' : 'Polymarket',
+        cheapYesPrice: cheapYes,
+        cheapNoPrice: cheapNo,
+    };
+}
+
+// ══════════════════════════════════════════════
+// BOT TRANSPARENCY FEED — Show live trades on main page
+// ══════════════════════════════════════════════
+async function buildBotTransparencyBanner() {
     try {
-        // Reset/create bot portfolio
-        var resp = await fetch(API_BASE + '/api/autobot/reset', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email: email })
-        });
-        var data = await resp.json();
-        if (data.ok) {
-            // Trigger first scan
-            await fetch(API_BASE + '/api/autobot/scan', { method: 'POST' });
-            showToast('Bot activated! First trades placed.');
-            loadPortfolio();
-            // Hide the start button
-            var btn = document.getElementById('portfolio-start-bot');
-            if (btn) btn.style.display = 'none';
-        }
-    } catch(e) {
-        showToast('Error activating bot');
-    }
+        const resp = await fetch(API_BASE + '/api/bot/trades?limit=5');
+        if (!resp.ok) return;
+        const data = await resp.json();
+        const trades = data.trades || data || [];
+        if (!trades.length) return;
+
+        // Build a live banner showing recent bot activity
+        const banner = document.getElementById('accuracy-banner');
+        if (!banner) return;
+
+        const wins = trades.filter(t => (t.realized_pnl || t.pnl || 0) > 0).length;
+        const totalPnl = trades.reduce((s, t) => s + (t.realized_pnl || t.pnl || 0), 0);
+        const pnlStr = totalPnl >= 0 ? '+$' + totalPnl.toFixed(2) : '-$' + Math.abs(totalPnl).toFixed(2);
+        const pnlColor = totalPnl >= 0 ? 'var(--green)' : 'var(--red)';
+
+        const latestTrade = trades[0];
+        const latestTitle = shortenTitle(latestTrade.title || decodeTicker(latestTrade.ticker || ''), 30);
+        const latestSide = (latestTrade.side || '').toUpperCase();
+
+        banner.style.display = '';
+        banner.innerHTML = `
+            <div class="accuracy-content">
+                <span class="accuracy-stat" style="color:${pnlColor}">Bot: ${pnlStr}</span>
+                <span class="accuracy-text">Latest: ${latestSide} ${latestTitle}</span>
+                <span class="accuracy-text">${wins}/${trades.length} profitable</span>
+                <span class="accuracy-cta" onclick="switchTab('bot', document.querySelector('.nav-links > a:nth-child(3)'))">See All Trades →</span>
+            </div>
+        `;
+    } catch(e) {}
 }
 
-// Pro checkout — works with or without sign-in
-async function startProCheckout() {
-    var email = '';
-    if (typeof _currentUser !== 'undefined' && _currentUser) {
-        email = _currentUser.email || '';
-    }
-    if (!email) {
-        showToast('Sign in first to get Pro');
-        openAuthModal();
-        return;
-    }
+// ══════════════════════════════════════════════
+// ADD MISPRICING TO DETAIL VIEW
+// ══════════════════════════════════════════════
+// ══════════════════════════════════════════════
+// WHY TO BET — Plain-English trade rationale (Pro only)
+// ══════════════════════════════════════════════
+function getWhyToBetHtml(market, sig, score, factors, xp, change) {
     try {
-        var resp = await fetch(API_BASE + '/api/pro/checkout', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email: email })
-        });
-        var data = await resp.json();
-        if (data.url) {
-            window.location.href = data.url;
-        } else {
-            alert(data.error || 'Checkout unavailable. Try again later.');
-        }
-    } catch(e) {
-        alert('Checkout error. Please try again.');
+    const showFull = isPro();
+    const signal = sig?.signal || 'HOLD';
+
+    if (signal === 'HOLD') {
+        if (!showFull) return '';
+        return `<div class="why-bet-section hold">
+            <div class="why-bet-header">◇ HOLD — No clear edge</div>
+            <p class="why-bet-text">This market doesn't have a strong enough signal in either direction. Wait for momentum, a cross-platform gap, or a significant price move before trading.</p>
+        </div>`;
     }
+
+    // Build reasons array
+    const reasons = [];
+    const isYes = signal.includes('YES');
+    const side = isYes ? 'YES' : 'NO';
+    const yes = market.yes || 50;
+    const vol = market.volume || 0;
+
+    // Price position reason
+    if (isYes && yes <= 40) reasons.push(`Priced at just ${yes}¢ — cheap entry with high upside if it resolves YES`);
+    else if (isYes && yes >= 60) reasons.push(`Strong conviction at ${yes}¢ — the market leans YES and could push higher`);
+    else if (!isYes && yes >= 60) reasons.push(`Priced at ${yes}¢ — expensive YES, room for a pullback toward NO`);
+    else if (!isYes && yes <= 40) reasons.push(`Already leaning NO at ${yes}¢ — momentum favors this direction`);
+
+    // Momentum reason
+    if (Math.abs(change) >= 2) {
+        if (isYes && change > 0) reasons.push(`Price moving up +${change.toFixed(0)}¢ — momentum is with YES`);
+        else if (!isYes && change < 0) reasons.push(`Price dropping ${change.toFixed(0)}¢ — momentum is with NO`);
+        else if (isYes && change < 0) reasons.push(`Price dipped ${change.toFixed(0)}¢ — possible buying opportunity on the pullback`);
+        else if (!isYes && change > 0) reasons.push(`Price rose +${change.toFixed(0)}¢ — may be overextended, NO could profit from a reversal`);
+    }
+
+    // Cross-platform reason (strongest)
+    if (xp && xp.priceDiff >= 3) {
+        const otherPlatform = xp.match.source === 'kalshi' ? 'Kalshi' : 'Polymarket';
+        const otherYes = xp.match.yes || 50;
+        if (isYes && otherYes > yes) {
+            reasons.push(`${otherPlatform} has YES at ${otherYes}¢ vs ${yes}¢ here — ${xp.priceDiff}¢ cross-platform edge says it's underpriced`);
+        } else if (!isYes && otherYes < yes) {
+            reasons.push(`${otherPlatform} has YES at ${otherYes}¢ vs ${yes}¢ here — ${xp.priceDiff}¢ gap suggests YES is overpriced`);
+        }
+    }
+
+    // Volume reason
+    if (vol >= 500000) reasons.push(`High volume ($${(vol/1000000).toFixed(1)}M) — this is a well-traded market with reliable pricing`);
+    else if (vol >= 50000) reasons.push(`Decent volume ($${(vol/1000).toFixed(0)}K) — enough activity to trust the price signal`);
+
+    // Score reason
+    if (score >= 75) reasons.push(`Sygnal Score ${score}/99 — strong across all factors`);
+    else if (score >= 50) reasons.push(`Sygnal Score ${score}/99 — moderate opportunity`);
+
+    if (!reasons.length) reasons.push(`Multiple factors align for ${side} — price, momentum, and volume support this direction`);
+
+    const isBuy = signal.includes('BUY');
+    const strength = isBuy ? 'Strong' : 'Moderate';
+    const strengthColor = isBuy ? (isYes ? 'var(--green)' : 'var(--red)') : 'var(--gold)';
+
+    if (!showFull) {
+        return `<div class="why-bet-section locked" onclick="showProUpsell('Trade Rationale')">
+            <div class="why-bet-header" style="color:${strengthColor}">◆ ${strength} ${signal}</div>
+            <p class="why-bet-text blurred-text">${reasons[0] || 'Multiple factors align...'}</p>
+            <div class="why-bet-lock">
+                <div style="text-align:center;">
+                    <div style="font-size:16px;margin-bottom:4px;">🔒</div>
+                    <div style="font-size:13px;font-weight:700;color:var(--accent);">See why Sygnal says ${signal}</div>
+                    <div style="font-size:11px;color:var(--text-dim);margin-top:2px;">Upgrade to Pro — $9.99/mo</div>
+                </div>
+            </div>
+        </div>`;
+    }
+
+    return `<div class="why-bet-section">
+        <div class="why-bet-header" style="color:${strengthColor}">◆ ${strength} ${signal} — Here's Why</div>
+        ${reasons.map(r => `<p class="why-bet-reason">→ ${r}</p>`).join('')}
+    </div>`;
+    } catch(e) { return ''; }
 }
 
-// Initialize Firebase on load
-initFirebase();
+function getMispricingHtml(market) {
+    const mp = getMispricingSignal(market);
+    const showDetail = isPro() || isTrialActive();
 
-// ── SERVICE WORKER (PWA) ──
-// Unregister old service workers and clear caches to fix stale content
-if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.getRegistrations().then(regs => {
-        regs.forEach(reg => reg.unregister());
-    });
-    caches.keys().then(keys => keys.forEach(k => caches.delete(k)));
+    let verdictColor = 'var(--text-dim)';
+    if (mp.verdict.includes('UNDER')) verdictColor = 'var(--green)';
+    else if (mp.verdict.includes('OVER')) verdictColor = 'var(--red)';
+    else if (mp.verdict.includes('CHEAP')) verdictColor = 'var(--green)';
+    else if (mp.verdict.includes('EXPENSIVE')) verdictColor = 'var(--red)';
+
+    if (!showDetail) {
+        return `<div class="mispricing-row locked" onclick="showProUpsell('Mispricing Detector')">
+            <span class="mispricing-verdict" style="color:${verdictColor}">${mp.verdict}</span>
+            <span class="mispricing-lock">🔒 Pro</span>
+        </div>`;
+    }
+
+    let details = '';
+    if (mp.crossMispricing && Math.abs(mp.crossMispricing) >= 2) {
+        details += `<span class="mispricing-detail">Cross-platform gap: ${Math.abs(mp.crossMispricing)}¢</span>`;
+    }
+    if (mp.overreaction) {
+        details += `<span class="mispricing-detail" style="color:var(--gold)">⚠ Possible overreaction</span>`;
+    }
+    details += `<span class="mispricing-detail">Volume confidence: ${mp.volumeConfidence}</span>`;
+    details += `<span class="mispricing-detail">Spread: ${mp.spreadSignal}</span>`;
+
+    return `<div class="mispricing-row">
+        <span class="mispricing-verdict" style="color:${verdictColor}">${mp.verdict}</span>
+        <div class="mispricing-details">${details}</div>
+    </div>`;
 }
 
-// ── MOBILE MORE MENU WIRING ──
-(function wireMoreMenu() {
-    var menu = document.getElementById('mobile-more-menu');
-    if (!menu) return;
-    function closeMenu() { menu.style.display = 'none'; }
+// ══════════════════════════════════════════════
+// INIT ALL NEW FEATURES
+// ══════════════════════════════════════════════
+setTimeout(() => {
+    loadBotPerformance();
+    buildNewsFeed();
+    buildProPicks();
+    buildBotTransparencyBanner();
+    fetchResolutionData();
+    buildDailyChallengeWidget();
+    checkAchievements();
+    scheduleSmartNotifications();
+    if (allMarketCards.length) detectSmartMoney(allMarketCards.map(c => c.market));
+    setTimeout(addConversionTriggers, 2000);
+}, 3000);
 
-    var close = document.getElementById('mm-close');
-    if (close) close.onclick = function(e) { e.preventDefault(); closeMenu(); };
-
-    document.querySelectorAll('.mm-item').forEach(function(el) {
-        el.onclick = function(e) {
-            e.preventDefault();
-            closeMenu();
-            switchTab(el.getAttribute('data-tab'), null);
-        };
-    });
-
-    var settings = document.getElementById('mm-settings');
-    if (settings) settings.onclick = function(e) { e.preventDefault(); closeMenu(); setTimeout(toggleSettings, 150); };
-
-    var pro = document.getElementById('mm-pro');
-    if (pro) pro.onclick = function(e) { e.preventDefault(); closeMenu(); upgradeToPro(); };
-
-    var account = document.getElementById('mm-account');
-    if (account) account.onclick = function(e) { e.preventDefault(); closeMenu(); handleAuthAction(); };
-})();
 // ══════════════════════════════════════════════
 // ONBOARDING TOUR
 // ══════════════════════════════════════════════
@@ -6833,79 +5864,45 @@ function startOnboarding() {
     const steps = [
         {
             title: 'Welcome to Sygnal',
-            text: 'Real-time prediction market intelligence. We analyze every market on Kalshi & Polymarket and tell you exactly where the edge is.',
+            text: 'The smartest way to trade prediction markets. We analyze Kalshi & Polymarket so you don\'t have to.',
             icon: '◆',
             highlight: null,
-            tab: 'markets',
-            position: 'center',
-            action: function() { window.scrollTo({ top: 0, behavior: 'smooth' }); },
         },
         {
-            title: 'Live Market Cards',
-            text: 'These are real markets happening right now. Each card shows YES/NO prices and which platform it\'s from. Try tapping one after the tour!',
+            title: 'Sygnal Score',
+            text: 'Every market gets a 0-99 score based on 5 factors: price value, volume, momentum, cross-platform edge, and liquidity. Higher = better opportunity.',
             icon: '▲',
-            highlight: '.market-card',
-            tab: 'markets',
-            position: 'bottom',
-            action: function() {
-                var grid = document.querySelector('.market-grid');
-                if (grid) grid.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            },
-        },
-        {
-            title: 'The Sygnal Score',
-            text: 'Every market gets a 0-99 score. It combines 5 factors: Edge Detection, Value, Momentum, Confidence, and Timing. Higher score = better bet.',
-            icon: '★',
             highlight: '.card-sygnal-footer',
-            tab: 'markets',
-            position: 'bottom',
-            action: null,
         },
         {
-            title: 'BUY / SELL Signals',
-            text: 'When multiple factors agree, we give a directional signal: BUY YES, BUY NO, LEAN, or HOLD. Pro members see exactly WHY.',
-            icon: '◇',
+            title: 'BUY Signals',
+            text: 'We tell you WHAT to trade and WHY. BUY YES, BUY NO, LEAN, or HOLD — with full reasoning for Pro members.',
+            icon: '★',
             highlight: '.card-signal',
-            tab: 'markets',
-            position: 'bottom',
-            action: null,
         },
         {
-            title: 'Your Trading Bot',
-            text: 'We run a real-money bot using Sygnal Scores on Kalshi. Watch its live P&L and open positions — proof the scoring works.',
+            title: 'Live Trading Bot',
+            text: 'Our bot trades real money on Kalshi using Sygnal Scores. Watch its P&L live — proof the system works.',
             icon: '◎',
-            highlight: '.bot-grid',
-            tab: 'bot',
-            position: 'bottom',
-            action: function() { if (typeof loadBot === 'function') loadBot(); },
+            highlight: null,
         },
         {
-            title: 'Market News',
-            text: 'Headlines relevant to active markets, pulled in real-time. Stay informed on what\'s moving prices.',
-            icon: '◈',
-            highlight: null,
-            tab: 'news',
-            position: 'center',
-            action: function() { if (typeof loadNews === 'function') loadNews(); },
+            title: 'Daily Challenge',
+            text: 'Pick 3 markets each day and track your accuracy. Build a streak and earn badges.',
+            icon: '◇',
+            highlight: '#daily-challenge-widget',
         },
         {
             title: 'Cross-Platform Edge',
-            text: 'Only Sygnal compares prices across Kalshi AND Polymarket. When they disagree, someone\'s wrong — and that\'s your edge.',
-            icon: '✦',
+            text: 'Only Sygnal sees both Kalshi AND Polymarket. When they disagree on price, that\'s your edge.',
+            icon: '◈',
             highlight: null,
-            tab: 'markets',
-            position: 'center',
-            action: function() { window.scrollTo({ top: 0, behavior: 'smooth' }); },
         },
         {
-            title: 'You\'re Ready! ◆',
-            text: 'Tap any market card for the full breakdown. Create a free account to save your watchlist. Go Pro for score details, signal explanations, and alerts.',
-            icon: '◆',
+            title: 'You\'re Ready!',
+            text: 'Tap any market card to see the full analysis. Create a free account to save your watchlist and start paper trading.',
+            icon: '✦',
             highlight: null,
-            tab: 'markets',
-            position: 'center',
-            cta: true,
-            action: function() { window.scrollTo({ top: 0, behavior: 'smooth' }); },
         },
     ];
 
@@ -6918,43 +5915,27 @@ function startOnboarding() {
     if (accBanner) accBanner.style.display = 'none';
 
     function renderStep() {
-        // Clear previous
-        clearHighlights();
-        var existing = document.getElementById('onboarding-overlay');
+        const existing = document.getElementById('onboarding-overlay');
         if (existing) existing.remove();
 
-        var step = steps[currentStep];
-        var isLast = currentStep === steps.length - 1;
-
-        // Navigate to the right tab
-        if (step.tab && typeof switchTab === 'function') {
-            switchTab(step.tab, null);
-        }
-
-        // Run step action
-        if (step.action) {
-            try { step.action(); } catch(e) {}
-        }
+        const step = steps[currentStep];
+        const isLast = currentStep === steps.length - 1;
 
         const overlay = document.createElement('div');
         overlay.id = 'onboarding-overlay';
         overlay.className = 'onboarding-overlay';
-
-
         overlay.innerHTML = `
-            <div class="onboarding-card onboarding-entrance" >
+            <div class="onboarding-card">
                 <div class="onboarding-progress">
                     ${steps.map((_, i) => `<div class="onboarding-dot ${i === currentStep ? 'active' : i < currentStep ? 'done' : ''}"></div>`).join('')}
                 </div>
-                <div class="onboarding-step-count">${currentStep + 1} of ${steps.length}</div>
                 <div class="onboarding-icon">${step.icon}</div>
                 <h3 class="onboarding-title">${step.title}</h3>
                 <p class="onboarding-text">${step.text}</p>
                 <div class="onboarding-btns">
-                    ${currentStep > 0 ? '<button class="onboarding-btn secondary" id="ob-back">◁ Back</button>' : ''}
-                    <button class="onboarding-btn primary" id="ob-next">${isLast ? 'Get Started ◆' : 'Next →'}</button>
+                    ${currentStep > 0 ? '<button class="onboarding-btn secondary" id="ob-back">Back</button>' : ''}
+                    <button class="onboarding-btn primary" id="ob-next">${isLast ? 'Get Started' : 'Next'}</button>
                 </div>
-                ${step.cta ? '<button class="onboarding-btn primary" style="margin-top:8px;background:var(--green);width:100%;" onclick="document.getElementById(\'onboarding-overlay\').remove();localStorage.setItem(\'sygnal-onboarding-done\',\'true\');openAuthModal();">Create Free Account</button>' : ''}
                 <button class="onboarding-skip" id="ob-skip">Skip tour</button>
             </div>
         `;
@@ -7115,7 +6096,7 @@ function submitAuth(mode) {
     }).catch(() => {});
 
     document.getElementById('auth-overlay').style.display = 'none';
-    showToast(mode === 'signup' ? 'Account created! Welcome to Sygnal!' : 'Signed in!');
+    showToast(mode === 'signup' ? 'Account created! Welcome to Sygnal' : 'Signed in!');
 
     // If on profile, refresh it
     if (document.getElementById('profile-panel') && !document.getElementById('profile-panel').classList.contains('view-hidden')) {
@@ -7123,34 +6104,18 @@ function submitAuth(mode) {
     }
 }
 
-function getTrialDaysLeft() {
-    const start = localStorage.getItem('sygnal-trial-start');
-    if (!start) {
-        localStorage.setItem('sygnal-trial-start', Date.now().toString());
-        return 30;
-    }
-    const elapsed = (Date.now() - parseInt(start)) / 86400000;
-    return Math.max(0, Math.ceil(30 - elapsed));
-}
-
-function isTrialActive() {
-    return getTrialDaysLeft() > 0;
-}
-
 function buildProfilePanel() {
-    // Use Firebase user if available, else localStorage
-    const fbUser = typeof _currentUser !== 'undefined' ? _currentUser : null;
-    if (!fbUser && !localStorage.getItem('sygnal-account-email')) {
-        if (typeof openAuthModal === 'function') openAuthModal();
-        else if (typeof showAuthPage === 'function') showAuthPage();
+    // If no account, show auth page instead
+    if (!localStorage.getItem('sygnal-account-email')) {
+        showAuthPage();
         return;
     }
     const el = document.getElementById('profile-content');
     if (!el) return;
     try {
 
-    const email = (fbUser ? fbUser.email : localStorage.getItem('sygnal-account-email')) || '';
-    const name = (fbUser ? fbUser.displayName : localStorage.getItem('sygnal-account-name')) || '';
+    const email = localStorage.getItem('sygnal-account-email') || '';
+    const name = localStorage.getItem('sygnal-account-name') || '';
     const pro = isPro();
     const trialDays = getTrialDaysLeft();
     const trialActive = isTrialActive();
@@ -7165,7 +6130,7 @@ function buildProfilePanel() {
     const rawRecord = getTrackRecord();
     const record = Array.isArray(rawRecord) ? rawRecord : (rawRecord.results || []);
     const correct = record.filter(r => r.correct).length;
-    const accuracy = record.length >= 3 ? ((correct / record.length) * 100).toFixed(0) : '—';
+    const accuracy = record.length > 0 ? ((correct / record.length) * 100).toFixed(0) : '—';
 
     const proFeatures = [
         { name: 'Score Breakdown', desc: 'See all 5 factors behind every Sygnal Score', icon: '◆', free: false },
@@ -7225,76 +6190,14 @@ function buildProfilePanel() {
             `).join('')}
         </div>
 
-        <div class="profile-actions" style="display:flex;gap:10px;justify-content:center;margin:24px 0;">
-            ${email ? `<button class="profile-action-btn" onclick="showReferralPanel()">Invite Friends</button>` : ''}
-            <button class="profile-action-btn" style="color:var(--accent);border-color:rgba(0,136,255,0.2);" onclick="shareResults()">Share Results</button>
-            ${email ? `<button class="profile-action-btn" style="color:var(--red);border-color:rgba(255,59,92,0.2);" onclick="if(typeof firebase!=='undefined'&&firebase.auth)firebase.auth().signOut();localStorage.removeItem('sygnal-account-email');localStorage.removeItem('sygnal-account-name');localStorage.removeItem('sygnal-pro');switchTab('markets',null);showToast('Signed out');">Sign Out</button>` : ''}
-        </div>
-
-        <div id="autobot-portfolio-section" style="margin-bottom:24px;">
-            <h3 style="font-size:13px;letter-spacing:2px;color:var(--text-dim);margin-bottom:12px;">YOUR AUTO-BOT</h3>
-            <div id="autobot-portfolio-content" style="color:var(--text-dim);font-size:13px;">Loading bot portfolio...</div>
-        </div>
-
         ${buildAchievementsSection()}
+
+        <div class="profile-actions" style="display:flex;gap:10px;justify-content:center;">
+            ${email ? `<button class="profile-action-btn" onclick="showReferralPanel()">Invite Friends</button>` : ''}
+            ${email ? `<button class="profile-action-btn" onclick="localStorage.removeItem('sygnal-account-email'); localStorage.removeItem('sygnal-account-name'); localStorage.removeItem('sygnal-pro'); buildProfilePanel(); showToast('Signed out');">Sign Out</button>` : ''}
+        </div>
     `;
-
-    // Load auto-bot portfolio
-    loadAutobotPortfolio(email);
-
     } catch(e) { el.innerHTML = '<p style="color:var(--red);">Error loading profile: ' + e.message + '</p>'; }
-}
-
-function loadAutobotPortfolio(email) {
-    var el = document.getElementById('autobot-portfolio-content');
-    if (!el || !email) return;
-
-    fetch(API_BASE + '/api/autobot/portfolio?email=' + encodeURIComponent(email))
-        .then(function(r) { return r.json(); })
-        .then(function(data) {
-            var openTrades = data.open_trades || [];
-            var wins = data.wins || 0;
-            var losses = data.losses || 0;
-            var winRate = data.win_rate || 0;
-            var totalPnl = data.total_pnl || 0;
-            var balance = data.balance || 1000;
-
-            var statsHtml = '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px;">' +
-                '<div style="background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:12px;text-align:center;">' +
-                    '<div style="font-size:18px;font-weight:700;color:var(--text);">$' + balance.toFixed(0) + '</div>' +
-                    '<div style="font-size:9px;color:var(--text-dim);letter-spacing:1px;text-transform:uppercase;">Balance</div></div>' +
-                '<div style="background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:12px;text-align:center;">' +
-                    '<div style="font-size:18px;font-weight:700;color:' + (totalPnl >= 0 ? 'var(--green)' : 'var(--red)') + ';">' + (totalPnl >= 0 ? '+' : '') + '$' + totalPnl.toFixed(2) + '</div>' +
-                    '<div style="font-size:9px;color:var(--text-dim);letter-spacing:1px;text-transform:uppercase;">Total P&L</div></div>' +
-                '<div style="background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:12px;text-align:center;">' +
-                    '<div style="font-size:18px;font-weight:700;color:var(--text);">' + data.open_positions + '</div>' +
-                    '<div style="font-size:9px;color:var(--text-dim);letter-spacing:1px;text-transform:uppercase;">Open</div></div>' +
-                '<div style="background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:12px;text-align:center;">' +
-                    '<div style="font-size:18px;font-weight:700;color:' + (winRate >= 55 ? 'var(--green)' : 'var(--text)') + ';">' + (wins + losses > 0 ? winRate + '%' : '—') + '</div>' +
-                    '<div style="font-size:9px;color:var(--text-dim);letter-spacing:1px;text-transform:uppercase;">Win Rate</div></div>' +
-            '</div>';
-
-            var tradesHtml = '';
-            if (openTrades.length > 0) {
-                tradesHtml = '<div style="font-size:11px;color:var(--text-dim);letter-spacing:1px;margin-bottom:8px;">OPEN POSITIONS</div>' +
-                    openTrades.map(function(t) {
-                        var sideColor = t.side === 'yes' ? 'var(--green)' : 'var(--red)';
-                        return '<div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.04);">' +
-                            '<span style="color:' + sideColor + ';font-weight:700;font-size:11px;min-width:30px;">' + t.side.toUpperCase() + '</span>' +
-                            '<span style="flex:1;color:var(--text);font-size:13px;">' + (t.question || t.ticker).substring(0, 35) + '</span>' +
-                            '<span style="color:var(--text-dim);font-size:11px;">' + t.price + '¢</span>' +
-                            '<span style="background:rgba(0,136,255,0.1);color:var(--accent);padding:2px 6px;border-radius:4px;font-size:10px;font-weight:600;">' + t.score + '</span>' +
-                        '</div>';
-                    }).join('');
-            } else {
-                tradesHtml = '<p style="color:var(--text-dim);font-size:13px;">Bot is scanning for opportunities...</p>';
-            }
-
-            el.innerHTML = statsHtml + tradesHtml;
-        })
-        .catch(function() {
-            el.innerHTML = '<p style="color:var(--text-dim);font-size:13px;">Bot portfolio unavailable</p>';
-        });
 }
 
 // ══════════════════════════════════════════════

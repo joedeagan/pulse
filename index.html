@@ -8,13 +8,13 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="SYGNAL">
     <title>Sygnal Markets — Trade Smarter.</title>
-    <meta name="description" content="Free prediction market signals and analytics. AI-powered Sygnal Score tells you what to bet on Kalshi & Polymarket. Cross-platform edge detection, Vegas odds comparison, and automated paper trading bot.">
-    <meta name="keywords" content="prediction markets, Kalshi signals, Polymarket analytics, prediction market bot, Kalshi trading tool, Polymarket signals, sports betting analytics, prediction market arbitrage, Sygnal Score, market analysis tool, trading signals, cross-platform odds">
+    <meta name="description" content="Cross-platform prediction market analytics. Real-time odds from Kalshi & Polymarket. AI-powered Sygnal Scores, arbitrage detection, and price tracking.">
+    <meta name="keywords" content="prediction markets, Kalshi, Polymarket, trading, arbitrage, Sygnal Score, odds, analytics">
 
     <!-- Open Graph / Social Sharing -->
     <meta property="og:type" content="website">
-    <meta property="og:title" content="Sygnal — AI Prediction Market Signals">
-    <meta property="og:description" content="Free bot that tells you what to bet. Cross-platform edge detection, Vegas odds comparison, and automated paper trading. Join 100+ traders.">
+    <meta property="og:title" content="Sygnal Markets — Trade Smarter.">
+    <meta property="og:description" content="Real-time prediction market analytics. AI-powered Sygnal Scores, cross-platform arbitrage, and live odds from Kalshi & Polymarket.">
     <meta property="og:url" content="https://sygnalmarkets.com">
     <meta property="og:image" content="https://sygnalmarkets.com/og-image.png">
     <meta property="og:image:width" content="1200">
@@ -23,8 +23,8 @@
 
     <!-- Twitter Card -->
     <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:title" content="Sygnal — AI Prediction Market Signals">
-    <meta name="twitter:description" content="Free bot that tells you what to bet. Cross-platform edge detection, Vegas odds comparison, and automated paper trading. Join 100+ traders.">
+    <meta name="twitter:title" content="Sygnal Markets — Trade Smarter.">
+    <meta name="twitter:description" content="Real-time prediction market analytics. AI-powered Sygnal Scores, cross-platform arbitrage, and live odds from Kalshi & Polymarket.">
     <meta name="twitter:image" content="https://sygnalmarkets.com/og-image.png">
 
     <!-- JSON-LD Structured Data -->
@@ -49,31 +49,82 @@
     }
     </script>
 
+    <!-- Google Sign-In -->
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+
     <!-- OneSignal Web Push -->
     <script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer></script>
     <script>
         window.OneSignalDeferred = window.OneSignalDeferred || [];
         OneSignalDeferred.push(async function(OneSignal) {
-            try {
-                await OneSignal.init({
-                    appId: "2507828f-0891-4905-97e9-a8fd407dabef",
-                });
-            } catch(e) { console.log('OneSignal init skipped:', e.message); }
+            await OneSignal.init({
+                appId: "2507828f-0891-4905-97e9-a8fd407dabef",
+            });
         });
     </script>
 
-    <!-- Firebase Auth SDK -->
-    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
-
-    <link rel="stylesheet" href="style.css?v=103">
-    <link rel="manifest" href="/manifest.json">
-    <link rel="icon" type="image/png" href="/icon-192.png">
-    <link rel="apple-touch-icon" href="/icon-192.png">
+    <link rel="stylesheet" href="style.css?v=18">
+    <link rel="manifest" href="/manifest.json?v=2">
+    <link rel="icon" type="image/png" href="/icon-192.png?v=2">
+    <link rel="apple-touch-icon" href="/icon-192.png?v=2">
     <link rel="canonical" href="https://sygnalmarkets.com">
 </head>
 <body>
+
+    <!-- Sign In / Create Account Overlay -->
+    <div id="auth-overlay" class="auth-overlay" style="display:none;">
+        <div class="auth-card">
+            <button class="auth-close" onclick="document.getElementById('auth-overlay').style.display='none'">&times;</button>
+            <div class="auth-logo">S</div>
+            <h2 class="auth-title">Welcome to Sygnal</h2>
+            <p class="auth-subtitle">Create a free account or sign in to access your dashboard.</p>
+
+            <div class="auth-tabs">
+                <button class="auth-tab active" id="auth-tab-signup" onclick="switchAuthTab('signup')">Create Account</button>
+                <button class="auth-tab" id="auth-tab-signin" onclick="switchAuthTab('signin')">Sign In</button>
+            </div>
+
+            <!-- Create Account Form -->
+            <div id="auth-signup-form" class="auth-form">
+                <input type="text" id="auth-name" class="auth-input" placeholder="Your name">
+                <input type="email" id="auth-email" class="auth-input" placeholder="Email address">
+                <div class="auth-pw-wrap">
+                    <input type="password" id="auth-password" class="auth-input" placeholder="Create password">
+                    <button type="button" class="auth-pw-toggle" onclick="togglePw('auth-password', this)">Show</button>
+                </div>
+                <button class="auth-btn" onclick="submitAuth('signup')">Create Free Account</button>
+                <p class="auth-note">30-day free trial included. No credit card required.</p>
+            </div>
+
+            <!-- Sign In Form -->
+            <div id="auth-signin-form" class="auth-form" style="display:none;">
+                <input type="email" id="auth-signin-email" class="auth-input" placeholder="Email address">
+                <div class="auth-pw-wrap">
+                    <input type="password" id="auth-signin-password" class="auth-input" placeholder="Password">
+                    <button type="button" class="auth-pw-toggle" onclick="togglePw('auth-signin-password', this)">Show</button>
+                </div>
+                <button class="auth-btn" onclick="submitAuth('signin')">Sign In</button>
+            </div>
+
+            <div class="auth-divider"><span>or</span></div>
+
+            <button class="auth-google-btn" onclick="googleSignIn()">
+                <svg width="18" height="18" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
+                Continue with Google
+            </button>
+
+            <button class="auth-pro-btn" onclick="document.getElementById('auth-overlay').style.display='none'; showProUpsell('Sygnal Pro');">
+                Upgrade to Pro — $9.99/mo
+            </button>
+
+            <div class="auth-features">
+                <div class="auth-feature">✓ Track your paper trades</div>
+                <div class="auth-feature">✓ Save your watchlist</div>
+                <div class="auth-feature">✓ Custom price alerts</div>
+                <div class="auth-feature">✓ 30-day free trial</div>
+            </div>
+        </div>
+    </div>
 
     <!-- Landing Page -->
     <section id="landing" class="landing" style="display:none;">
@@ -144,40 +195,12 @@
         </div>
     </div>
 
-    <!-- Auth Modal -->
-    <div id="auth-modal" class="auth-modal-overlay" style="display:none;">
-        <div class="auth-modal">
-            <button class="auth-close" onclick="closeAuthModal()">&#10005;</button>
-            <h2 class="auth-title" id="auth-modal-title">Sign In</h2>
-            <p class="auth-subtitle">Save your watchlist, alerts, and settings across devices.</p>
-
-            <button class="auth-google-btn" onclick="signInWithGoogle()">
-                <svg width="18" height="18" viewBox="0 0 24 24"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 01-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
-                Continue with Google
-            </button>
-
-            <div class="auth-divider"><span>or</span></div>
-
-            <form id="auth-email-form" onsubmit="handleEmailAuth(event)">
-                <input type="email" id="auth-email" class="auth-input" placeholder="Email" required>
-                <input type="password" id="auth-password" class="auth-input" placeholder="Password" required minlength="6">
-                <div id="auth-error" class="auth-error" style="display:none;"></div>
-                <button type="submit" class="auth-submit" id="auth-submit-btn">Sign In</button>
-            </form>
-
-            <p class="auth-toggle">
-                <span id="auth-toggle-text">Don't have an account?</span>
-                <a href="#" onclick="toggleAuthMode(); return false;" id="auth-toggle-link">Sign Up</a>
-            </p>
-        </div>
-    </div>
-
     <!-- Daily Recap Banner -->
     <div id="recap-banner" class="recap-banner" style="display:none;"></div>
 
     <!-- Navigation -->
     <nav>
-        <div class="logo" onclick="switchTab('markets', document.querySelector('.nav-links > a'))" style="cursor:pointer;">
+        <div class="logo" onclick="switchTab('markets', document.querySelector('.nav-links > a')); window.scrollTo({top:0,behavior:'smooth'});" style="cursor:pointer;">
             <canvas id="nav-orb" width="32" height="32" class="logo-icon"></canvas>
             <span class="logo-text">SYGNAL</span>
             <span class="logo-tag">Trade Smarter.</span>
@@ -189,9 +212,8 @@
         <div class="nav-links">
             <a href="#" class="active" onclick="switchTab('markets', this); return false;">Markets</a>
             <a href="#" onclick="switchTab('trending', this); return false;">Trending</a>
-            <a href="#" onclick="switchTab('news', this); return false;">News</a>
-            <a href="#" onclick="switchTab('bot', this); return false;">Bot</a>
-            <a href="#" onclick="switchTab('portfolio', this); return false;">Paper Trade</a>
+            <a href="#" onclick="switchTab('bot', this); return false;">Live Bot</a>
+            <a href="#" onclick="switchTab('portfolio', this); return false;">Paper Trading</a>
             <div class="nav-more">
                 <button class="nav-more-btn" onclick="toggleNavMore(event)">
                     <span class="hamburger-icon"><span></span><span></span><span></span></span>
@@ -231,17 +253,12 @@
                     <span>Clear Watchlist</span>
                 </div>
                 <div class="settings-item" onclick="switchTab('profile', null); document.getElementById('settings-menu').classList.remove('open');">
-                    <span>&#9679;</span>
+                    <span>&#9787;</span>
                     <span>Profile</span>
                 </div>
                 <div class="settings-item" onclick="localStorage.removeItem('sygnal-onboarding-done'); startOnboarding(); document.getElementById('settings-menu').classList.remove('open');">
-                    <span>&#9656;</span>
+                    <span>&#10067;</span>
                     <span>Replay Tour</span>
-                </div>
-                <div class="settings-divider"></div>
-                <div class="settings-item" id="auth-settings-item" onclick="handleAuthAction()">
-                    <span>&#9679;</span>
-                    <span id="auth-settings-label">Sign In</span>
                 </div>
             </div>
         </div>
@@ -264,7 +281,7 @@
             <div class="explainer-top">
                 <div class="explainer-intro">
                     <h3>What is the Sygnal Score?</h3>
-                    <p>Every market gets a <strong>0–99 score</strong> that answers one question: <strong>"Is this a smart bet?"</strong> It combines cross-platform edge detection, risk/reward analysis, and momentum — intelligence only SYGNAL can see.</p>
+                    <p>Every market gets a <strong>0–99 score</strong> powered by 5 factors — including cross-platform intelligence only SYGNAL can see. Plus a <strong>BUY YES / BUY NO</strong> signal on every card.</p>
                 </div>
                 <div class="explainer-demo">
                     <div class="demo-score" style="border-color:#00d68f;">
@@ -274,51 +291,40 @@
                     <span class="demo-score-tag" style="color:#00d68f;">BUY YES</span>
                 </div>
             </div>
-
-            <!-- Track Record -->
-            <div id="track-record-section" style="margin-bottom:24px;padding:16px;background:rgba(255,255,255,0.02);border-radius:12px;border:1px solid rgba(255,255,255,0.06);">
-                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
-                    <h4 style="font-size:13px;letter-spacing:1.5px;color:var(--text-dim);margin:0;">SIGNAL TRACK RECORD</h4>
-                    <span id="track-record-badge" style="font-size:11px;color:var(--text-dim);">Collecting data...</span>
-                </div>
-                <div id="track-record-stats" style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;"></div>
-                <div id="track-record-recent" style="margin-top:12px;"></div>
-            </div>
-
             <div class="sygnal-factors">
                 <div class="sygnal-factor">
-                    <span class="sygnal-factor-icon" style="color:var(--purple);">&#10697;</span>
+                    <span class="sygnal-factor-icon" style="color:var(--accent);">&#9670;</span>
                     <div>
-                        <strong>Edge Detection (0–35 pts)</strong>
-                        <span>Cross-platform mispricing. When Kalshi and Polymarket disagree on price, someone is wrong — that's your edge.</span>
+                        <strong>Price Position (0–20 pts)</strong>
+                        <span>Markets at 25¢ or 75¢ score highest — clear lean with room to profit.</span>
                     </div>
                 </div>
                 <div class="sygnal-factor">
                     <span class="sygnal-factor-icon" style="color:var(--green);">&#9650;</span>
                     <div>
-                        <strong>Value (0–25 pts)</strong>
-                        <span>Risk/reward ratio. A 25¢ bet that wins 75¢ = 3x return. Higher value = better payout for your risk.</span>
+                        <strong>Volume (0–20 pts)</strong>
+                        <span>More money flowing = more reliable price signal.</span>
                     </div>
                 </div>
                 <div class="sygnal-factor">
                     <span class="sygnal-factor-icon" style="color:var(--gold);">&#9656;</span>
                     <div>
-                        <strong>Momentum (0–15 pts)</strong>
-                        <span>Smart money is moving this price. Big recent swings = someone knows something.</span>
+                        <strong>Momentum (0–20 pts)</strong>
+                        <span>How fast the price is moving. Big swings = something happening now.</span>
                     </div>
                 </div>
                 <div class="sygnal-factor">
-                    <span class="sygnal-factor-icon" style="color:var(--accent);">&#9670;</span>
+                    <span class="sygnal-factor-icon" style="color:var(--purple);">&#10697;</span>
                     <div>
-                        <strong>Confidence (0–15 pts)</strong>
-                        <span>Higher volume = more reliable price. You can trust high-confidence prices.</span>
+                        <strong>Cross-Platform Edge (0–20 pts)</strong>
+                        <span>Only SYGNAL sees both platforms. Price disagreement = your edge.</span>
                     </div>
                 </div>
                 <div class="sygnal-factor">
-                    <span class="sygnal-factor-icon" style="color:#ff6b6b;">&#9733;</span>
+                    <span class="sygnal-factor-icon" style="color:var(--text-mid);">&#9679;</span>
                     <div>
-                        <strong>Timing (0–9 pts)</strong>
-                        <span>Bonus when edge + momentum confirm each other. Multiple signals agree = act now.</span>
+                        <strong>Liquidity (0–19 pts)</strong>
+                        <span>Can you actually execute at this price? High liquidity = no slippage.</span>
                     </div>
                 </div>
             </div>
@@ -327,17 +333,17 @@
                     <div class="sygnal-scale-block">
                         <div class="scale-bar" style="background:#ff3b5c;"></div>
                         <span class="sygnal-scale-item" style="color:#ff3b5c;">0–33</span>
-                        <span class="scale-desc">SKIP — No edge detected, poor value</span>
+                        <span class="scale-desc">SKIP — Low activity, not worth trading</span>
                     </div>
                     <div class="sygnal-scale-block">
                         <div class="scale-bar" style="background:#f0b000;"></div>
-                        <span class="sygnal-scale-item" style="color:#f0b000;">34–59</span>
-                        <span class="scale-desc">WATCH — Some potential, monitor for entry</span>
+                        <span class="sygnal-scale-item" style="color:#f0b000;">34–66</span>
+                        <span class="scale-desc">WATCH — Some activity, keep an eye on it</span>
                     </div>
                     <div class="sygnal-scale-block">
                         <div class="scale-bar" style="background:#00d68f;"></div>
-                        <span class="sygnal-scale-item" style="color:#00d68f;">60–99</span>
-                        <span class="scale-desc">TRADE — Real edge detected, smart bet opportunity</span>
+                        <span class="sygnal-scale-item" style="color:#00d68f;">67–99</span>
+                        <span class="scale-desc">TRADE — Active, good price, things are moving</span>
                     </div>
                 </div>
                 <div class="explainer-features">
@@ -370,11 +376,11 @@
             <div class="stat-label">Platforms</div>
         </div>
         <div class="stat-item">
-            <div class="stat-value" id="arb-count" style="color:var(--green);">—</div>
-            <div class="stat-label">Signals</div>
+            <div class="stat-value" id="arb-count">—</div>
+            <div class="stat-label">Opportunities</div>
         </div>
         <div class="stat-item">
-            <div class="stat-value" id="bot-accuracy-stat" style="color:var(--green);">—</div>
+            <div class="stat-value" id="accuracy-stat">—</div>
             <div class="stat-label">Accuracy</div>
         </div>
     </div>
@@ -404,7 +410,7 @@
                         <div class="custom-select-option active" data-value="default" onclick="selectSort(this)">Default</div>
                         <div class="custom-select-option" data-value="sygnal-desc" onclick="selectSort(this)">Sygnal Score</div>
                         <div class="custom-select-option" data-value="volume-desc" onclick="selectSort(this)">Most Volume</div>
-                        <div class="custom-select-option" data-value="volume-asc" onclick="selectSort(this)">Lowest Volume</div>
+                        <div class="custom-select-option" data-value="volume-asc" onclick="selectSort(this)">Least Volume</div>
                         <div class="custom-select-option" data-value="yes-desc" onclick="selectSort(this)">Highest YES</div>
                         <div class="custom-select-option" data-value="yes-asc" onclick="selectSort(this)">Lowest YES</div>
                         <div class="custom-select-option" data-value="change-desc" onclick="selectSort(this)">Biggest Change</div>
@@ -422,28 +428,17 @@
         </div>
     </section>
 
+    <!-- Accuracy Proof Banner -->
+    <div id="accuracy-banner" class="accuracy-banner" style="display:none;"></div>
+    <div id="daily-challenge-widget"></div>
+
+    <!-- Pro Picks -->
+    <div id="pro-picks" style="display:none;"></div>
+
     <!-- News Feed -->
-    <section id="news-panel" class="view-hidden">
-        <div class="news-header">
-            <h2>Market News</h2>
-            <div class="news-category-pills">
-                <button class="news-pill active" onclick="filterNews('all', this)">All</button>
-                <button class="news-pill" onclick="filterNews('politics', this)">Politics</button>
-                <button class="news-pill" onclick="filterNews('economics', this)">Economy</button>
-                <button class="news-pill" onclick="filterNews('crypto', this)">Crypto</button>
-                <button class="news-pill" onclick="filterNews('sports', this)">Sports</button>
-                <button class="news-pill" onclick="filterNews('markets', this)">Markets</button>
-            </div>
-        </div>
-        <div id="news-loading" style="text-align:center;padding:40px;color:var(--text-dim);font-size:13px;display:none;">Loading headlines...</div>
-        <div id="news-list" class="news-list"></div>
-        <div id="news-activity" style="margin-top:24px;">
-            <h3 style="font-size:13px;color:var(--text-dim);letter-spacing:2px;margin-bottom:12px;">MARKET ACTIVITY</h3>
-            <div id="news-feed-content" class="news-feed-grid"></div>
-        </div>
-    </section>
     <section id="news-feed" style="display:none;">
-        <!-- kept for backwards compat with marketsView reference -->
+        <h3 style="font-size:13px;color:var(--text-dim);letter-spacing:2px;margin-bottom:12px;">MARKET NEWS</h3>
+        <div id="news-feed-content" class="news-feed-grid"></div>
     </section>
 
     <!-- Market Detail Overlay -->
@@ -459,6 +454,8 @@
             <div id="detail-sygnal-history"></div>
             <div id="detail-paper-trade"></div>
             <div id="detail-alert-section"></div>
+            <div id="detail-news"></div>
+            <div id="detail-orderbook"></div>
         </div>
     </div>
 
@@ -472,112 +469,30 @@
     </div>
 
     <!-- Portfolio (Paper Trading) -->
-    <section id="portfolio-panel" class="view-hidden" style="position:relative;z-index:10;background:var(--bg);min-height:100vh;">
-        <!-- Hero balance -->
-        <div style="text-align:center;padding:32px 0 24px;">
-            <div style="font-size:11px;letter-spacing:3px;color:var(--text-dim);font-weight:600;margin-bottom:8px;">PORTFOLIO VALUE</div>
-            <div style="font-size:42px;font-weight:800;color:var(--text);line-height:1;" id="paper-balance">$10,000</div>
-            <div style="display:flex;justify-content:center;gap:6px;margin-top:8px;">
-                <span style="font-size:15px;font-weight:700;" id="paper-pnl">$0.00</span>
-                <div id="portfolio-win-badge" style="display:none;padding:3px 10px;border-radius:12px;font-size:11px;font-weight:700;"></div>
+    <section id="portfolio-panel" class="view-hidden">
+        <h2>Paper Portfolio</h2>
+        <div class="bot-grid" id="portfolio-stats">
+            <div class="bot-stat">
+                <div class="bot-stat-label">Paper Balance</div>
+                <div class="bot-stat-value" id="paper-balance">$1,000.00</div>
             </div>
-            <div style="font-size:12px;color:var(--text-dim);margin-top:4px;">Powered by Sygnal Score Auto-Bot</div>
-        </div>
-
-        <!-- Missed profits banner (non-Pro only) -->
-        <div id="missed-profits-banner" style="display:none;background:linear-gradient(135deg,rgba(0,214,143,0.06),rgba(0,136,255,0.04));border:1px solid rgba(0,214,143,0.15);border-radius:10px;padding:14px 20px;margin-bottom:20px;display:none;">
-            <div style="display:flex;justify-content:space-between;align-items:center;">
-                <div>
-                    <div style="font-size:13px;color:var(--text);font-weight:600;">Your bot found <span id="missed-profits-amount" style="color:var(--green);font-weight:800;">$0</span> in potential profits</div>
-                    <div style="font-size:11px;color:var(--text-dim);margin-top:2px;">Upgrade to Pro to see full breakdown & signal reasoning</div>
-                </div>
-                <button onclick="switchTab('pro',null)" style="background:var(--accent);color:#fff;border:none;padding:8px 16px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;">See Pro</button>
+            <div class="bot-stat">
+                <div class="bot-stat-label">Invested</div>
+                <div class="bot-stat-value" id="paper-invested">$0.00</div>
+            </div>
+            <div class="bot-stat">
+                <div class="bot-stat-label">Total P&L</div>
+                <div class="bot-stat-value" id="paper-pnl">$0.00</div>
+            </div>
+            <div class="bot-stat">
+                <div class="bot-stat-label">Trades</div>
+                <div class="bot-stat-value" id="paper-trades">0</div>
             </div>
         </div>
-
-        <!-- Stats row -->
-        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:20px;" id="portfolio-stats">
-            <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:14px;text-align:center;">
-                <div style="font-size:20px;font-weight:800;color:var(--text);" id="paper-invested">$0</div>
-                <div style="font-size:9px;color:var(--text-dim);letter-spacing:1.5px;text-transform:uppercase;margin-top:3px;">In Trades</div>
-            </div>
-            <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:14px;text-align:center;">
-                <div style="font-size:20px;font-weight:800;color:var(--text);" id="paper-trades">0</div>
-                <div style="font-size:9px;color:var(--text-dim);letter-spacing:1.5px;text-transform:uppercase;margin-top:3px;">Total Trades</div>
-            </div>
-            <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:14px;text-align:center;">
-                <div style="font-size:20px;font-weight:800;color:var(--text);" id="paper-win-rate">—</div>
-                <div style="font-size:9px;color:var(--text-dim);letter-spacing:1.5px;text-transform:uppercase;margin-top:3px;">Win Rate</div>
-            </div>
+        <div class="portfolio-chart-section">
+            <h3 style="font-size:13px;color:var(--text-dim);letter-spacing:2px;margin-bottom:8px;">PORTFOLIO VALUE OVER TIME</h3>
+            <canvas id="portfolio-chart" width="800" height="200"></canvas>
         </div>
-
-        <!-- Bot Settings -->
-        <div id="bot-settings-card" style="background:var(--bg-card);border:1px solid var(--border);border-radius:12px;padding:20px;margin-bottom:16px;">
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
-                <div style="font-size:10px;color:var(--accent);letter-spacing:2px;font-weight:700;">BOT SETTINGS</div>
-                <span id="bot-settings-status" style="font-size:10px;color:var(--text-dim);display:none;"></span>
-            </div>
-
-            <!-- Timeframe (all users) -->
-            <div class="bot-setting-row" style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--border);">
-                <div><div style="font-size:13px;color:var(--text);font-weight:600;">Max Timeframe</div><div style="font-size:11px;color:var(--text-dim);">How long until trades close</div></div>
-                <select id="portfolio-timeframe-select" class="bot-select"></select>
-            </div>
-
-            <!-- Risk Level (Pro) -->
-            <div class="bot-setting-row" style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--border);">
-                <div><div style="font-size:13px;color:var(--text);font-weight:600;">Risk Level <span id="risk-pro-tag" class="pro-setting-tag" style="font-size:9px;background:rgba(0,136,255,0.1);color:var(--accent);padding:2px 6px;border-radius:4px;font-weight:700;margin-left:4px;">PRO</span></div><div style="font-size:11px;color:var(--text-dim);">Controls bet sizing aggressiveness</div></div>
-                <select id="bot-risk-select" class="bot-select" disabled></select>
-            </div>
-
-            <!-- Category Filter (Pro) -->
-            <div class="bot-setting-row" style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--border);">
-                <div><div style="font-size:13px;color:var(--text);font-weight:600;">Categories <span class="pro-setting-tag" style="font-size:9px;background:rgba(0,136,255,0.1);color:var(--accent);padding:2px 6px;border-radius:4px;font-weight:700;margin-left:4px;">PRO</span></div><div style="font-size:11px;color:var(--text-dim);">Which markets to bet on</div></div>
-                <select id="bot-category-select" class="bot-select" disabled></select>
-            </div>
-
-            <!-- Min Score (Pro) -->
-            <div class="bot-setting-row" style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--border);">
-                <div><div style="font-size:13px;color:var(--text);font-weight:600;">Min Score <span class="pro-setting-tag" style="font-size:9px;background:rgba(0,136,255,0.1);color:var(--accent);padding:2px 6px;border-radius:4px;font-weight:700;margin-left:4px;">PRO</span></div><div style="font-size:11px;color:var(--text-dim);">Only trade above this score</div></div>
-                <select id="bot-minscore-select" class="bot-select" disabled></select>
-            </div>
-
-            <!-- Signal Filter (Pro) -->
-            <div class="bot-setting-row" style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--border);">
-                <div><div style="font-size:13px;color:var(--text);font-weight:600;">Signal Filter <span class="pro-setting-tag" style="font-size:9px;background:rgba(0,136,255,0.1);color:var(--accent);padding:2px 6px;border-radius:4px;font-weight:700;margin-left:4px;">PRO</span></div><div style="font-size:11px;color:var(--text-dim);">BUY only or include LEAN</div></div>
-                <select id="bot-signal-select" class="bot-select" disabled></select>
-            </div>
-
-            <!-- Take Profit / Stop Loss (Pro) -->
-            <div class="bot-setting-row" style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--border);">
-                <div><div style="font-size:13px;color:var(--text);font-weight:600;">Take Profit <span class="pro-setting-tag" style="font-size:9px;background:rgba(0,136,255,0.1);color:var(--accent);padding:2px 6px;border-radius:4px;font-weight:700;margin-left:4px;">PRO</span></div><div style="font-size:11px;color:var(--text-dim);">Auto-close when up this %</div></div>
-                <select id="bot-tp-select" class="bot-select" disabled></select>
-            </div>
-            <div class="bot-setting-row" style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;margin-bottom:16px;">
-                <div><div style="font-size:13px;color:var(--text);font-weight:600;">Stop Loss <span class="pro-setting-tag" style="font-size:9px;background:rgba(0,136,255,0.1);color:var(--accent);padding:2px 6px;border-radius:4px;font-weight:700;margin-left:4px;">PRO</span></div><div style="font-size:11px;color:var(--text-dim);">Auto-close when down this %</div></div>
-                <select id="bot-sl-select" class="bot-select" disabled></select>
-            </div>
-
-            <button id="bot-settings-save" onclick="saveBotSettings()" style="width:100%;padding:12px;border-radius:10px;background:var(--accent);color:#fff;border:none;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;letter-spacing:0.5px;transition:all 0.2s;display:none;">Save Changes</button>
-        </div>
-
-        <!-- Chart -->
-        <div class="portfolio-chart-section" style="background:var(--bg-card);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:20px;">
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
-                <span style="font-size:10px;color:var(--text-dim);letter-spacing:1.5px;font-weight:600;">EQUITY CURVE</span>
-                <span style="font-size:10px;color:var(--text-dim);" id="portfolio-chart-label"></span>
-            </div>
-            <canvas id="portfolio-chart" width="800" height="160"></canvas>
-        </div>
-
-        <div id="portfolio-start-bot" style="display:none;text-align:center;padding:32px;background:linear-gradient(135deg,rgba(0,136,255,0.06),rgba(0,214,143,0.04));border:1px solid rgba(0,136,255,0.15);border-radius:14px;margin-bottom:24px;">
-            <div style="font-size:28px;margin-bottom:8px;">◆</div>
-            <h3 style="font-size:18px;font-weight:700;color:var(--text);margin:0 0 8px;">Start Your Auto-Bot</h3>
-            <p style="font-size:13px;color:var(--text-dim);margin:0 0 16px;line-height:1.5;">Your personal paper trading bot will scan markets every 5 minutes and place trades using Sygnal Scores. Start with $10,000 paper balance.</p>
-            <button class="pro-cta-btn" onclick="activateAutoBot()" style="padding:12px 32px;">Start My Bot</button>
-            <p style="font-size:11px;color:var(--text-dim);margin-top:8px;">Free 30-day trial. No credit card required.</p>
-        </div>
-
         <div id="paper-positions"></div>
     </section>
 
@@ -586,23 +501,7 @@
         <div id="ai-brief-content"></div>
     </section>
 
-    <!-- Pro Page -->
-    <section id="pro-page" class="view-hidden">
-        <div id="pro-page-content"></div>
-    </section>
-
-    <!-- Daily Challenge Widget -->
-    <div id="daily-challenge-widget"></div>
-
-    <!-- Profile Panel -->
-    <section id="profile-panel" class="view-hidden">
-        <div id="profile-content"></div>
-    </section>
-
     <!-- Email Signup -->
-    <!-- Pro Upsell Section -->
-    <!-- Pro upsell removed — dedicated Pro page handles this now -->
-
     <section id="email-signup" class="reveal" style="display:none;">
         <div class="signup-card">
             <div class="signup-icon">
@@ -637,7 +536,7 @@
             <h2>Sygnal Leagues</h2>
             <span class="league-week-badge" id="league-week-label"></span>
         </div>
-        <p style="color:var(--text-dim);font-size:13px;margin-bottom:20px;">Compete weekly with paper trades. Highest return wins. Resets every Monday.</p>
+        <p style="color:var(--text-dim);font-size:13px;margin-bottom:20px;">Compete weekly with paper trades. Best return wins. Resets every Monday.</p>
         <div class="league-stats-row" id="league-stats-row"></div>
         <div class="league-section">
             <h3 style="font-size:14px;letter-spacing:1.5px;color:var(--text-dim);margin-bottom:12px;">LEADERBOARD</h3>
@@ -743,32 +642,11 @@
         <!-- Bot Signals -->
         <div id="bot-signals-section"></div>
 
-        <!-- Bot Paper Picks -->
-        <div class="bot-picks-section" style="margin-top:20px;">
-            <h3 style="font-size:13px;letter-spacing:2px;color:var(--text-dim);margin-bottom:12px;">BOT PAPER PICKS</h3>
-            <p style="font-size:12px;color:var(--text-dim);margin-bottom:12px;">Markets the bot's Sygnal Score algorithm would trade right now.</p>
-            <div id="bot-picks-list" style="font-size:13px;color:var(--text-dim);">Loading picks...</div>
-        </div>
-
         <!-- Performance Dashboard -->
         <div class="bot-perf-dashboard">
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
-                <h3 class="bot-controls-title" style="margin-bottom:0;">PERFORMANCE</h3>
-                <div class="equity-period-pills">
-                    <button class="chip active" onclick="setEquityPeriod(7, this)">1W</button>
-                    <button class="chip" onclick="setEquityPeriod(14, this)">2W</button>
-                    <button class="chip" onclick="setEquityPeriod(30, this)">1M</button>
-                    <button class="chip" onclick="setEquityPeriod(0, this)">All</button>
-                </div>
-            </div>
+            <h3 class="bot-controls-title">PERFORMANCE</h3>
             <div class="perf-stats-row" id="perf-stats-row"></div>
             <canvas id="equity-chart" width="800" height="160"></canvas>
-
-            <!-- Daily P&L Breakdown -->
-            <div id="daily-pnl-section" style="margin-top:20px;">
-                <h4 style="font-size:12px;color:var(--text-dim);letter-spacing:1.5px;margin-bottom:10px;">DAILY P&L</h4>
-                <div id="daily-pnl-bars"></div>
-            </div>
         </div>
 
         <!-- Trade History -->
@@ -824,6 +702,11 @@
         <div id="custom-alert-rules" style="margin-top:16px;"></div>
     </section>
 
+    <!-- Profile -->
+    <section id="profile-panel" class="view-hidden">
+        <div id="profile-content"></div>
+    </section>
+
     <!-- Sygnal AI Chat Widget -->
     <div id="sygnal-chat-btn" onclick="toggleSygnalChat()">
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
@@ -863,42 +746,33 @@
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3h18v18H3z"/><path d="M3 9h18"/><path d="M9 3v18"/></svg>
             <span>Markets</span>
         </a>
+        <a href="#" class="mobile-nav-item" onclick="switchTab('trending', this); return false;">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
+            <span>Trending</span>
+        </a>
         <a href="#" class="mobile-nav-item" onclick="switchTab('bot', this); return false;">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="10" rx="2"/><circle cx="12" cy="5" r="2"/><path d="M12 7v4"/><line x1="8" y1="16" x2="8" y2="16"/><line x1="16" y1="16" x2="16" y2="16"/></svg>
-            <span>Bot</span>
+            <span>Live Bot</span>
         </a>
         <a href="#" class="mobile-nav-item" onclick="switchTab('portfolio', this); return false;">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12V7H5a2 2 0 010-4h14v4"/><path d="M3 5v14a2 2 0 002 2h16v-5"/><path d="M18 12a2 2 0 100 4 2 2 0 000-4z"/></svg>
             <span>Paper Trade</span>
         </a>
-        <a href="#" class="mobile-nav-item" onclick="var m=document.getElementById('mobile-more-menu');m.style.display=m.style.display==='flex'?'none':'flex'; return false;">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="5" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="12" cy="19" r="1.5"/></svg>
-            <span>More</span>
-        </a>
+        <div class="mobile-more-wrap">
+            <a href="#" class="mobile-nav-item" onclick="toggleMobileMore(event); return false;">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="5" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="12" cy="19" r="1.5"/></svg>
+                <span>More</span>
+            </a>
+            <div class="mobile-more-menu" id="mobile-more-menu">
+                <a href="#" onclick="switchTabMobile('arbitrage'); return false;">Arbitrage</a>
+                <a href="#" onclick="switchTabMobile('leagues'); return false;">Leagues</a>
+                <a href="#" onclick="switchTabMobile('correlations'); return false;">Correlations</a>
+                <a href="#" onclick="switchTabMobile('compare'); return false;">Compare</a>
+                <a href="#" onclick="switchTabMobile('alerts'); return false;">Alerts</a>
+            </div>
+        </div>
     </nav>
-    <!-- More menu outside nav -->
-    <div class="mobile-more-menu" id="mobile-more-menu" style="display:none;">
-        <a href="javascript:void(0)" ontouchend="event.preventDefault();document.getElementById('mobile-more-menu').style.display='none'" onclick="document.getElementById('mobile-more-menu').style.display='none'" style="color:#555;font-size:14px;margin-bottom:8px;">Close</a>
-        <a href="javascript:void(0)" ontouchend="event.preventDefault();document.getElementById('mobile-more-menu').style.display='none';switchTab('pro',null)" onclick="document.getElementById('mobile-more-menu').style.display='none';switchTab('pro',null)" style="color:#0088ff;font-weight:700;">Sygnal Pro</a>
-        <a href="javascript:void(0)" ontouchend="event.preventDefault();document.getElementById('mobile-more-menu').style.display='none';switchTab('profile',null)" onclick="document.getElementById('mobile-more-menu').style.display='none';switchTab('profile',null)">Profile</a>
-        <a href="javascript:void(0)" ontouchend="event.preventDefault();document.getElementById('mobile-more-menu').style.display='none';switchTab('trending',null)" onclick="document.getElementById('mobile-more-menu').style.display='none';switchTab('trending',null)">Trending</a>
-        <a href="javascript:void(0)" ontouchend="event.preventDefault();document.getElementById('mobile-more-menu').style.display='none';switchTab('news',null)" onclick="document.getElementById('mobile-more-menu').style.display='none';switchTab('news',null)">News</a>
-        <a href="javascript:void(0)" ontouchend="event.preventDefault();document.getElementById('mobile-more-menu').style.display='none';switchTab('alerts',null)" onclick="document.getElementById('mobile-more-menu').style.display='none';switchTab('alerts',null)">Alerts</a>
-        <a href="javascript:void(0)" ontouchend="event.preventDefault();document.getElementById('mobile-more-menu').style.display='none';switchTab('arbitrage',null)" onclick="document.getElementById('mobile-more-menu').style.display='none';switchTab('arbitrage',null)">Arbitrage</a>
-        <a href="javascript:void(0)" ontouchend="event.preventDefault();document.getElementById('mobile-more-menu').style.display='none';switchTab('compare',null)" onclick="document.getElementById('mobile-more-menu').style.display='none';switchTab('compare',null)">Compare</a>
-        <a href="javascript:void(0)" ontouchend="event.preventDefault();document.getElementById('mobile-more-menu').style.display='none';localStorage.removeItem('sygnal-onboarding-done');startOnboarding()" onclick="document.getElementById('mobile-more-menu').style.display='none';localStorage.removeItem('sygnal-onboarding-done');startOnboarding()">Replay Tour</a>
-        <a href="javascript:void(0)" ontouchend="event.preventDefault();document.getElementById('mobile-more-menu').style.display='none';setTimeout(function(){toggleSettings()},100)" onclick="document.getElementById('mobile-more-menu').style.display='none';setTimeout(function(){toggleSettings()},100)" style="color:#555;">Settings</a>
-    </div>
 
-    <script>
-    // Kill old service workers immediately
-    if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.getRegistrations().then(function(regs) {
-            regs.forEach(function(r) { r.unregister(); });
-        });
-        if (window.caches) caches.keys().then(function(k) { k.forEach(function(c) { caches.delete(c); }); });
-    }
-    </script>
-    <script src="app.js?v=102"></script>
+    <script src="app.js?v=18"></script>
 </body>
 </html>
