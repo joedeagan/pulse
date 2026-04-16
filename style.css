@@ -4124,6 +4124,72 @@ body.light .buy-no:hover { background: #e53e3e; color: #fff; }
 .news-article-title { font-size: 12px; color: var(--text); flex: 1; }
 .news-article-source { font-size: 10px; color: var(--text-dim); margin-left: 8px; white-space: nowrap; }
 
+/* ── PRO PICKS ── */
+.pro-picks-section { padding: 0 20px; margin-bottom: 16px; }
+.pro-picks-header { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+.pro-picks-header h3 { font-size: 13px; letter-spacing: 2px; color: var(--text-dim); margin: 0; }
+.pro-picks-badge { font-size: 9px; font-weight: 800; letter-spacing: 1.5px; padding: 3px 8px; border-radius: 4px; background: rgba(139,92,246,0.15); color: var(--purple); }
+.pro-picks-badge.trial { background: rgba(0,214,143,0.1); color: var(--green); }
+.pro-picks-grid { display: flex; gap: 10px; }
+.pro-pick-card { flex: 1; display: flex; align-items: center; gap: 12px; padding: 14px; background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); cursor: pointer; transition: all 0.2s; position: relative; }
+.pro-pick-card:hover { background: rgba(255,255,255,0.04); border-color: var(--accent); }
+.pro-pick-card.locked:hover { border-color: var(--purple); }
+.pro-pick-rank { font-size: 18px; font-weight: 900; color: var(--accent); }
+.pro-pick-info { flex: 1; overflow: hidden; }
+.pro-pick-title { font-size: 13px; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 4px; }
+.pro-pick-meta { display: flex; gap: 10px; font-size: 11px; color: var(--text-dim); }
+.pro-pick-lock { font-size: 18px; position: absolute; right: 12px; }
+.blurred-text { filter: blur(4px); user-select: none; }
+.pro-picks-cta { text-align: center; color: var(--accent); font-size: 12px; font-weight: 600; cursor: pointer; margin-top: 8px; }
+.pro-picks-cta:hover { text-decoration: underline; }
+
+/* ── SCORE BREAKDOWN ── */
+.score-breakdown, .score-breakdown-locked { margin: 12px 0; padding: 12px; background: rgba(255,255,255,0.02); border: 1px solid var(--border); border-radius: 10px; }
+.score-breakdown-locked { position: relative; cursor: pointer; overflow: hidden; }
+.score-factor-row { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
+.score-factor-row:last-child { margin-bottom: 0; }
+.score-factor-row.blurred { filter: blur(3px); pointer-events: none; }
+.score-factor-name { font-size: 11px; color: var(--text-dim); min-width: 90px; font-weight: 500; }
+.score-factor-bar { flex: 1; height: 6px; background: rgba(255,255,255,0.06); border-radius: 3px; overflow: hidden; }
+.score-factor-fill { height: 100%; border-radius: 3px; transition: width 0.5s ease; }
+.score-factor-pts { font-size: 11px; font-weight: 700; color: var(--text); min-width: 35px; text-align: right; }
+.locked-overlay { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(6,6,11,0.6); color: var(--accent); font-size: 13px; font-weight: 700; border-radius: 10px; }
+
+/* ── WHY TO BET ── */
+.why-bet-section { margin: 12px 0; padding: 14px 16px; background: rgba(0,214,143,0.04); border: 1px solid rgba(0,214,143,0.12); border-radius: 10px; position: relative; }
+.why-bet-section.hold { background: rgba(255,255,255,0.02); border-color: var(--border); }
+.why-bet-section.locked { cursor: pointer; overflow: hidden; }
+.why-bet-section.locked:hover { background: rgba(0,136,255,0.04); border-color: rgba(0,136,255,0.15); }
+.why-bet-header { font-size: 13px; font-weight: 800; letter-spacing: 0.5px; margin-bottom: 8px; }
+.why-bet-text { font-size: 13px; color: var(--text-mid); line-height: 1.5; margin: 0; }
+.why-bet-reason { font-size: 13px; color: var(--text-mid); line-height: 1.5; margin: 0 0 4px; }
+.why-bet-lock { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(6,6,11,0.5); border-radius: 10px; }
+
+/* ── MISPRICING DETECTOR ── */
+.mispricing-row { margin: 10px 0; padding: 10px 14px; background: rgba(255,255,255,0.02); border: 1px solid var(--border); border-radius: 8px; display: flex; align-items: center; gap: 12px; }
+.mispricing-row.locked { cursor: pointer; justify-content: space-between; }
+.mispricing-row.locked:hover { background: rgba(255,255,255,0.04); }
+.mispricing-verdict { font-size: 12px; font-weight: 800; letter-spacing: 1px; white-space: nowrap; }
+.mispricing-lock { font-size: 11px; color: var(--purple); font-weight: 700; }
+.mispricing-details { display: flex; flex-wrap: wrap; gap: 8px; }
+.mispricing-detail { font-size: 11px; color: var(--text-dim); padding: 2px 8px; background: rgba(255,255,255,0.03); border-radius: 4px; }
+
+/* ── ACCURACY BANNER ── */
+.accuracy-banner { padding: 10px 20px; border-bottom: 1px solid rgba(0,214,143,0.1); background: rgba(0,214,143,0.03); }
+.accuracy-content { display: flex; align-items: center; justify-content: center; gap: 12px; font-size: 13px; }
+.accuracy-stat { font-weight: 800; color: var(--green); }
+.accuracy-text { color: var(--text-dim); }
+.accuracy-cta { color: var(--accent); font-weight: 600; cursor: pointer; }
+
+/* ── PRO TEASER ── */
+.pro-teaser { font-size: 8px; font-weight: 800; letter-spacing: 1px; padding: 2px 6px; border-radius: 3px; background: rgba(139,92,246,0.15); color: var(--purple); cursor: pointer; margin-left: auto; }
+
+@media (max-width: 768px) {
+    .pro-picks-grid { flex-direction: column; }
+    .accuracy-content { flex-direction: column; gap: 4px; text-align: center; }
+    .score-factor-name { min-width: 70px; font-size: 10px; }
+}
+
 /* ── ORDER BOOK ── */
 .orderbook-section {
     margin-top: 12px;
