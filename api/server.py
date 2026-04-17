@@ -2132,11 +2132,13 @@ async def autobot_scan():
                 # Risk level controls Kelly multiplier
                 kelly_fraction = kelly_full * kelly_multiplier
 
-                max_bet = 500 if is_pro else 100
+                # Conservative caps until we have real win rate data
+                max_bet = 100 if is_pro else 50
                 bet_amount = min(user["balance"] * kelly_fraction, max_bet)
                 bet_amount = max(bet_amount, 5)
-                if bet_amount > user["balance"] * 0.15:
-                    bet_amount = user["balance"] * 0.15
+                # Never more than 5% of bankroll on single trade
+                if bet_amount > user["balance"] * 0.05:
+                    bet_amount = user["balance"] * 0.05
                 if bet_amount < 1 or user["balance"] < 10:
                     continue
 
@@ -2208,12 +2210,13 @@ async def autobot_resolve():
                         try:
                             trade_dt = datetime.fromisoformat(ts.replace("Z", "+00:00"))
                             age_hours = (datetime.now(timezone.utc) - trade_dt).total_seconds() / 3600
-                            if age_hours > 48:
-                                # Auto-resolve as loss after 48h if market disappeared
+                            if age_hours > 168:  # Wait 1 week before auto-closing
+                                # Market gone after 7 days — refund cost (assume delisted/unknown)
+                                # Don't count as win or loss since we don't know the outcome
                                 trade["resolved"] = True
-                                trade["outcome"] = "loss"
-                                trade["pnl"] = -trade["cost"]
-                                user["total_pnl"] = user.get("total_pnl", 0) + trade["pnl"]
+                                trade["outcome"] = "unknown"
+                                trade["pnl"] = 0  # Refund the cost, no P&L impact
+                                user["balance"] += trade["cost"]  # Return the money
                                 resolved_count += 1
                         except Exception:
                             pass
