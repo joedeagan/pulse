@@ -1953,7 +1953,13 @@ async def autobot_scan():
         # Include external picks from Railway Kalshi bot (baseball, etc.)
         ext_picks = load_bot_picks()
         ext_open = [p for p in ext_picks if not p.get("resolved") and p.get("ticker")]
+        # Bad generic questions to skip
+        generic_names = {"bitcoin price", "ethereum price", "price", "", "unknown"}
         for ep in ext_open:
+            q = (ep.get("question", "") or "").strip()
+            # Skip picks with no real question text (generic ticker names)
+            if not q or q.lower() in generic_names or len(q) < 10:
+                continue
             # Add as high-priority BUY signal if not already in scores
             if not any(s["ticker"] == ep["ticker"] for s in scores):
                 scores.append({
@@ -2713,27 +2719,37 @@ async def autopilot_config():
 import asyncio
 
 async def autopilot_loop():
-    """Run autopilot scan + auto-bot every 5 minutes in the background."""
+    """Run autopilot scan + auto-bot every 5 minutes in the background.
+    Never dies - wraps everything in try/except with heartbeat logging."""
     await asyncio.sleep(30)  # Wait for server to fully start
+    loop_count = 0
     while True:
+        loop_count += 1
         try:
-            await autopilot_scan()
+            print(f"[AUTOPILOT] Loop #{loop_count} starting at {datetime.now(timezone.utc).isoformat()}")
+            try:
+                await autopilot_scan()
+            except Exception as e:
+                print(f"[AUTOPILOT] Autopilot scan error: {e}")
+            try:
+                result = await autobot_scan()
+                print(f"[AUTOPILOT] Auto-bot: {result.get('picks', 0)} new picks for {result.get('users', 0)} users")
+            except Exception as e:
+                print(f"[AUTOPILOT] Auto-bot scan error: {e}")
+            try:
+                result = await autobot_resolve()
+                if result.get("resolved", 0) > 0:
+                    print(f"[AUTOPILOT] Resolved {result['resolved']} trades")
+            except Exception as e:
+                print(f"[AUTOPILOT] Auto-bot resolve error: {e}")
         except Exception as e:
-            print(f"Autopilot scan error: {e}")
-        # Run auto paper bot for Pro users
+            # Top-level catch — keep the loop alive no matter what
+            print(f"[AUTOPILOT] CRITICAL loop error (will retry): {e}")
         try:
-            result = await autobot_scan()
-            print(f"Auto-bot: {result.get('picks', 0)} new picks for {result.get('users', 0)} users")
-        except Exception as e:
-            print(f"Auto-bot scan error: {e}")
-        # Resolve old trades
-        try:
-            result = await autobot_resolve()
-            if result.get("resolved", 0) > 0:
-                print(f"Auto-bot: resolved {result['resolved']} trades")
-        except Exception as e:
-            print(f"Auto-bot resolve error: {e}")
-        await asyncio.sleep(300)  # 5 minutes
+            await asyncio.sleep(300)  # 5 minutes
+        except asyncio.CancelledError:
+            print("[AUTOPILOT] Loop cancelled, restarting in 60s")
+            await asyncio.sleep(60)
 
 
 @app.on_event("startup")
