@@ -1953,12 +1953,17 @@ async def autobot_scan():
         # Include external picks from Railway Kalshi bot (baseball, etc.)
         ext_picks = load_bot_picks()
         ext_open = [p for p in ext_picks if not p.get("resolved") and p.get("ticker")]
-        # Bad generic questions to skip
-        generic_names = {"bitcoin price", "ethereum price", "price", "", "unknown"}
         for ep in ext_open:
             q = (ep.get("question", "") or "").strip()
-            # Skip picks with no real question text (generic ticker names)
-            if not q or q.lower() in generic_names or len(q) < 10:
+            # Must be a real market question — starts with Will/Who/What/When/Where/How or has ?
+            q_lower = q.lower()
+            looks_like_question = (
+                q_lower.startswith(("will ", "who ", "what ", "when ", "where ", "how ", "is ", "are ", "did ", "does ")) or
+                "?" in q or
+                " vs " in q_lower or
+                " vs. " in q_lower
+            )
+            if not q or not looks_like_question or len(q) < 15:
                 continue
             # Add as high-priority BUY signal if not already in scores
             if not any(s["ticker"] == ep["ticker"] for s in scores):
